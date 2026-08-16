@@ -1,8 +1,18 @@
+/**
+ * BaseUnit — procedural stand-in rendered while the FBX loads.
+ *
+ * Accepts only `unitId` to break the UnitManager → units-array cascade.
+ * Static unit data (type, race, teamId, maxHealth) is read from getState() once
+ * on mount — it never changes after spawn.
+ * Dynamic data (position, targetPosition, state) is read from getState() inside
+ * useFrame — no React subscription, no 30Hz re-render cascade.
+ * Only `health` and `isSelected` subscribe reactively (primitive selectors).
+ */
 import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { UnitData, useGameStore } from '../store/gameStore';
+import { useGameStore } from '../store/gameStore';
 
 // Team color lookup — stable references
 const TEAM_COLORS: Record<number, THREE.Color> = {
@@ -10,7 +20,7 @@ const TEAM_COLORS: Record<number, THREE.Color> = {
   2: new THREE.Color(0.9, 0.18, 0.18),
 };
 
-// Race body color lookup — stable references, pre-calculated
+// Race body color lookup — stable references
 const RACE_COLORS: Record<string, THREE.Color> = {
   Barbarians:      new THREE.Color('#7a4f2e'),
   Dwarves:         new THREE.Color('#6e5a3a'),
@@ -21,47 +31,64 @@ const RACE_COLORS: Record<string, THREE.Color> = {
 };
 
 // Unit shape config by type — stable, pre-calculated
-const UNIT_SHAPES: Record<UnitData['type'], { bodyH: number; bodyR: number; scale: number }> = {
+const UNIT_SHAPES: Record<string, { bodyH: number; bodyR: number; scale: number }> = {
   infantry:    { bodyH: 1.0, bodyR: 0.30, scale: 1.0 },
   cavalry:     { bodyH: 1.2, bodyR: 0.40, scale: 1.5 },
   mage:        { bodyH: 1.0, bodyR: 0.28, scale: 0.95 },
   boltThrower: { bodyH: 0.8, bodyR: 0.55, scale: 2.0 },
   catapult:    { bodyH: 0.7, bodyR: 0.65, scale: 2.4 },
 };
+const DEFAULT_SHAPE = { bodyH: 1.0, bodyR: 0.30, scale: 1.0 };
 
-export function BaseUnit({ unit }: { unit: UnitData }) {
+export function BaseUnit({ unitId }: { unitId: string }) {
   const groupRef = useRef<THREE.Group>(null);
-  const bodyRef  = useRef<THREE.Mesh>(null);
-  const selectedUnitIds = useGameStore(state => state.selectedUnitIds);
-  const selectUnits     = useGameStore(state => state.selectUnits);
 
-  const isSelected = selectedUnitIds.includes(unit.id);
-  const shape      = UNIT_SHAPES[unit.type];
-  const raceColor  = RACE_COLORS[unit.race] ?? new THREE.Color('#888');
-  const teamColor  = TEAM_COLORS[unit.teamId] ?? new THREE.Color('#fff');
+  // Read static props once on mount from getState() — they never change after spawn
+  const staticRef = useRef(() => {
+    const u = useGameStore.getState().units.find(u => u.id === unitId);
+    if (!u) return null;
+    return {
+      type:      u.type,
+      race:      u.race,
+      teamId:    u.teamId,
+      maxHealth: u.maxHealth,
+    };
+  });
+  const statics = useMemo(() => staticRef.current(), []); // eslint-disable-line
+
+  // Reactive subscriptions — primitive selectors only fire on meaningful events
+  const health     = useGameStore(s => s.units.find(u => u.id === unitId)?.health ?? 0);
+  const isSelected = useGameStore(s => s.selectedUnitIds.includes(unitId));
+
+  if (!statics) return null;
+
+  const shape     = UNIT_SHAPES[statics.type] ?? DEFAULT_SHAPE;
+  const raceColor = RACE_COLORS[statics.race] ?? new THREE.Color('#888');
+  const teamColor = TEAM_COLORS[statics.teamId] ?? new THREE.Color('#fff');
 
   // Stable materials per unit instance
   const bodyMaterial = useMemo(() =>
-    new THREE.MeshLambertMaterial({ color: raceColor }), [unit.race]);
+    new THREE.MeshLambertMaterial({ color: raceColor }), [statics.race]); // eslint-disable-line
 
   const teamMaterial = useMemo(() =>
-    new THREE.MeshLambertMaterial({ color: teamColor }), [unit.teamId]);
+    new THREE.MeshLambertMaterial({ color: teamColor }), [statics.teamId]); // eslint-disable-line
 
   const ringMaterial = useMemo(() =>
     new THREE.MeshBasicMaterial({ color: '#f5a623', transparent: true, opacity: 0.85, depthWrite: false }), []);
 
-  // Sync position from store every frame — CombatSystem drives unit.position
+  // Per-frame: read position from getState() — no React subscription, no cascade
   useFrame(() => {
     const grp = groupRef.current;
     if (!grp) return;
 
-    // Lerp toward store position smoothly
+    const unit = useGameStore.getState().units.find(u => u.id === unitId);
+    if (!unit) return;
+
     const [tx, ty, tz] = unit.position;
     grp.position.x += (tx - grp.position.x) * 0.2;
     grp.position.y += (ty - grp.position.y) * 0.2;
     grp.position.z += (tz - grp.position.z) * 0.2;
 
-    // Face movement direction
     if (unit.targetPosition && unit.state === 'move') {
       const dx = unit.targetPosition[0] - grp.position.x;
       const dz = unit.targetPosition[2] - grp.position.z;
@@ -70,35 +97,34 @@ export function BaseUnit({ unit }: { unit: UnitData }) {
       }
     }
 
-    // Death fade
     if (unit.state === 'dead') {
       grp.rotation.x += 0.04;
       grp.scale.setScalar(Math.max(0, grp.scale.x - 0.02));
     }
 
-    // Attack bob
     if (unit.state === 'attack') {
       grp.position.y = Math.sin(Date.now() * 0.01) * 0.08;
     }
   });
 
-  // Set initial position immediately on mount
+  // Set initial position on mount
   useEffect(() => {
-    if (groupRef.current) {
+    const unit = useGameStore.getState().units.find(u => u.id === unitId);
+    if (groupRef.current && unit) {
       groupRef.current.position.set(...unit.position);
     }
   }, []); // eslint-disable-line
 
-  const hpPct = unit.health / unit.maxHealth;
+  const hpPct = statics.maxHealth > 0 ? health / statics.maxHealth : 0;
 
   return (
     <group
       ref={groupRef}
       scale={shape.scale}
-      onClick={(e) => { e.stopPropagation(); selectUnits([unit.id]); }}
+      onClick={(e) => { e.stopPropagation(); useGameStore.getState().selectUnits([unitId]); }}
     >
       {/* Body */}
-      <mesh ref={bodyRef} position={[0, shape.bodyH / 2, 0]} castShadow receiveShadow material={bodyMaterial}>
+      <mesh position={[0, shape.bodyH / 2, 0]} castShadow receiveShadow material={bodyMaterial}>
         <capsuleGeometry args={[shape.bodyR, shape.bodyH, 4, 8]} />
       </mesh>
 
@@ -108,7 +134,7 @@ export function BaseUnit({ unit }: { unit: UnitData }) {
       </mesh>
 
       {/* Weapon stub */}
-      {unit.type !== 'catapult' && unit.type !== 'boltThrower' && (
+      {statics.type !== 'catapult' && statics.type !== 'boltThrower' && (
         <mesh position={[shape.bodyR * 1.2, shape.bodyH * 0.7, 0]} castShadow>
           <cylinderGeometry args={[0.05, 0.05, 1.2, 4]} />
           <meshLambertMaterial color="#888" />
@@ -116,7 +142,7 @@ export function BaseUnit({ unit }: { unit: UnitData }) {
       )}
 
       {/* Siege machine frame */}
-      {(unit.type === 'catapult' || unit.type === 'boltThrower') && (
+      {(statics.type === 'catapult' || statics.type === 'boltThrower') && (
         <mesh position={[0, 0.4, 0]} castShadow>
           <boxGeometry args={[1.2, 0.3, 0.8]} />
           <meshLambertMaterial color="#6b4c1e" />

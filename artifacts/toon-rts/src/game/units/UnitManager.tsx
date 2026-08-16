@@ -1,4 +1,15 @@
-import { Suspense } from 'react';
+/**
+ * UnitManager — renders one FBXUnit (or BaseUnit fallback) per living game unit.
+ *
+ * Subscribes to a STABLE metadata string that only changes when units are spawned
+ * or permanently removed from the store. CombatSystem writes positions/health at
+ * ~30Hz but those writes do NOT change the metadata string, so UnitManager does
+ * NOT re-render on every combat tick.
+ *
+ * Each FBXUnit/BaseUnit subscribes to its OWN unit slice internally, so position
+ * and health updates only re-render the one affected component.
+ */
+import { Suspense, useMemo } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { BaseUnit } from './BaseUnit';
 import { FBXUnit } from '../assets/FBXUnit';
@@ -11,46 +22,52 @@ const TEAM_COLORS: Record<number, THREE.Color> = {
   2: new THREE.Color('#b3392a'),
 };
 
-/**
- * UnitManager renders each unit.
- *
- * Each unit is wrapped in its own <Suspense> so that one unit failing to
- * load its FBX doesn't kill the whole army — it falls back to the procedural
- * BaseUnit while the FBX streams in.
- */
 export function UnitManager() {
-  const units = useGameStore(state => state.units);
-  const selectedUnitIds = useGameStore(state => state.selectedUnitIds);
-  const selectUnits = useGameStore(state => state.selectUnits);
+  // Stable metadata string — race/type/teamId are set on spawn and never change.
+  // This selector only produces a new string when units are added or removed.
+  // 30Hz position/health writes do NOT change this string → no re-render cascade.
+  const unitMetaStr = useGameStore(
+    s => s.units.map(u => `${u.id}|${u.race}|${u.type}|${u.teamId}`).join(',')
+  );
+
+  const unitMetas = useMemo(() => {
+    if (!unitMetaStr) return [];
+    return unitMetaStr.split(',').map(seg => {
+      const [id, race, type, teamId] = seg.split('|');
+      return { id, race, type, teamId: Number(teamId) };
+    });
+  }, [unitMetaStr]);
 
   return (
     <group>
-      {units.map(unit => {
-        const manifest = AssetManifest[unit.race as keyof typeof AssetManifest];
-        const teamColor = TEAM_COLORS[unit.teamId] ?? new THREE.Color('#fff');
-        const isSelected = selectedUnitIds.includes(unit.id);
+      {unitMetas.map(({ id, race, type, teamId }) => {
+        const manifest  = AssetManifest[race as keyof typeof AssetManifest];
+        const teamColor = TEAM_COLORS[teamId] ?? new THREE.Color('#fff');
 
-        // Decide which FBX path to use for this unit type
-        const fbxPath = (unit.type === 'cavalry' && manifest.cavalry)
+        if (!manifest) {
+          return <BaseUnit key={id} unitId={id} />;
+        }
+
+        // Decide which FBX path to use for this unit type (static — never changes)
+        const fbxPath = (type === 'cavalry'     && manifest.cavalry)
           ? manifest.cavalry
-          : (unit.type === 'catapult' && (manifest as any).catapult)
+          : (type === 'catapult'    && (manifest as any).catapult)
             ? (manifest as any).catapult
-            : (unit.type === 'boltThrower' && (manifest as any).boltThrower)
+            : (type === 'boltThrower' && (manifest as any).boltThrower)
               ? (manifest as any).boltThrower
               : manifest.characters;
 
         return (
-          <Suspense key={unit.id} fallback={
+          <Suspense key={id} fallback={
             // Procedural stand-in while FBX loads
-            <BaseUnit unit={unit} />
+            <BaseUnit unitId={id} />
           }>
             <FBXUnit
-              unit={unit}
+              unitId={id}
               fbxPath={fbxPath}
               texturePath={manifest.texture}
               teamColor={teamColor}
-              isSelected={isSelected}
-              onSelect={() => selectUnits([unit.id])}
+              onSelect={() => useGameStore.getState().selectUnits([id])}
             />
           </Suspense>
         );

@@ -6,22 +6,24 @@
  *   - AnimationMixer bound to idle / walk / attack clips from the FBX
  *   - castShadow / receiveShadow on every mesh
  *
- * Uses drei's useFBX (= useLoader(FBXLoader, url) + caching) so the same
- * FBX is only parsed once; all instances share the geometry and material.
+ * Accepts `unitId` (not the full UnitData) so UnitManager can subscribe to a
+ * stable ID list and avoid 30Hz re-renders of the entire Canvas unit tree.
+ * Dynamic data (position, targetPosition) is read from getState() inside useFrame.
+ * Only `unitState` and `health` are subscribed reactively — they only change on
+ * meaningful game events (state transitions, taking damage), not every position tick.
  */
 import { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import { useFBX } from '@react-three/drei';
 import { TGALoader } from 'three/examples/jsm/loaders/TGALoader.js';
 import * as THREE from 'three';
-import { UnitData } from '../store/gameStore';
+import { useGameStore } from '../store/gameStore';
 
 interface FBXUnitProps {
-  unit: UnitData;
+  unitId: string;
   fbxPath: string;
   texturePath: string;
   teamColor: THREE.Color;
-  isSelected: boolean;
   onSelect: () => void;
 }
 
@@ -37,9 +39,16 @@ function getMaterial(texturePath: string, texture: THREE.Texture) {
   return matCache.get(texturePath)!;
 }
 
-export function FBXUnit({ unit, fbxPath, texturePath, teamColor, isSelected, onSelect }: FBXUnitProps) {
+export function FBXUnit({ unitId, fbxPath, texturePath, teamColor, onSelect }: FBXUnitProps) {
   const groupRef  = useRef<THREE.Group>(null);
   const mixerRef  = useRef<THREE.AnimationMixer | null>(null);
+
+  // ── Reactive subscriptions (primitive selectors — only fire on real game events) ──
+  // Unit position is NOT subscribed here; it is read from getState() inside useFrame.
+  const unitState = useGameStore(s => s.units.find(u => u.id === unitId)?.state ?? 'idle');
+  const health    = useGameStore(s => s.units.find(u => u.id === unitId)?.health ?? 0);
+  const maxHealth = useGameStore(s => s.units.find(u => u.id === unitId)?.maxHealth ?? 100);
+  const isSelected = useGameStore(s => s.selectedUnitIds.includes(unitId));
 
   // Load FBX — cached globally by drei (only parsed once per path)
   const fbxSource = useFBX(fbxPath);
@@ -57,10 +66,7 @@ export function FBXUnit({ unit, fbxPath, texturePath, teamColor, isSelected, onS
   const cloned = useMemo(() => {
     const c = fbxSource.clone(true);
 
-    // Re-bind skeleton after deep clone
-    const skinnedMeshes: THREE.SkinnedMesh[] = [];
     const boneMap = new Map<string, THREE.Bone>();
-
     c.traverse((n) => {
       if (n instanceof THREE.Bone) boneMap.set(n.name, n);
     });
@@ -68,15 +74,12 @@ export function FBXUnit({ unit, fbxPath, texturePath, teamColor, isSelected, onS
       if (n instanceof THREE.SkinnedMesh) {
         n.castShadow     = true;
         n.receiveShadow  = true;
-        // Apply base texture material
         n.material       = baseMat.clone();
-        // Bind to cloned skeleton
         if (n.skeleton) {
           const newBones = n.skeleton.bones.map(b => boneMap.get(b.name) ?? b);
           n.skeleton      = new THREE.Skeleton(newBones, n.skeleton.boneInverses);
           n.bind(n.skeleton, n.bindMatrix);
         }
-        skinnedMeshes.push(n);
       } else if (n instanceof THREE.Mesh) {
         n.castShadow    = true;
         n.receiveShadow = true;
@@ -110,49 +113,50 @@ export function FBXUnit({ unit, fbxPath, texturePath, teamColor, isSelected, onS
       return null;
     };
 
-    // Start idle by default
     play('idle', 0);
 
     return () => { mixer.stopAllAction(); mixerRef.current = null; };
   }, [cloned, fbxSource.animations]);
 
-  // Switch animations when unit state changes
+  // Switch animations when unit state changes — fires only on state transitions, not per-frame
   const prevState = useRef<string>('');
   useEffect(() => {
     const mixer = mixerRef.current;
     const clips = fbxSource.animations;
     if (!mixer || !clips?.length) return;
-    if (prevState.current === unit.state) return;
-    prevState.current = unit.state;
+    if (prevState.current === unitState) return;
+    prevState.current = unitState;
 
     mixer.stopAllAction();
-    const hint = unit.state === 'move' ? 'run'
-               : unit.state === 'attack' ? 'attack'
-               : unit.state === 'dead' ? 'death'
+    const hint = unitState === 'move'   ? 'run'
+               : unitState === 'attack' ? 'attack'
+               : unitState === 'dead'   ? 'death'
                : 'idle';
     const clip = clips.find(c => c.name.toLowerCase().includes(hint)) ?? clips[0];
     if (clip) {
       const action = mixer.clipAction(clip);
       action.reset();
-      if (unit.state === 'dead') {
+      if (unitState === 'dead') {
         action.setLoop(THREE.LoopOnce, 1);
         action.clampWhenFinished = true;
       }
       action.play();
     }
-  }, [unit.state, fbxSource.animations]);
+  }, [unitState, fbxSource.animations]);
 
-  // Per-frame: lerp position, face target, advance mixer
+  // Per-frame: lerp position, face target, advance mixer.
+  // Position is read from getState() — NO React subscription, no cascade.
   useFrame((_, delta) => {
     const grp = groupRef.current;
     if (!grp) return;
 
-    // Position lerp — CombatSystem drives unit.position
+    const unit = useGameStore.getState().units.find(u => u.id === unitId);
+    if (!unit) return;
+
     const [tx, , tz] = unit.position;
     grp.position.x += (tx - grp.position.x) * 0.18;
     grp.position.z += (tz - grp.position.z) * 0.18;
 
-    // Rotate toward movement direction
     if (unit.state === 'move' && unit.targetPosition) {
       const dx = unit.targetPosition[0] - grp.position.x;
       const dz = unit.targetPosition[2] - grp.position.z;
@@ -162,24 +166,23 @@ export function FBXUnit({ unit, fbxPath, texturePath, teamColor, isSelected, onS
       }
     }
 
-    // Death tilt
     if (unit.state === 'dead') {
       grp.rotation.x += 0.025;
       grp.scale.y = Math.max(0.001, grp.scale.y - 0.015);
     }
 
-    // Advance animation
     mixerRef.current?.update(delta);
   });
 
-  // Set initial position
+  // Set initial position once on mount
   useEffect(() => {
-    if (groupRef.current) {
+    const unit = useGameStore.getState().units.find(u => u.id === unitId);
+    if (groupRef.current && unit) {
       groupRef.current.position.set(unit.position[0], 0, unit.position[2]);
     }
   }, []); // eslint-disable-line
 
-  const hpPct = unit.health / unit.maxHealth;
+  const hpPct   = maxHealth > 0 ? health / maxHealth : 0;
   const hpColor = hpPct > 0.6 ? '#22c55e' : hpPct > 0.3 ? '#eab308' : '#ef4444';
 
   return (
@@ -208,15 +211,14 @@ export function FBXUnit({ unit, fbxPath, texturePath, teamColor, isSelected, onS
         </mesh>
       )}
 
-      {/* HP bar (HTML overlay, scaled by camera distance) */}
-      {unit.state !== 'dead' && (
+      {/* HP bar (plane geometry — no HTML overhead) */}
+      {unitState !== 'dead' && (
         <mesh position={[0, 2.8, 0]}>
-          {/* background */}
           <planeGeometry args={[0.8, 0.09]} />
           <meshBasicMaterial color="#000000" transparent opacity={0.5} depthTest={false} />
         </mesh>
       )}
-      {unit.state !== 'dead' && (
+      {unitState !== 'dead' && (
         <mesh position={[-0.4 + (hpPct * 0.4), 2.8, 0.01]}>
           <planeGeometry args={[0.8 * hpPct, 0.07]} />
           <meshBasicMaterial color={hpColor} depthTest={false} />

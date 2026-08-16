@@ -1,3 +1,16 @@
+/**
+ * GameHUD — battle-phase overlay.
+ *
+ * Previously subscribed to useGameStore() with no selector — which wired up
+ * the entire game store including `units` (written ~30Hz by CombatSystem),
+ * causing 30Hz DOM re-renders of the whole HUD tree.
+ *
+ * Now uses targeted primitive selectors:
+ * - phase, teamScores, activeAbility: low-frequency, only change on game events
+ * - living1/living2/totalCount: derived numbers that only change when units die
+ * - selectedUnit: changes on selection, then on health updates to the selected unit
+ * - miniMapUnits: still 30Hz (position display) but isolated to just this selector
+ */
 import { useGameStore, AbilityType } from '../game/store/gameStore';
 
 const ABILITIES: { id: AbilityType; key: string; name: string; icon: string; color: string }[] = [
@@ -9,16 +22,34 @@ const ABILITIES: { id: AbilityType; key: string; name: string; icon: string; col
 ];
 
 export function GameHUD() {
-  const { phase, teamScores, selectedUnitIds, units, activeAbility, setActiveAbility, setPhase, spawnInitialArmies } = useGameStore();
-  const selectedUnit = units.find(u => u.id === selectedUnitIds[0]);
-  const living1 = units.filter(u => u.teamId === 1 && u.state !== 'dead').length;
-  const living2 = units.filter(u => u.teamId === 2 && u.state !== 'dead').length;
-  const totalCount = units.length;
+  // ── Stable / low-frequency selectors ────────────────────────────────────────
+  const phase         = useGameStore(s => s.phase);
+  const teamScores    = useGameStore(s => s.teamScores);
+  const activeAbility = useGameStore(s => s.activeAbility);
+  const setActiveAbility = useGameStore(s => s.setActiveAbility);
+
+  // ── Derived counts — only change when a unit dies, not on position updates ──
+  const living1    = useGameStore(s => s.units.filter(u => u.teamId === 1 && u.state !== 'dead').length);
+  const living2    = useGameStore(s => s.units.filter(u => u.teamId === 2 && u.state !== 'dead').length);
+  const totalCount = useGameStore(s => s.units.length);
+
+  // ── Selected unit card — subscribes to the currently selected unit's data ───
+  // Re-renders when selection changes or when the selected unit takes damage.
+  const selectedUnit = useGameStore(s => {
+    const id = s.selectedUnitIds[0];
+    return id ? s.units.find(u => u.id === id) : undefined;
+  });
+
+  // ── Mini-map unit positions — 30Hz but scoped to just this selector ─────────
+  const miniMapUnits = useGameStore(s =>
+    s.units.filter(u => u.state !== 'dead').map(u => ({
+      id: u.id, teamId: u.teamId, x: u.position[0], z: u.position[2],
+    }))
+  );
 
   if (phase !== 'battle') return null;
 
   const handleRestart = () => {
-    // Clear units first then re-spawn
     useGameStore.setState({ units: [], phase: 'menu' });
   };
 
@@ -147,13 +178,13 @@ export function GameHUD() {
               <div className="w-8 h-8 rounded-full border border-amber-500/20" />
             </div>
             {/* Unit dots */}
-            {units.filter(u => u.state !== 'dead').map(u => (
+            {miniMapUnits.map(u => (
               <div
                 key={u.id}
                 className="absolute w-2 h-2 rounded-full -translate-x-1/2 -translate-y-1/2 transition-all duration-300"
                 style={{
-                  left:       `${50 + (u.position[0] / 50) * 50}%`,
-                  top:        `${50 + (u.position[2] / 50) * 50}%`,
+                  left:       `${50 + (u.x / 50) * 50}%`,
+                  top:        `${50 + (u.z / 50) * 50}%`,
                   background: u.teamId === 1 ? '#3b82f6' : '#ef4444',
                   boxShadow:  u.teamId === 1 ? '0 0 4px #3b82f6' : '0 0 4px #ef4444',
                 }}

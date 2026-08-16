@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGameStore } from '@/game/store/gameStore';
 import { useWorldStore } from '@/game/store/worldStore';
 import { GameUI } from '@/game/assets/CraftpixManifest';
@@ -11,13 +11,27 @@ import { WinLoseScreen }  from './WinLoseScreen';
 import { ShopPanel }      from './ShopPanel';
 
 // ── Time of day display ────────────────────────────────────────────────────────
+// Polls getState() at 1Hz instead of subscribing to timeOfDay (written at 60fps
+// by WorldTick's useFrame). This eliminates 60 synchronous React updates/sec.
 function TimeOfDay() {
-  const timeOfDay = useWorldStore(s => s.timeOfDay);
-  const dayCount  = useWorldStore(s => s.dayCount);
-  const isNight   = timeOfDay < 6 || timeOfDay >= 20;
-  const hours     = Math.floor(timeOfDay);
-  const minutes   = Math.floor((timeOfDay % 1) * 60);
-  const timeStr   = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  const [display, setDisplay] = useState(() => {
+    const s = useWorldStore.getState();
+    return { timeOfDay: s.timeOfDay, dayCount: s.dayCount };
+  });
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const s = useWorldStore.getState();
+      setDisplay({ timeOfDay: s.timeOfDay, dayCount: s.dayCount });
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const { timeOfDay, dayCount } = display;
+  const isNight = timeOfDay < 6 || timeOfDay >= 20;
+  const hours   = Math.floor(timeOfDay);
+  const minutes = Math.floor((timeOfDay % 1) * 60);
+  const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
   return (
     <div
@@ -115,14 +129,20 @@ function ShopButton({ onClick }: { onClick: () => void }) {
 // ── Main HUD ───────────────────────────────────────────────────────────────────
 export function OpenWorldHUD() {
   const phase = useGameStore(s => s.phase);
-  const units = useGameStore(s => s.units);
+
+  // Derived boolean — only re-renders when the battle ends, not on every 30Hz
+  // position/health write. Zustand compares boolean with === so this is stable
+  // during active combat even though the underlying units array changes constantly.
+  const showEndScreen = useGameStore(s => {
+    const { units } = s;
+    if (units.length === 0) return false;
+    const anyAlive1 = units.some(u => u.teamId === 1 && u.state !== 'dead');
+    const anyAlive2 = units.some(u => u.teamId === 2 && u.state !== 'dead');
+    return !anyAlive1 || !anyAlive2;
+  });
 
   const [paused,   setPaused]   = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
-
-  const living1 = units.filter(u => u.teamId === 1 && u.state !== 'dead').length;
-  const living2 = units.filter(u => u.teamId === 2 && u.state !== 'dead').length;
-  const showEndScreen = units.length > 0 && (living1 === 0 || living2 === 0);
 
   return (
     <>
