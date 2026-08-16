@@ -4,16 +4,19 @@ import { GameUI } from '@/game/assets/CraftpixManifest';
 
 export function WinLoseScreen() {
   const phase      = useGameStore(s => s.phase);
-  const units      = useGameStore(s => s.units);
   const teamScores = useGameStore(s => s.teamScores);
-  const [visible, setVisible] = useState(false);
 
-  const living1 = units.filter(u => u.teamId === 1 && u.state !== 'dead').length;
-  const living2 = units.filter(u => u.teamId === 2 && u.state !== 'dead').length;
+  // Derived booleans — return a primitive so Zustand's reference equality
+  // prevents re-renders on every combat tick that doesn't flip the outcome.
+  const living1 = useGameStore(s => s.units.filter(u => u.teamId === 1 && u.state !== 'dead').length);
+  const living2 = useGameStore(s => s.units.filter(u => u.teamId === 2 && u.state !== 'dead').length);
+  const hasUnits = useGameStore(s => s.units.length > 0);
 
-  const isVictory = phase === 'victory' || (units.length > 0 && living2 === 0 && living1 > 0);
-  const isDefeat  = units.length > 0 && living1 === 0 && living2 > 0;
+  const isVictory = phase === 'victory' || (hasUnits && living2 === 0 && living1 > 0);
+  const isDefeat  = hasUnits && living1 === 0 && living2 > 0;
   const isActive  = isVictory || isDefeat;
+
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     if (isActive) {

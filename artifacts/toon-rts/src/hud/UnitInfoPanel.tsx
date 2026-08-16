@@ -1,33 +1,25 @@
-import { useGameStore, UnitData } from '@/game/store/gameStore';
+import { useGameStore } from '@/game/store/gameStore';
 import { GameUI } from '@/game/assets/CraftpixManifest';
 
-function unitTypeCounts(units: UnitData[]) {
-  return {
-    infantry: units.filter(u => u.type === 'infantry').length,
-    cavalry:  units.filter(u => u.type === 'cavalry').length,
-    siege:    units.filter(u => u.type === 'catapult' || u.type === 'boltThrower').length,
-    mage:     units.filter(u => u.type === 'mage').length,
-  };
-}
-
-function totalHP(units: UnitData[]) {
-  const hp    = units.reduce((s, u) => s + u.health, 0);
-  const maxHp = units.reduce((s, u) => s + u.maxHealth, 0);
-  return { hp, maxHp };
-}
+// ── Derived per-team data (all primitives, no raw units array) ──────────────
 
 interface ArmyColumnProps {
   label: string;
   color: string;
-  units: UnitData[];
-  allUnits: UnitData[];
+  teamId: 1 | 2;
 }
 
-function ArmyColumn({ label, color, units, allUnits }: ArmyColumnProps) {
-  const alive   = units.filter(u => u.state !== 'dead');
-  const counts  = unitTypeCounts(alive);
-  const { hp, maxHp } = totalHP(alive);
-  const hpPct = maxHp > 0 ? hp / maxHp : 0;
+function ArmyColumn({ label, color, teamId }: ArmyColumnProps) {
+  const alive     = useGameStore(s => s.units.filter(u => u.teamId === teamId && u.state !== 'dead').length);
+  const total     = useGameStore(s => s.units.filter(u => u.teamId === teamId).length);
+  const infantry  = useGameStore(s => s.units.filter(u => u.teamId === teamId && u.state !== 'dead' && u.type === 'infantry').length);
+  const cavalry   = useGameStore(s => s.units.filter(u => u.teamId === teamId && u.state !== 'dead' && u.type === 'cavalry').length);
+  const siege     = useGameStore(s => s.units.filter(u => u.teamId === teamId && u.state !== 'dead' && (u.type === 'catapult' || u.type === 'boltThrower')).length);
+  const mage      = useGameStore(s => s.units.filter(u => u.teamId === teamId && u.state !== 'dead' && u.type === 'mage').length);
+  const hp        = useGameStore(s => s.units.filter(u => u.teamId === teamId && u.state !== 'dead').reduce((sum, u) => sum + u.health, 0));
+  const maxHp     = useGameStore(s => s.units.filter(u => u.teamId === teamId && u.state !== 'dead').reduce((sum, u) => sum + u.maxHealth, 0));
+
+  const hpPct   = maxHp > 0 ? hp / maxHp : 0;
   const hpColor = hpPct > 0.6 ? '#22c55e' : hpPct > 0.3 ? '#eab308' : '#ef4444';
 
   return (
@@ -45,34 +37,34 @@ function ArmyColumn({ label, color, units, allUnits }: ArmyColumnProps) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '6px' }}>
-        {counts.infantry > 0 && (
+        {infantry > 0 && (
           <div style={{ fontSize: '11px', color: '#f0e8d5', display: 'flex', justifyContent: 'space-between' }}>
             <span>⚔️ Infantry</span>
-            <span style={{ color: '#ffd700' }}>{counts.infantry}</span>
+            <span style={{ color: '#ffd700' }}>{infantry}</span>
           </div>
         )}
-        {counts.cavalry > 0 && (
+        {cavalry > 0 && (
           <div style={{ fontSize: '11px', color: '#f0e8d5', display: 'flex', justifyContent: 'space-between' }}>
             <span>🐎 Cavalry</span>
-            <span style={{ color: '#ffd700' }}>{counts.cavalry}</span>
+            <span style={{ color: '#ffd700' }}>{cavalry}</span>
           </div>
         )}
-        {counts.siege > 0 && (
+        {siege > 0 && (
           <div style={{ fontSize: '11px', color: '#f0e8d5', display: 'flex', justifyContent: 'space-between' }}>
             <span>💣 Siege</span>
-            <span style={{ color: '#ffd700' }}>{counts.siege}</span>
+            <span style={{ color: '#ffd700' }}>{siege}</span>
           </div>
         )}
-        {counts.mage > 0 && (
+        {mage > 0 && (
           <div style={{ fontSize: '11px', color: '#f0e8d5', display: 'flex', justifyContent: 'space-between' }}>
             <span>🔮 Mage</span>
-            <span style={{ color: '#ffd700' }}>{counts.mage}</span>
+            <span style={{ color: '#ffd700' }}>{mage}</span>
           </div>
         )}
       </div>
 
       <div style={{ fontSize: '10px', color: '#9ca3af', marginBottom: '4px' }}>
-        {alive.length} / {units.length} alive
+        {alive} / {total} alive
       </div>
 
       {/* HP Bar */}
@@ -98,11 +90,8 @@ function ArmyColumn({ label, color, units, allUnits }: ArmyColumnProps) {
 }
 
 export function UnitInfoPanel() {
-  const units = useGameStore(s => s.units);
-  const phase = useGameStore(s => s.phase);
-
-  const team1 = units.filter(u => u.teamId === 1);
-  const team2 = units.filter(u => u.teamId === 2);
+  const hasUnits = useGameStore(s => s.units.length > 0);
+  const phase    = useGameStore(s => s.phase);
 
   return (
     <div
@@ -118,7 +107,7 @@ export function UnitInfoPanel() {
         position: 'relative',
       }}
     >
-      {units.length === 0 ? (
+      {!hasUnits ? (
         <div style={{
           flex: 1,
           display: 'flex',
@@ -133,9 +122,9 @@ export function UnitInfoPanel() {
         </div>
       ) : (
         <>
-          <ArmyColumn label="⚔ Player" color="#60a5fa" units={team1} allUnits={units} />
+          <ArmyColumn label="⚔ Player" color="#60a5fa" teamId={1} />
           <div style={{ width: '1px', background: 'rgba(255,215,0,0.2)', margin: '8px 0' }} />
-          <ArmyColumn label="☠ Enemy" color="#f87171" units={team2} allUnits={units} />
+          <ArmyColumn label="☠ Enemy" color="#f87171" teamId={2} />
         </>
       )}
 
