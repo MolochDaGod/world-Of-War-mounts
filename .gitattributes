@@ -1,1 +1,4 @@
 attached_assets/Toon_RTS_1786857985130.zip filter=lfs diff=lfs merge=lfs -text
+artifacts/toon-rts/public/assets/craftpix/891134-fantasy-strategy-game-ui/AI/interface_game.ai filter=lfs diff=lfs merge=lfs -text
+artifacts/toon-rts/public/assets/craftpix/891134-fantasy-strategy-game-ui/EPS/interface_game.eps filter=lfs diff=lfs merge=lfs -text
+attached_assets/craftpix-891134-fantasy-strategy-game-ui_1786861448242.zip filter=lfs diff=lfs merge=lfs -text

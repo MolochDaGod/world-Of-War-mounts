@@ -56,8 +56,20 @@ export default defineConfig({
         '..',
         'attached_assets',
       ),
+      // Force all Three.js imports (including examples/jsm/**) to share ONE copy.
+      // Prevents "Multiple instances of Three.js" and React context errors.
+      'three': path.resolve(import.meta.dirname, 'node_modules/three'),
     },
-    dedupe: ['react', 'react-dom'],
+    dedupe: ['react', 'react-dom', 'three', '@react-three/fiber', '@react-three/drei'],
+  },
+  optimizeDeps: {
+    // Exclude jsm helpers — let them resolve through the alias above so they
+    // pick up the same Three.js module as the rest of the app.
+    exclude: [
+      'three/examples/jsm/utils/SkeletonUtils.js',
+      'three/examples/jsm/loaders/TGALoader.js',
+      'three/examples/jsm/loaders/FBXLoader.js',
+    ],
   },
   root: path.resolve(import.meta.dirname),
   build: {

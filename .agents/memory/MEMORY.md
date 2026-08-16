@@ -1,2 +1,2 @@
-- [Toon RTS game setup](toon-rts-game.md) — Race Wars game built in artifacts/toon-rts; all FBX assets in public/assets/Toon_RTS/; WebGL errors in screenshots are headless-sandbox only.
+- [Toon RTS game setup](toon-rts-game.md) — Open-world RTS/survival in artifacts/toon-rts; craftpix asset paths, scene structure, critical rules.
 - [Toon RTS Three.js fixes](toon-rts-threejs-fixes.md) — Key bugs fixed in the Three.js r185 upgrade pass; critical patterns for future turns.

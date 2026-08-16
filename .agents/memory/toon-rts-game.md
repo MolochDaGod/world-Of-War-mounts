@@ -1,41 +1,53 @@
 ---
-name: Toon RTS Game — Race Wars
-description: Six-race toon RTS browser game built with R3F, Rapier, Zustand; FBX assets extracted from zip into public/assets/Toon_RTS/
+name: Toon RTS game setup
+description: Open-world RTS/survival game in artifacts/toon-rts; all asset paths, key architecture, and critical do/don't rules.
 ---
 
-## What was built
-Full Toon RTS game "Race Wars" at artifacts/toon-rts (preview path /). Frontend-only — no backend or DB needed.
+## Location
+`artifacts/toon-rts` — React + Vite + R3F (v9.7) + drei (v10.7) + Rapier + Zustand
 
-## Stack
-- React Three Fiber (@react-three/fiber, @react-three/drei)
-- Rapier physics (@react-three/rapier)
-- Post-processing (@react-three/postprocessing)
-- Zustand for game state
-- Three.js for all 3D (FBXLoader, TGALoader, ShaderMaterial)
-- No OpenAPI/backend — pure client game
+## Asset Packs (in public/assets/craftpix/)
+All craftpix FBX packs are extracted there. Manifest at `src/game/assets/CraftpixManifest.ts`:
+- `OrcModels` — orc warriors/peasants/king/queen + texture
+- `ElfModels` — elf commoners/nobles/king/queen + texture
+- `MedievalModels` — medieval people + texture (path: `fbx/people_unity/...`)
+- `AnimalModels` — bear/wolf/boar/deer/fox/rabbit/owl + texture
+- `TreeModels` — 10 tree variants (.FBX uppercase ext) + texture
+- `MountainModels` — mountains/hills/plateaus + texture
+- `VolcanoModels` — volcanoes/boulders + texture
+- `MineModels` — gold/crystal/coal/mine buildings + texture
+- `ChestModels` — 5 trunk variants + texture
+- `SwordModels`, `HammerModels`, `CaneModels` — weapons + textures
+- `GameUI` — craftpix fantasy UI PNG sprites used as CSS background-image
 
-## Assets
-- Extracted from attached_assets/Toon_RTS_1786857985130.zip to artifacts/toon-rts/public/assets/Toon_RTS/
-- 6 races: Barbarians, Dwarves, Elves, Orcs, Undead, WesternKingdoms
-- FBX models: characters, cavalry, bolt thrower (Elves), catapult (Orcs, WK)
-- TGA textures per race
-- Animation FBXs: idle, run, attack, death, charge, cast
+## Store Architecture
+- `src/game/store/gameStore.ts` — units (teamId 1=elf/human, 2=orc), phase, difficulty, abilities
+- `src/game/store/worldStore.ts` — resources (wood/gold/crystal/coal/food), animals, resourceNodes, worldItems, buildings, timeOfDay
 
-## Key source files
-- src/game/store/gameStore.ts — Zustand store (units, phase, abilities, scores)
-- src/game/shaders/ToonMaterial.ts — custom cel-shader ShaderMaterial
-- src/game/world/World.tsx + AnimeWater.tsx + GrassField.tsx — stylized world
-- src/game/units/BaseUnit.tsx + UnitManager.tsx — unit rendering + management
-- src/game/abilities/AbilityManager.tsx — ability casting system (fire/ice/lightning/meteor/wind)
-- src/game/camera/RTSCamera.tsx — overhead pan/zoom/rotate camera
-- src/game/physics/CombatSystem.tsx — autonomous AI combat loop
-- src/hud/GameHUD.tsx + RaceSelector.tsx — HTML overlay HUD
+## Game Scene Structure (GameScene.tsx)
+Canvas: PCFShadowMap, far=1200, ACESFilmicToneMapping
+Inside Physics:
+  OpenWorld (300x300 heightmap) → GrassField → AnimeWater
+  → WorldTrees → WorldMountains → ResourceNodes → WorldItems
+  → OrcArmy / ElfArmy / MedievalNPCs → WildAnimals → CombatSystem
+Outside Physics: AbilityManager, AimController, Preload
 
-## Why WebGL errors appear in screenshots
-The Replit agent screenshot tool runs headless without GPU — any WebGL app shows this error. In a real browser with GPU, it works fine.
+## App Flow
+menu → RaceSelector → setup → DifficultySelect → battle → OpenWorldHUD
 
-## FBX loading
-Currently uses procedural fallback geometry. Task #1 proposes wiring actual FBXLoader + TGALoader. Use THREE.FBXLoader from 'three/examples/jsm/loaders/FBXLoader', THREE.TGALoader from 'three/examples/jsm/loaders/TGALoader'. Clone models with model.clone(), retarget anims with AnimationMixer.
+## Critical Rules (never break these)
+- NO Math.random() in JSX/component render — all random values MUST be pre-computed at MODULE LEVEL (IIFE or const)
+- FBX scale: ~0.012 (assets in centimetres)
+- useFBX from drei + SkeletonUtils.clone for skinned meshes
+- Apply texture manually: traverse mesh, MeshLambertMaterial({map, skinning: true}), set SRGBColorSpace
+- TGALoader registered on THREE.DefaultLoadingManager in main.tsx
+- THREE.DefaultLoadingManager.addHandler(/\.tga$/i, new TGALoader()) in main.tsx
+- No @react-three/postprocessing — incompatible with R3F 9.x; use emissive + PointLights for glow
 
-**Why:** FBX async loading in R3F requires careful Suspense setup; the fallback was chosen for initial build speed.
-**How to apply:** Wrap each useLoader(FBXLoader, path) in <Suspense>, apply ToonMaterial after load traversal.
+## Vite Config (critical)
+- alias: 'three' → single workspace copy (prevents multiple instances warning)
+- dedupe: ['react', 'react-dom', 'three', '@react-three/fiber', '@react-three/drei']
+- optimizeDeps.exclude: SkeletonUtils.js, TGALoader.js, FBXLoader.js (so alias works for them)
+
+## WebGL Error in Screenshots
+Expected — headless sandbox has no GPU. Real browser renders correctly.

@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import { Vector3 } from 'three';
 
 export type Race = 'Barbarians' | 'Dwarves' | 'Elves' | 'Orcs' | 'Undead' | 'WesternKingdoms';
 export type UnitType = 'infantry' | 'cavalry' | 'mage' | 'boltThrower' | 'catapult';
 export type UnitState = 'idle' | 'move' | 'attack' | 'dead';
 export type AbilityType = 'fire' | 'ice' | 'lightning' | 'meteor' | 'wind';
 export type GamePhase = 'menu' | 'setup' | 'battle' | 'victory';
+export type Difficulty = 'easy' | 'normal' | 'hard';
 
 export interface UnitData {
   id: string;
@@ -27,17 +27,20 @@ export interface AbilityTarget {
 
 interface GameState {
   selectedRace: Race;
+  enemyRace: Race;
   units: UnitData[];
   activeAbility: AbilityType | null;
   abilityTarget: AbilityTarget | null;
-  activeCasts: { id: string, type: AbilityType, target: AbilityTarget, startTime: number }[];
+  activeCasts: { id: string; type: AbilityType; target: AbilityTarget; startTime: number }[];
   selectedUnitIds: string[];
   phase: GamePhase;
+  difficulty: Difficulty;
   teamScores: { team1: number; team2: number };
   castingPath: [number, number, number][];
-  
+
   setPhase: (phase: GamePhase) => void;
   setSelectedRace: (race: Race) => void;
+  setEnemyRace: (race: Race) => void;
   setActiveAbility: (ability: AbilityType | null) => void;
   setAbilityTarget: (target: AbilityTarget | null) => void;
   castAbility: (type: AbilityType, target: AbilityTarget) => void;
@@ -48,80 +51,114 @@ interface GameState {
   updateUnit: (id: string, updates: Partial<UnitData>) => void;
   removeUnit: (id: string) => void;
   setTeamScore: (team: 1 | 2, score: number) => void;
+  setDifficulty: (d: Difficulty) => void;
   spawnInitialArmies: () => void;
+  resetGame: () => void;
 }
+
+// Stable uid counter
+let uidCounter = 0;
+function uid() { return `u_${++uidCounter}`; }
 
 export const useGameStore = create<GameState>((set, get) => ({
   selectedRace: 'WesternKingdoms',
+  enemyRace: 'Orcs',
   units: [],
   activeAbility: null,
   abilityTarget: null,
   activeCasts: [],
   selectedUnitIds: [],
   phase: 'menu',
+  difficulty: 'normal',
   teamScores: { team1: 0, team2: 0 },
   castingPath: [],
 
   setPhase: (phase) => set({ phase }),
   setSelectedRace: (selectedRace) => set({ selectedRace }),
+  setEnemyRace: (enemyRace) => set({ enemyRace }),
   setActiveAbility: (activeAbility) => set({ activeAbility }),
   setAbilityTarget: (abilityTarget) => set({ abilityTarget }),
+
   castAbility: (type, target) => set((state) => ({
-    activeCasts: [...state.activeCasts, { id: Math.random().toString(), type, target, startTime: Date.now() }]
+    activeCasts: [...state.activeCasts, {
+      id: `cast_${Date.now()}_${Math.floor(Math.random() * 999)}`,
+      type, target, startTime: Date.now(),
+    }],
   })),
+
   removeCast: (id) => set((state) => ({
-    activeCasts: state.activeCasts.filter(c => c.id !== id)
+    activeCasts: state.activeCasts.filter(c => c.id !== id),
   })),
+
   setCastingPath: (castingPath) => set({ castingPath }),
   selectUnits: (selectedUnitIds) => set({ selectedUnitIds }),
-  
   addUnit: (unit) => set((state) => ({ units: [...state.units, unit] })),
-  
+
   updateUnit: (id, updates) => set((state) => ({
-    units: state.units.map(u => u.id === id ? { ...u, ...updates } : u)
+    units: state.units.map(u => u.id === id ? { ...u, ...updates } : u),
   })),
-  
+
   removeUnit: (id) => set((state) => ({
     units: state.units.filter(u => u.id !== id),
-    selectedUnitIds: state.selectedUnitIds.filter(selId => selId !== id)
+    selectedUnitIds: state.selectedUnitIds.filter(s => s !== id),
   })),
-  
+
   setTeamScore: (team, score) => set((state) => ({
-    teamScores: {
-      ...state.teamScores,
-      [`team${team}`]: score
-    }
+    teamScores: { ...state.teamScores, [`team${team}`]: score },
   })),
+
+  setDifficulty: (difficulty) => set({ difficulty }),
+
+  resetGame: () => set({ units: [], phase: 'menu', teamScores: { team1: 0, team2: 0 } }),
 
   spawnInitialArmies: () => {
-    const { selectedRace } = get();
+    const { selectedRace, enemyRace, difficulty } = get();
+    const diffMult = difficulty === 'easy' ? 0.7 : difficulty === 'hard' ? 1.4 : 1.0;
     const newUnits: UnitData[] = [];
-    let idCounter = 0;
-    
-    // Team 1
-    for(let i = 0; i < 5; i++) {
-      newUnits.push({
-        id: `t1_inf_${idCounter++}`, race: selectedRace, type: 'infantry',
-        position: [-10 + i * 2, 0, 10], health: 80, maxHealth: 80, state: 'idle', teamId: 1
-      });
-    }
-    newUnits.push({
-      id: `t1_cav_1`, race: selectedRace, type: 'cavalry',
-      position: [-5, 0, 15], health: 140, maxHealth: 140, state: 'idle', teamId: 1
-    });
-    newUnits.push({
-      id: `t1_siege_1`, race: selectedRace, type: 'catapult',
-      position: [0, 0, 20], health: 150, maxHealth: 150, state: 'idle', teamId: 1
-    });
 
-    // Team 2 (Orcs)
-    for(let i = 0; i < 5; i++) {
+    // Team 1 — player's faction
+    for (let i = 0; i < 6; i++) {
       newUnits.push({
-        id: `t2_inf_${idCounter++}`, race: 'Orcs', type: 'infantry',
-        position: [-10 + i * 2, 0, -10], health: 80, maxHealth: 80, state: 'idle', teamId: 2
+        id: uid(), race: selectedRace, type: 'infantry',
+        position: [-12 + i * 4, 0, 16],
+        health: 80, maxHealth: 80, state: 'idle', teamId: 1,
       });
     }
-    
-    set({ units: newUnits, phase: 'battle' });
-  }
+    // Cavalry flanks
+    newUnits.push({ id: uid(), race: selectedRace, type: 'cavalry', position: [-18, 0, 12], health: 140, maxHealth: 140, state: 'idle', teamId: 1 });
+    newUnits.push({ id: uid(), race: selectedRace, type: 'cavalry', position: [ 18, 0, 12], health: 140, maxHealth: 140, state: 'idle', teamId: 1 });
+    // Siege at back
+    if (selectedRace === 'Orcs' || selectedRace === 'WesternKingdoms') {
+      newUnits.push({ id: uid(), race: selectedRace, type: 'catapult', position: [0, 0, 22], health: 200, maxHealth: 200, state: 'idle', teamId: 1 });
+    } else if (selectedRace === 'Elves') {
+      newUnits.push({ id: uid(), race: selectedRace, type: 'boltThrower', position: [0, 0, 22], health: 180, maxHealth: 180, state: 'idle', teamId: 1 });
+    } else {
+      newUnits.push({ id: uid(), race: selectedRace, type: 'mage', position: [0, 0, 22], health: 60, maxHealth: 60, state: 'idle', teamId: 1 });
+    }
+
+    // Team 2 — enemy faction (mirrored positions, scaled by difficulty)
+    const eInfHP  = Math.round(80  * diffMult);
+    const eCavHP  = Math.round(140 * diffMult);
+    const eSiegeHP= Math.round(200 * diffMult);
+    const eMageHP = Math.round(60  * diffMult);
+    const eBoltHP = Math.round(180 * diffMult);
+    for (let i = 0; i < 6; i++) {
+      newUnits.push({
+        id: uid(), race: enemyRace, type: 'infantry',
+        position: [-12 + i * 4, 0, -16],
+        health: eInfHP, maxHealth: eInfHP, state: 'idle', teamId: 2,
+      });
+    }
+    newUnits.push({ id: uid(), race: enemyRace, type: 'cavalry', position: [-18, 0, -12], health: eCavHP, maxHealth: eCavHP, state: 'idle', teamId: 2 });
+    newUnits.push({ id: uid(), race: enemyRace, type: 'cavalry', position: [ 18, 0, -12], health: eCavHP, maxHealth: eCavHP, state: 'idle', teamId: 2 });
+    if (enemyRace === 'Orcs' || enemyRace === 'WesternKingdoms') {
+      newUnits.push({ id: uid(), race: enemyRace, type: 'catapult', position: [0, 0, -22], health: eSiegeHP, maxHealth: eSiegeHP, state: 'idle', teamId: 2 });
+    } else if (enemyRace === 'Elves') {
+      newUnits.push({ id: uid(), race: enemyRace, type: 'boltThrower', position: [0, 0, -22], health: eBoltHP, maxHealth: eBoltHP, state: 'idle', teamId: 2 });
+    } else {
+      newUnits.push({ id: uid(), race: enemyRace, type: 'mage', position: [0, 0, -22], health: eMageHP, maxHealth: eMageHP, state: 'idle', teamId: 2 });
+    }
+
+    set({ units: newUnits, phase: 'battle', teamScores: { team1: 0, team2: 0 } });
+  },
 }));

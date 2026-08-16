@@ -1,36 +1,21 @@
-import { RigidBody } from '@react-three/rapier';
 import { AnimeWater } from './AnimeWater';
 import { GrassField } from './GrassField';
+import { Terrain } from './Terrain';
 
+/**
+ * World — composes all environmental elements.
+ *
+ * Render order:
+ *  1. Terrain  — height-mapped ground + instanced trees/rocks + Rapier physics body
+ *  2. GrassField — 18k instanced blades with wind shader (sits on top of terrain)
+ *  3. AnimeWater — Voronoi cel-water at the edges, follows camera for "infinite" look
+ */
 export function World() {
   return (
     <group>
-      {/* Ground Physics */}
-      <RigidBody type="fixed">
-        <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
-          <boxGeometry args={[100, 100, 1]} />
-          <meshLambertMaterial color="#2d4c1e" />
-        </mesh>
-      </RigidBody>
-      
-      {/* Visual Environment */}
-      <AnimeWater />
+      <Terrain />
       <GrassField />
-      
-      {/* Some rocks */}
-      <group position={[-15, 0, -15]}>
-        <mesh castShadow receiveShadow>
-          <dodecahedronGeometry args={[2, 0]} />
-          <meshStandardMaterial color="#555" roughness={0.9} flatShading />
-        </mesh>
-      </group>
-      
-      <group position={[15, 0, 10]}>
-        <mesh castShadow receiveShadow>
-          <dodecahedronGeometry args={[1.5, 0]} />
-          <meshStandardMaterial color="#555" roughness={0.9} flatShading />
-        </mesh>
-      </group>
+      <AnimeWater />
     </group>
   );
 }
