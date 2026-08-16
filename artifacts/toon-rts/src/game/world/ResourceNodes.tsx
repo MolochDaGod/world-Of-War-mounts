@@ -5,7 +5,7 @@
  * Click to gather +5 resources.
  */
 import * as THREE from 'three';
-import { Suspense, useRef, useState, useCallback, useEffect } from 'react';
+import { Suspense, useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useLoader, useFrame } from '@react-three/fiber';
 import { useFBX, Html } from '@react-three/drei';
 import { TextureLoader, MeshLambertMaterial } from 'three';
@@ -72,9 +72,14 @@ function MineModel({ modelPath, node, onGather }: MineModelProps) {
   const texture = useLoader(TextureLoader, MineModels.texture);
   const [showText, setShowText] = useState(false);
 
-  const cloned = (() => {
+  const mat = useMemo(() => {
     texture.colorSpace = THREE.SRGBColorSpace;
-    const mat = new MeshLambertMaterial({ map: texture });
+    return new MeshLambertMaterial({ map: texture });
+  }, [texture]);
+
+  useEffect(() => () => { mat.dispose(); }, [mat]);
+
+  const cloned = useMemo(() => {
     const clone = fbx.clone(true);
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
@@ -83,7 +88,7 @@ function MineModel({ modelPath, node, onGather }: MineModelProps) {
       }
     });
     return clone;
-  })();
+  }, [fbx, mat]);
 
   const handleClick = useCallback((e: any) => {
     e.stopPropagation();

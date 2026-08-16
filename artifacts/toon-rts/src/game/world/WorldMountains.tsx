@@ -6,7 +6,7 @@
  * Volcano lava glow: animated PointLight via useFrame
  */
 import * as THREE from 'three';
-import { Suspense, useRef } from 'react';
+import { Suspense, useRef, useMemo, useEffect } from 'react';
 import { useLoader, useFrame } from '@react-three/fiber';
 import { useFBX } from '@react-three/drei';
 import { TextureLoader, MeshLambertMaterial, PointLight } from 'three';
@@ -73,9 +73,14 @@ function FbxModel({ modelPath, texturePath, position, scale, rotY }: FbxModelPro
   const fbx = useFBX(modelPath);
   const texture = useLoader(TextureLoader, texturePath);
 
-  const cloned = (() => {
+  const mat = useMemo(() => {
     texture.colorSpace = THREE.SRGBColorSpace;
-    const mat = new MeshLambertMaterial({ map: texture });
+    return new MeshLambertMaterial({ map: texture });
+  }, [texture]);
+
+  useEffect(() => () => { mat.dispose(); }, [mat]);
+
+  const cloned = useMemo(() => {
     const clone = fbx.clone(true);
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
@@ -85,7 +90,7 @@ function FbxModel({ modelPath, texturePath, position, scale, rotY }: FbxModelPro
       }
     });
     return clone;
-  })();
+  }, [fbx, mat]);
 
   return (
     <group position={position} rotation={[0, rotY, 0]} scale={scale}>

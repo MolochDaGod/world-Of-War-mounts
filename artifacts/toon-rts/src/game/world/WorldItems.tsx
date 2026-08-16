@@ -4,7 +4,7 @@
  * Click to collect items.
  */
 import * as THREE from 'three';
-import { Suspense, useRef, useState, useCallback, useEffect } from 'react';
+import { Suspense, useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useLoader, useFrame } from '@react-three/fiber';
 import { useFBX } from '@react-three/drei';
 import { TextureLoader, MeshLambertMaterial } from 'three';
@@ -30,9 +30,14 @@ function ChestInner({ item }: ChestProps) {
   const [collected, setCollected] = useState(false);
   const baseY = item.position[1];
 
-  const cloned = (() => {
+  const mat = useMemo(() => {
     texture.colorSpace = THREE.SRGBColorSpace;
-    const mat = new MeshLambertMaterial({ map: texture });
+    return new MeshLambertMaterial({ map: texture });
+  }, [texture]);
+
+  useEffect(() => () => { mat.dispose(); }, [mat]);
+
+  const cloned = useMemo(() => {
     const clone = fbx.clone(true);
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
@@ -41,7 +46,7 @@ function ChestInner({ item }: ChestProps) {
       }
     });
     return clone;
-  })();
+  }, [fbx, mat]);
 
   // Bobbing animation
   useFrame(({ clock }) => {
@@ -149,9 +154,14 @@ function WeaponInner({ item }: WeaponProps) {
   const fbx = useFBX(getWeaponModelPath(item));
   const texture = useLoader(TextureLoader, getWeaponTexturePath(item));
 
-  const cloned = (() => {
+  const mat = useMemo(() => {
     texture.colorSpace = THREE.SRGBColorSpace;
-    const mat = new MeshLambertMaterial({ map: texture });
+    return new MeshLambertMaterial({ map: texture });
+  }, [texture]);
+
+  useEffect(() => () => { mat.dispose(); }, [mat]);
+
+  const cloned = useMemo(() => {
     const clone = fbx.clone(true);
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
@@ -160,7 +170,7 @@ function WeaponInner({ item }: WeaponProps) {
       }
     });
     return clone;
-  })();
+  }, [fbx, mat]);
 
   const handleClick = useCallback((e: any) => {
     e.stopPropagation();

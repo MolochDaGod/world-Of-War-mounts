@@ -4,7 +4,7 @@
  * All random positions are pre-calculated at module level.
  */
 import * as THREE from 'three';
-import { Suspense, useRef } from 'react';
+import { Suspense, useRef, useMemo, useEffect } from 'react';
 import { useLoader } from '@react-three/fiber';
 import { useFBX } from '@react-three/drei';
 import { TextureLoader, MeshLambertMaterial } from 'three';
@@ -52,9 +52,14 @@ function TreeInstance({ modelPath, texturePath, position, scale, rotY }: TreeIns
   const fbx = useFBX(modelPath);
   const texture = useLoader(TextureLoader, texturePath);
 
-  const cloned = (() => {
+  const mat = useMemo(() => {
     texture.colorSpace = THREE.SRGBColorSpace;
-    const mat = new MeshLambertMaterial({ map: texture });
+    return new MeshLambertMaterial({ map: texture });
+  }, [texture]);
+
+  useEffect(() => () => { mat.dispose(); }, [mat]);
+
+  const cloned = useMemo(() => {
     const clone = fbx.clone(true);
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
@@ -63,7 +68,7 @@ function TreeInstance({ modelPath, texturePath, position, scale, rotY }: TreeIns
       }
     });
     return clone;
-  })();
+  }, [fbx, mat]);
 
   return (
     <group position={position} rotation={[0, rotY, 0]} scale={scale}>
