@@ -2,10 +2,9 @@ import { useRef, useMemo, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useFBX } from '@react-three/drei';
 import * as THREE from 'three';
-import { AnimalEntity as AnimalEntityType } from '@/game/store/worldStore';
+import { AnimalEntity as AnimalEntityType, useWorldStore } from '@/game/store/worldStore';
 import { AnimalModels } from '@/game/assets/CraftpixManifest';
 import { AnimalHealthBar } from './AnimalHealthBar';
-import { useWorldStore } from '@/game/store/worldStore';
 
 // ── Scale map (no random — all stable constants) ─────────────────────────────
 const ANIMAL_SCALES: Record<string, number> = {
@@ -230,4 +229,15 @@ export function AnimalEntity({ animal }: { animal: AnimalEntityType }) {
       )}
     </group>
   );
+}
+
+/**
+ * AnimalEntityById — subscribes to a single animal by ID so that WildAnimals
+ * does not need to subscribe to the full animals array.  Each instance only
+ * re-renders when its own animal's data changes (position, behavior, health).
+ */
+export function AnimalEntityById({ animalId }: { animalId: string }) {
+  const animal = useWorldStore(s => s.animals.find(a => a.id === animalId));
+  if (!animal) return null;
+  return <AnimalEntity animal={animal} />;
 }

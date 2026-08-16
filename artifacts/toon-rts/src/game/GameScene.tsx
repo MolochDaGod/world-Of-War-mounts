@@ -26,15 +26,20 @@ import { CombatSystem }   from './physics/CombatSystem';
 import { useWorldStore }  from './store/worldStore';
 import { useFrame }       from '@react-three/fiber';
 
-/** Ticks the world time-of-day and day/night cycle inside the R3F render loop */
+/**
+ * Ticks the world time-of-day and day/night cycle inside the R3F render loop.
+ * Reads timeOfDay from getState() inside useFrame to avoid subscribing to
+ * a value that changes every frame — which would trigger 60fps React re-renders
+ * and cause "Maximum update depth exceeded" via useSyncExternalStore cascades.
+ */
 function WorldTick() {
-  const tickTime     = useWorldStore(s => s.tickTime);
-  const timeOfDay    = useWorldStore(s => s.timeOfDay);
+  const tickTime = useWorldStore(s => s.tickTime);
   useFrame((state, delta) => {
     tickTime(delta);
-    // Shift sky colour between day (#4a7fa5) and night (#0d1020) based on time
+    // Read latest timeOfDay directly from store (no React subscription needed)
+    const timeOfDay = useWorldStore.getState().timeOfDay;
     const t = timeOfDay < 6 || timeOfDay >= 20
-      ? 0  // night
+      ? 0    // night
       : timeOfDay < 8 || timeOfDay >= 18
         ? 0.5 // dawn/dusk
         : 1;  // day

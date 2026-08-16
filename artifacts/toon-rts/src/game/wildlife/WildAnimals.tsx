@@ -1,9 +1,9 @@
-import { Suspense, useRef } from 'react';
+import { Suspense, useRef, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useWorldStore, AnimalEntity as AnimalEntityType, AnimalKind } from '@/game/store/worldStore';
-import { AnimalEntity } from './AnimalEntity';
+import { useWorldStore, AnimalKind } from '@/game/store/worldStore';
 import { useGameStore } from '@/game/store/gameStore';
+import { AnimalEntityById } from './AnimalEntity';
 
 // ── Animal speeds (units/second) ──────────────────────────────────────────────
 const ANIMAL_SPEED: Record<AnimalKind, number> = {
@@ -96,33 +96,50 @@ function AnimalSpawnParticles({ position }: { position: [number, number, number]
 
 // ── Main component ────────────────────────────────────────────────────────────
 export function WildAnimals() {
-  const animals          = useWorldStore(s => s.animals);
-  const setAnimalBehavior = useWorldStore(s => s.setAnimalBehavior);
-  const moveAnimal        = useWorldStore(s => s.moveAnimal);
-  const gameUnits         = useGameStore(s => s.units);
+  // Subscribe to a STABLE selector — only re-renders when animals are
+  // added, removed, or die. Position updates (10hz) are read inside useFrame
+  // via getState() and do NOT trigger React re-renders.
+  // Use a joined string so Zustand's default === comparison is stable.
+  const liveAnimalIdsStr = useWorldStore(
+    s => s.animals.filter(a => a.behavior !== 'dead').map(a => a.id).join(','),
+  );
+  const liveAnimalIds = liveAnimalIdsStr ? liveAnimalIdsStr.split(',') : [];
 
   // Throttle tick — 10 hz
   const lastTickRef = useRef(0);
 
-  // Track which animal ids have been seen for spawn particles
-  const seenIds = useRef(new Set<string>());
-  const newIds  = useRef<string[]>([]);
-
   // Cache living unit positions each frame (avoid recalculating per-animal)
   const unitPositionsRef = useRef<[number, number, number][]>([]);
 
-  // Populate wander origins for newly seen animals
-  animals.forEach((a) => {
-    if (!WANDER_ORIGINS[a.id]) {
-      WANDER_ORIGINS[a.id] = [...a.position] as [number, number, number];
-    }
-  });
+  // Track which animal ids have been seen for spawn particles.
+  // Populated in useEffect (never in render) to avoid side-effects in render body.
+  const seenIds       = useRef(new Set<string>());
+  const spawnQueueRef = useRef<Array<{ id: string; pos: [number, number, number] }>>([]);
+  const [spawnTick, setSpawnTick] = useState(0);
+
+  // Populate WANDER_ORIGINS and detect new animals — safe side-effect location
+  useEffect(() => {
+    const animals = useWorldStore.getState().animals;
+    let hasNew = false;
+    animals.forEach(a => {
+      if (!WANDER_ORIGINS[a.id]) {
+        WANDER_ORIGINS[a.id] = [...a.position] as [number, number, number];
+      }
+      if (!seenIds.current.has(a.id)) {
+        seenIds.current.add(a.id);
+        spawnQueueRef.current.push({ id: a.id, pos: [...a.position] as [number, number, number] });
+        hasNew = true;
+      }
+    });
+    if (hasNew) setSpawnTick(n => n + 1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveAnimalIds.length]);
 
   useFrame(() => {
     const now = Date.now();
 
-    // Update unit positions cache every frame (cheap read)
-    unitPositionsRef.current = gameUnits
+    // Read unit positions from store directly — no React subscription needed
+    unitPositionsRef.current = useGameStore.getState().units
       .filter(u => u.state !== 'dead')
       .map(u => u.position);
 
@@ -156,17 +173,14 @@ export function WildAnimals() {
         }
       }
 
+      // Read actions from store directly — avoids stale closure captures
+      const { setAnimalBehavior, moveAnimal } = useWorldStore.getState();
+
       // ── Hostile animals: chase if unit is within alertRadius ───────────────
       if (HOSTILE_KINDS.has(animal.kind)) {
         if (nearestPos && nearestDist < animal.alertRadius) {
-          if (animal.behavior !== 'chase') {
-            setAnimalBehavior(animal.id, 'chase', nearestPos);
-          } else {
-            // Update target to latest position
-            setAnimalBehavior(animal.id, 'chase', nearestPos);
-          }
+          setAnimalBehavior(animal.id, 'chase', nearestPos);
         } else if (animal.behavior === 'chase') {
-          // Lost target
           setAnimalBehavior(animal.id, 'wander');
         }
       }
@@ -174,7 +188,6 @@ export function WildAnimals() {
       // ── Passive animals: flee if unit is within alertRadius ────────────────
       if (PASSIVE_KINDS.has(animal.kind)) {
         if (nearestPos && nearestDist < animal.alertRadius) {
-          // Flee away from nearest unit
           const dx = ax - nearestPos[0];
           const dz = az - nearestPos[2];
           const len = Math.sqrt(dx * dx + dz * dz) || 1;
@@ -192,7 +205,7 @@ export function WildAnimals() {
         }
       }
 
-      // ── Boar: flee initially, then charge (simplified to flee) ─────────────
+      // ── Boar: charge ──────────────────────────────────────────────────────
       if (animal.kind === 'boar') {
         if (nearestPos && nearestDist < animal.alertRadius) {
           if (animal.behavior !== 'chase') {
@@ -205,23 +218,17 @@ export function WildAnimals() {
 
       // ── Wander tick ────────────────────────────────────────────────────────
       if (animal.behavior === 'wander') {
-        // Deterministic wander trigger: fire ~every 5-9s based on id hash
         const interval = 5000 + (animal.id.charCodeAt(Math.min(3, animal.id.length - 1)) % 4000);
         const bucket   = Math.floor(now / interval);
         if (now % interval < 110) {
           const [ox, oz] = deterministicOffset(animal.id, bucket);
-          const newTarget: [number, number, number] = [
-            origin[0] + ox,
-            origin[1],
-            origin[2] + oz,
-          ];
-          setAnimalBehavior(animal.id, 'wander', newTarget);
+          setAnimalBehavior(animal.id, 'wander', [
+            origin[0] + ox, origin[1], origin[2] + oz,
+          ]);
         }
-        // Move toward wander target
         const [tx, , tz] = animal.targetPosition;
         _v.set(tx - ax, 0, tz - az);
-        const dist = _v.length();
-        if (dist > 0.5) {
+        if (_v.length() > 0.5) {
           _v.normalize().multiplyScalar(speed * dt);
           moveAnimal(animal.id, [ax + _v.x, ay, az + _v.z]);
         }
@@ -231,49 +238,35 @@ export function WildAnimals() {
       if (animal.behavior === 'chase' && animal.targetPosition) {
         const [tx, , tz] = animal.targetPosition;
         _v.set(tx - ax, 0, tz - az);
-        const dist = _v.length();
-        if (dist > 1.0) {
+        if (_v.length() > 1.0) {
           _v.normalize().multiplyScalar(speed * dt);
           moveAnimal(animal.id, [ax + _v.x, ay, az + _v.z]);
         }
       }
 
-      // ── Flee tick ────────────────────────────────────────────────────────
+      // ── Flee tick ─────────────────────────────────────────────────────────
       if (animal.behavior === 'flee' && animal.targetPosition) {
-        const fleeSpeed = speed * 1.35; // flee faster
         const [tx, , tz] = animal.targetPosition;
         _v.set(tx - ax, 0, tz - az);
-        const dist = _v.length();
-        if (dist > 1.0) {
-          _v.normalize().multiplyScalar(fleeSpeed * dt);
+        if (_v.length() > 1.0) {
+          _v.normalize().multiplyScalar(speed * 1.35 * dt);
           moveAnimal(animal.id, [ax + _v.x, ay, az + _v.z]);
         }
       }
     }
   });
 
-  // Detect newly spawned animals for particles
-  const spawnPositions: Array<{ id: string; pos: [number, number, number] }> = [];
-  animals.forEach((a) => {
-    if (!seenIds.current.has(a.id)) {
-      seenIds.current.add(a.id);
-      spawnPositions.push({ id: a.id, pos: a.position });
-    }
-  });
-
-  const livingAnimals = animals.filter(a => a.behavior !== 'dead');
-
   return (
     <group>
-      {/* Spawn puff particles for newly appearing animals */}
-      {spawnPositions.map(({ id, pos }) => (
+      {/* Spawn puff particles — drained from queue on each spawnTick */}
+      {spawnQueueRef.current.map(({ id, pos }) => (
         <AnimalSpawnParticles key={`spawn-${id}`} position={pos} />
       ))}
 
-      {/* Animal entities, each in its own Suspense boundary */}
-      {livingAnimals.map((animal) => (
-        <Suspense key={animal.id} fallback={null}>
-          <AnimalEntity animal={animal} />
+      {/* Animal entities — each subscribes to its own slice of the store */}
+      {liveAnimalIds.map((id) => (
+        <Suspense key={id} fallback={null}>
+          <AnimalEntityById animalId={id} />
         </Suspense>
       ))}
     </group>

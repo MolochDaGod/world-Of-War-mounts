@@ -34,14 +34,10 @@ function AnimatedValue({ value }: { value: number }) {
 }
 
 export function ResourceBar() {
+  // Subscribe only to resources — timeOfDay/dayCount are displayed in
+  // OpenWorldHUD's TimeOfDay component and must NOT be subscribed here to
+  // avoid 60fps re-renders cascading through the HUD layer.
   const resources = useWorldStore(s => s.resources);
-  const timeOfDay = useWorldStore(s => s.timeOfDay);
-  const dayCount = useWorldStore(s => s.dayCount);
-
-  const hours = Math.floor(timeOfDay);
-  const minutes = Math.floor((timeOfDay % 1) * 60);
-  const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-  const isNight = timeOfDay < 6 || timeOfDay >= 20;
 
   const items = [
     { icon: '🪵', label: 'Wood',    value: resources.wood    },
@@ -86,25 +82,6 @@ export function ResourceBar() {
       ))}
 
       {/* Day/time divider */}
-      <div
-        style={{
-          marginLeft: '12px',
-          paddingLeft: '12px',
-          borderLeft: '1px solid rgba(255,215,0,0.2)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          color: '#ffd700',
-          fontSize: '13px',
-          textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-          fontFamily: "'Cinzel', serif",
-          whiteSpace: 'nowrap',
-        }}
-      >
-        <span>{isNight ? '🌙' : '☀️'}</span>
-        <span>Day {dayCount}</span>
-        <span style={{ opacity: 0.7 }}>{timeStr}</span>
-      </div>
     </div>
   );
 }
