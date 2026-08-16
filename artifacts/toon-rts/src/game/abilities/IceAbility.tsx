@@ -21,7 +21,7 @@ const spikes = Array.from({ length: SPIKE_COUNT }, (_, i) => {
 export function IceAbility({ cast }: { cast: { id: string; target: AbilityTarget; startTime: number } }) {
   const groupRef = useRef<THREE.Group>(null);
   const rimRef   = useRef<THREE.Mesh>(null);
-  const { removeCast } = useGameStore();
+  const removeCast = useGameStore(s => s.removeCast);
 
   const crystalMat = useMemo(() => new THREE.MeshPhysicalMaterial({
     color: '#88ccff',

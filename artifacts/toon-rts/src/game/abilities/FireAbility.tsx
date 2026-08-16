@@ -43,7 +43,7 @@ const fireFrag = /* glsl */`
 `;
 
 export function FireAbility({ cast }: { cast: { id: string; target: AbilityTarget; startTime: number } }) {
-  const { removeCast } = useGameStore();
+  const removeCast = useGameStore(s => s.removeCast);
   const groupRef  = useRef<THREE.Group>(null);
   const emberRefs = useRef<(THREE.Mesh | null)[]>([]);
 

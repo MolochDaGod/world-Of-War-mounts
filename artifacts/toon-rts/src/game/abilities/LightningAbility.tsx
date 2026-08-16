@@ -42,7 +42,7 @@ const boltFrag = /* glsl */`
 export function LightningAbility({ cast }: { cast: { id: string; target: AbilityTarget; startTime: number } }) {
   const groupRef  = useRef<THREE.Group>(null);
   const lightRef  = useRef<THREE.PointLight>(null);
-  const { removeCast } = useGameStore();
+  const removeCast = useGameStore(s => s.removeCast);
 
   // One ShaderMaterial per filament, different phase uniform
   const boltMats = useMemo(() => filaments.map(f =>

@@ -49,7 +49,7 @@ const tornadoFrag = /* glsl */`
 `;
 
 export function WindAbility({ cast }: { cast: { id: string; target: AbilityTarget; startTime: number } }) {
-  const { removeCast } = useGameStore();
+  const removeCast = useGameStore(s => s.removeCast);
   const groupRef    = useRef<THREE.Group>(null);
   const tornadoRef  = useRef<THREE.Group>(null);
   const leafRefs    = useRef<(THREE.Mesh | null)[]>([]);

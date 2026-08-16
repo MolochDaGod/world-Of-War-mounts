@@ -45,7 +45,7 @@ export function MeteorAbility({ cast }: { cast: { id: string; target: AbilityTar
   const debrisRefs  = useRef<(THREE.Mesh | null)[]>([]);
   const craterRef   = useRef<THREE.Mesh>(null);
   const lightRef    = useRef<THREE.PointLight>(null);
-  const { removeCast } = useGameStore();
+  const removeCast = useGameStore(s => s.removeCast);
 
   const [cx, , cz] = cast.target.direction;
   const startY = 80;
