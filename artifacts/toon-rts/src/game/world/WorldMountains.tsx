@@ -84,13 +84,24 @@ function FbxModel({ modelPath, texturePath, position, scale, rotY }: FbxModelPro
     const clone = fbx.clone(true);
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
-        (child as THREE.Mesh).material = mat;
-        child.castShadow = true;
-        child.receiveShadow = true;
+        const mesh = child as THREE.Mesh;
+        // Clone the geometry so this instance owns it and can safely dispose it
+        mesh.geometry = mesh.geometry.clone();
+        mesh.material = mat;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
       }
     });
     return clone;
   }, [fbx, mat]);
+
+  useEffect(() => () => {
+    cloned.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        (child as THREE.Mesh).geometry.dispose();
+      }
+    });
+  }, [cloned]);
 
   return (
     <group position={position} rotation={[0, rotY, 0]} scale={scale}>
