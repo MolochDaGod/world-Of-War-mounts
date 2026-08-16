@@ -1,0 +1,1 @@
+- [Toon RTS game setup](toon-rts-game.md) — Race Wars game built in artifacts/toon-rts; all FBX assets in public/assets/Toon_RTS/; WebGL errors in screenshots are headless-sandbox only.

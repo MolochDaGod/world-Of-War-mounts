@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Toon RTS"
+description = "A browser-based toon real-time strategy game built with React Three Fiber. Features three playable races (Barbarians, Dwarves, Elves) with infantry, cavalry mounts, mages, bolt throwers, and catapults. Implements a stylized anime cel-shaded world with grass, anime water, and toon lighting. Includes a full ability casting system with linear skillshots (Frost Lance, Storm Lance, Meteor, Nova Beam), path-based elemental abilities with volumetric VFX (fire, water, earth, wind), physics-based combat via Rapier, and race-wars multiplayer battles."
+version = "1.0.0"
+id = "artifacts/toon-rts"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24822
+
+[services.development]
+run = "pnpm --filter @workspace/toon-rts run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/toon-rts", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/toon-rts/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24822"
+BASE_PATH = "/"
