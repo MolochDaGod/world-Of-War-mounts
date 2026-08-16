@@ -49,6 +49,7 @@ interface GameState {
   selectUnits: (ids: string[]) => void;
   addUnit: (unit: UnitData) => void;
   updateUnit: (id: string, updates: Partial<UnitData>) => void;
+  batchUpdateUnits: (updates: Map<string, Partial<UnitData>>) => void;
   removeUnit: (id: string) => void;
   setTeamScore: (team: 1 | 2, score: number) => void;
   setDifficulty: (d: Difficulty) => void;
@@ -96,6 +97,13 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   updateUnit: (id, updates) => set((state) => ({
     units: state.units.map(u => u.id === id ? { ...u, ...updates } : u),
+  })),
+
+  batchUpdateUnits: (updates) => set((state) => ({
+    units: state.units.map(u => {
+      const patch = updates.get(u.id);
+      return patch ? { ...u, ...patch } : u;
+    }),
   })),
 
   removeUnit: (id) => set((state) => ({

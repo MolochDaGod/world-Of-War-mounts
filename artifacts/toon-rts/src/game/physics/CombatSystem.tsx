@@ -26,19 +26,42 @@ export function CombatSystem() {
     if (now - lastUpdate.current < 0.033) return;
     lastUpdate.current = now;
 
-    const { units, updateUnit, removeUnit, setTeamScore, teamScores } = useGameStore.getState();
+    const { units, batchUpdateUnits, removeUnit, setTeamScore, teamScores } =
+      useGameStore.getState();
 
     const living = units.filter(u => u.state !== 'dead');
 
+    // Collect all unit patches for this tick — single store write at the end
+    const patches = new Map<string, Partial<UnitData>>();
+    // Collect kills so we can fire removeUnit timeouts after the batch
+    const kills: { killerId: number; killedId: string }[] = [];
+    // Accumulate score deltas: team1 and team2
+    let scoreDelta1 = 0;
+    let scoreDelta2 = 0;
+
+    // Helper: get the current patched state of a unit (or its original state)
+    const getPatch = (id: string, base: UnitData): Partial<UnitData> & Pick<UnitData, keyof UnitData> => {
+      const existing = patches.get(id);
+      return existing ? { ...base, ...existing } : base;
+    };
+
     for (const unit of living) {
+      // Skip if already marked dead by an earlier iteration this tick
+      const unitPatch = patches.get(unit.id);
+      if (unitPatch?.state === 'dead') continue;
+
       const cfg = UNIT_CONFIG[unit.type];
 
-      // Find nearest enemy
+      // Find nearest living enemy — single scan per unit
       let nearest: UnitData | null = null;
       let minDist = Infinity;
 
       for (const other of living) {
         if (other.teamId === unit.teamId) continue;
+        // Respect kills already decided this tick
+        const otherPatch = patches.get(other.id);
+        if (otherPatch?.state === 'dead') continue;
+
         const dx = unit.position[0] - other.position[0];
         const dz = unit.position[2] - other.position[2];
         const dist = Math.sqrt(dx * dx + dz * dz);
@@ -46,29 +69,34 @@ export function CombatSystem() {
       }
 
       if (!nearest) {
-        if (unit.state !== 'idle') updateUnit(unit.id, { state: 'idle' });
+        if (unit.state !== 'idle') {
+          patches.set(unit.id, { ...patches.get(unit.id), state: 'idle' });
+        }
         continue;
       }
 
       if (minDist <= cfg.attackRange) {
         // In attack range — face and attack
-        if (unit.state !== 'attack') updateUnit(unit.id, { state: 'attack' });
+        if (unit.state !== 'attack') {
+          patches.set(unit.id, { ...patches.get(unit.id), state: 'attack' });
+        }
 
         const timer = attackTimers[unit.id] ?? 0;
         if (now - timer >= cfg.attackCooldown) {
           attackTimers[unit.id] = now;
 
-          const newHp = Math.max(0, nearest.health - cfg.damage);
+          // Use already-patched health for the target if it was hit this tick
+          const nearestPatch = patches.get(nearest.id);
+          const currentHp = nearestPatch?.health ?? nearest.health;
+          const newHp = Math.max(0, currentHp - cfg.damage);
+
           if (newHp <= 0) {
-            updateUnit(nearest.id, { health: 0, state: 'dead' });
-            // Remove after death animation
-            setTimeout(() => removeUnit(nearest!.id), 1200);
-            // Score point for killing team
-            const scores = useGameStore.getState().teamScores;
-            setTeamScore(unit.teamId, unit.teamId === 1 ? scores.team1 + 1 : scores.team2 + 1);
+            patches.set(nearest.id, { ...nearestPatch, health: 0, state: 'dead' });
+            kills.push({ killerId: unit.teamId, killedId: nearest.id });
             delete attackTimers[nearest.id];
+            if (unit.teamId === 1) scoreDelta1++; else scoreDelta2++;
           } else {
-            updateUnit(nearest.id, { health: newHp });
+            patches.set(nearest.id, { ...nearestPatch, health: newHp });
           }
         }
       } else {
@@ -80,13 +108,28 @@ export function CombatSystem() {
         const nx = unit.position[0] + (dx / dist) * step;
         const nz = unit.position[2] + (dz / dist) * step;
 
-        if (unit.state !== 'move') updateUnit(unit.id, { state: 'move' });
-        updateUnit(unit.id, {
+        patches.set(unit.id, {
+          ...patches.get(unit.id),
+          state: 'move',
           targetPosition: nearest.position,
           position: [nx, unit.position[1], nz],
         });
       }
     }
+
+    // Single store write for all unit updates this tick
+    if (patches.size > 0) {
+      batchUpdateUnits(patches);
+    }
+
+    // Deferred unit removal after death animations
+    for (const { killedId } of kills) {
+      setTimeout(() => removeUnit(killedId), 1200);
+    }
+
+    // Apply score deltas using the teamScores already read at tick start
+    if (scoreDelta1 > 0) setTeamScore(1, teamScores.team1 + scoreDelta1);
+    if (scoreDelta2 > 0) setTeamScore(2, teamScores.team2 + scoreDelta2);
   });
 
   return null;
