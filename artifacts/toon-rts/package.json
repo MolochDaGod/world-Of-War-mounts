@@ -7,7 +7,12 @@
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build:prod": "node scripts/build-prod.mjs",
+    "build:prod:verbose": "node scripts/build-prod.mjs --verbose",
+    "compress": "node scripts/compress-dist.mjs",
+    "compress:verbose": "node scripts/compress-dist.mjs --verbose",
+    "draco": "node scripts/convert-to-draco.mjs"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
