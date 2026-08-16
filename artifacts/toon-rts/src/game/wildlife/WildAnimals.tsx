@@ -1,7 +1,7 @@
 import { Suspense, useRef, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useWorldStore, AnimalKind } from '@/game/store/worldStore';
+import { useWorldStore, AnimalKind, AnimalTickUpdate } from '@/game/store/worldStore';
 import { useGameStore } from '@/game/store/gameStore';
 import { AnimalEntityById } from './AnimalEntity';
 
@@ -152,6 +152,11 @@ export function WildAnimals() {
     // Read the latest animals snapshot from the store directly
     const currentAnimals = useWorldStore.getState().animals;
 
+    // Collect ALL per-animal mutations here — flushed in ONE batchUpdateAnimals()
+    // call to avoid N sequential Zustand set() calls which each fire a synchronous
+    // useSyncExternalStore notification and cascade into "Maximum update depth exceeded".
+    const tickUpdates: AnimalTickUpdate[] = [];
+
     for (const animal of currentAnimals) {
       if (animal.behavior === 'dead') continue;
 
@@ -173,15 +178,18 @@ export function WildAnimals() {
         }
       }
 
-      // Read actions from store directly — avoids stale closure captures
-      const { setAnimalBehavior, moveAnimal } = useWorldStore.getState();
+      // Build an update record for this animal (merged at end)
+      const upd: AnimalTickUpdate = { id: animal.id };
 
       // ── Hostile animals: chase if unit is within alertRadius ───────────────
       if (HOSTILE_KINDS.has(animal.kind)) {
         if (nearestPos && nearestDist < animal.alertRadius) {
-          setAnimalBehavior(animal.id, 'chase', nearestPos);
+          upd.behavior       = 'chase';
+          upd.targetPosition = nearestPos;
+          upd.lastBehaviorAt = now;
         } else if (animal.behavior === 'chase') {
-          setAnimalBehavior(animal.id, 'wander');
+          upd.behavior       = 'wander';
+          upd.lastBehaviorAt = now;
         }
       }
 
@@ -191,17 +199,15 @@ export function WildAnimals() {
           const dx = ax - nearestPos[0];
           const dz = az - nearestPos[2];
           const len = Math.sqrt(dx * dx + dz * dz) || 1;
-          const fleeTarget: [number, number, number] = [
-            ax + (dx / len) * 20,
-            ay,
-            az + (dz / len) * 20,
-          ];
-          setAnimalBehavior(animal.id, 'flee', fleeTarget);
+          upd.behavior       = 'flee';
+          upd.targetPosition = [ax + (dx / len) * 20, ay, az + (dz / len) * 20];
+          upd.lastBehaviorAt = now;
         } else if (
           animal.behavior === 'flee' &&
           now - animal.lastBehaviorAt > FLEE_DURATION
         ) {
-          setAnimalBehavior(animal.id, 'wander');
+          upd.behavior       = 'wander';
+          upd.lastBehaviorAt = now;
         }
       }
 
@@ -209,50 +215,71 @@ export function WildAnimals() {
       if (animal.kind === 'boar') {
         if (nearestPos && nearestDist < animal.alertRadius) {
           if (animal.behavior !== 'chase') {
-            setAnimalBehavior(animal.id, 'chase', nearestPos);
+            upd.behavior       = 'chase';
+            upd.targetPosition = nearestPos;
+            upd.lastBehaviorAt = now;
           }
         } else if (animal.behavior === 'chase') {
-          setAnimalBehavior(animal.id, 'wander');
+          upd.behavior       = 'wander';
+          upd.lastBehaviorAt = now;
         }
       }
 
+      // Resolve effective behavior for movement (may be overridden above)
+      const effectiveBehavior  = upd.behavior       ?? animal.behavior;
+      const effectiveTargetPos = upd.targetPosition ?? animal.targetPosition;
+
       // ── Wander tick ────────────────────────────────────────────────────────
-      if (animal.behavior === 'wander') {
+      if (effectiveBehavior === 'wander') {
         const interval = 5000 + (animal.id.charCodeAt(Math.min(3, animal.id.length - 1)) % 4000);
         const bucket   = Math.floor(now / interval);
         if (now % interval < 110) {
           const [ox, oz] = deterministicOffset(animal.id, bucket);
-          setAnimalBehavior(animal.id, 'wander', [
-            origin[0] + ox, origin[1], origin[2] + oz,
-          ]);
+          upd.behavior       = 'wander';
+          upd.targetPosition = [origin[0] + ox, origin[1], origin[2] + oz];
+          upd.lastBehaviorAt = now;
         }
-        const [tx, , tz] = animal.targetPosition;
+        const [tx, , tz] = upd.targetPosition ?? effectiveTargetPos;
         _v.set(tx - ax, 0, tz - az);
         if (_v.length() > 0.5) {
           _v.normalize().multiplyScalar(speed * dt);
-          moveAnimal(animal.id, [ax + _v.x, ay, az + _v.z]);
+          upd.position = [ax + _v.x, ay, az + _v.z];
         }
       }
 
       // ── Chase tick ────────────────────────────────────────────────────────
-      if (animal.behavior === 'chase' && animal.targetPosition) {
-        const [tx, , tz] = animal.targetPosition;
+      if (effectiveBehavior === 'chase') {
+        const [tx, , tz] = effectiveTargetPos;
         _v.set(tx - ax, 0, tz - az);
         if (_v.length() > 1.0) {
           _v.normalize().multiplyScalar(speed * dt);
-          moveAnimal(animal.id, [ax + _v.x, ay, az + _v.z]);
+          upd.position = [ax + _v.x, ay, az + _v.z];
         }
       }
 
       // ── Flee tick ─────────────────────────────────────────────────────────
-      if (animal.behavior === 'flee' && animal.targetPosition) {
-        const [tx, , tz] = animal.targetPosition;
+      if (effectiveBehavior === 'flee') {
+        const [tx, , tz] = effectiveTargetPos;
         _v.set(tx - ax, 0, tz - az);
         if (_v.length() > 1.0) {
           _v.normalize().multiplyScalar(speed * 1.35 * dt);
-          moveAnimal(animal.id, [ax + _v.x, ay, az + _v.z]);
+          upd.position = [ax + _v.x, ay, az + _v.z];
         }
       }
+
+      // Only enqueue if something actually changed
+      if (
+        upd.position       !== undefined ||
+        upd.behavior       !== undefined ||
+        upd.targetPosition !== undefined
+      ) {
+        tickUpdates.push(upd);
+      }
+    }
+
+    // Single store write for the entire tick — one useSyncExternalStore notification
+    if (tickUpdates.length > 0) {
+      useWorldStore.getState().batchUpdateAnimals(tickUpdates);
     }
   });
 

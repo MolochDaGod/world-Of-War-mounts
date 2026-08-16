@@ -23,6 +23,8 @@ import { MedievalNPCs }   from './characters/MedievalNPCs';
 import { AbilityManager } from './abilities/AbilityManager';
 import { AimController }  from './abilities/AimController';
 import { CombatSystem }   from './physics/CombatSystem';
+import { BuildSystem }    from './building/BuildSystem';
+import { PlacedBuildings } from './building/PlacedBuildings';
 import { useWorldStore }  from './store/worldStore';
 import { useFrame }       from '@react-three/fiber';
 
@@ -140,6 +142,10 @@ export function GameScene() {
 
             {/* ── Combat & abilities ── */}
             <CombatSystem />
+
+            {/* ── Modular building system ── */}
+            <PlacedBuildings />
+            <BuildSystem />
           </Physics>
 
           <AbilityManager />

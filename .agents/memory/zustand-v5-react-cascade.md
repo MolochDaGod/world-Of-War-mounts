@@ -113,8 +113,30 @@ Any time a component inside an R3F Canvas OR a high-frequency-rendered DOM compo
 3. For collections (units, animals), use a stable ID-list selector + per-entity child subscriptions
 4. For display-only time values, poll with `setInterval` instead of subscribing
 
+### 5. Batch multiple set() calls into one (multi-entity AI ticks)
+When a `useFrame` loop iterates over N entities and calls a store action for each one, that's N sequential synchronous `useSyncExternalStore` notifications in a single RAF tick — enough to hit React's update depth limit even if each individual subscriber returns a stable value.
+
+Fix: collect all per-entity mutations into an array during the loop, then apply them in a SINGLE `set()` call after the loop via a dedicated batch action.
+
+```tsx
+// BAD — 16 animals × 2 actions = up to 32 set() calls per 10Hz tick
+for (const animal of animals) {
+  setAnimalBehavior(animal.id, 'chase', target);  // set() call #1
+  moveAnimal(animal.id, newPos);                   // set() call #2
+}
+
+// GOOD — one set() for the entire tick
+const updates: AnimalTickUpdate[] = [];
+for (const animal of animals) {
+  updates.push({ id: animal.id, behavior: 'chase', targetPosition: target, position: newPos });
+}
+batchUpdateAnimals(updates); // single set() call
+```
+
+The batch action does one `.map()` pass over the array using a `Map<id, update>` for O(n) lookup.
+
 Files in this project that implement these patterns correctly:
 - `UnitManager.tsx`, `FBXUnit.tsx`, `BaseUnit.tsx` — per-unit subscriptions, position from getState()
-- `WildAnimals.tsx` — stable ID string selector, all store reads in useFrame
+- `WildAnimals.tsx` — stable ID string selector; batch update via `batchUpdateAnimals()` once per 10Hz tick
 - `GameScene.tsx` (WorldTick) — getState() in useFrame, not reactive subscription
 - `OpenWorldHUD.tsx` (TimeOfDay) — interval polling at 1Hz

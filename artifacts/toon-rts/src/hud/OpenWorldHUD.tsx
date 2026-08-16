@@ -9,6 +9,8 @@ import { UnitInfoPanel }  from './UnitInfoPanel';
 import { AbilityHotbar }  from './AbilityHotbar';
 import { WinLoseScreen }  from './WinLoseScreen';
 import { ShopPanel }      from './ShopPanel';
+import { BuildPanel }     from './BuildPanel';
+import { useBuildStore }  from '@/game/store/buildStore';
 
 // ── Time of day display ────────────────────────────────────────────────────────
 // Polls getState() at 1Hz instead of subscribing to timeOfDay (written at 60fps
@@ -55,6 +57,44 @@ function TimeOfDay() {
       <span>Day {dayCount}</span>
       <span style={{ opacity: 0.75, fontVariantNumeric: 'tabular-nums' }}>{timeStr}</span>
     </div>
+  );
+}
+
+// ── Build button ──────────────────────────────────────────────────────────────
+function BuildButton({ onClick, active }: { onClick: () => void; active: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className="pointer-events-auto"
+      style={{
+        backgroundImage: `url('${GameUI.btnEmpty1}')`,
+        backgroundSize: '100% 100%',
+        backgroundRepeat: 'no-repeat',
+        border: 'none',
+        cursor: 'pointer',
+        width: '90px',
+        height: '38px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: active ? '#88ccff' : '#ffd700',
+        fontFamily: "'Cinzel', serif",
+        fontSize: '12px',
+        fontWeight: 700,
+        textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+        gap: '4px',
+        opacity: active ? 0.9 : 1,
+        outline: active ? '2px solid rgba(68,170,255,0.6)' : 'none',
+        transition: 'opacity 0.15s, transform 0.1s',
+      }}
+      onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+      onMouseLeave={e => (e.currentTarget.style.opacity = active ? '0.9' : '1')}
+      onMouseDown={e  => (e.currentTarget.style.transform = 'scale(0.97)')}
+      onMouseUp={e    => (e.currentTarget.style.transform = 'scale(1)')}
+      title="Toggle Build Mode (B)"
+    >
+      🏗 Build
+    </button>
   );
 }
 
@@ -141,8 +181,11 @@ export function OpenWorldHUD() {
     return !anyAlive1 || !anyAlive2;
   });
 
-  const [paused,   setPaused]   = useState(false);
-  const [shopOpen, setShopOpen] = useState(false);
+  const [paused,     setPaused]     = useState(false);
+  const [shopOpen,   setShopOpen]   = useState(false);
+  const [buildOpen,  setBuildOpen]  = useState(false);
+
+  const { deactivate: cancelBuild } = useBuildStore.getState();
 
   return (
     <>
@@ -189,6 +232,9 @@ export function OpenWorldHUD() {
             </div>
             <div style={{ pointerEvents: 'auto' }}>
               <ShopButton onClick={() => setShopOpen(o => !o)} />
+            </div>
+            <div style={{ pointerEvents: 'auto' }}>
+              <BuildButton onClick={() => setBuildOpen(o => !o)} active={buildOpen} />
             </div>
           </div>
         </div>
@@ -276,6 +322,11 @@ export function OpenWorldHUD() {
               </button>
             </div>
           </div>
+        )}
+
+        {/* ── Build panel (left side) ── */}
+        {buildOpen && (
+          <BuildPanel open={buildOpen} onClose={() => { setBuildOpen(false); cancelBuild(); }} />
         )}
 
         {/* ── Shop panel (centered) ── */}

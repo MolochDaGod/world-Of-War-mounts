@@ -65,15 +65,33 @@ export interface UnitUpgrade {
 }
 
 // ── Buildings / structures ────────────────────────────────────────────────────
-export type BuildingKind = 'barracks' | 'mage_tower' | 'stable' | 'mine' | 'lumber_camp';
+/**
+ * `kind` is now an open string to support both legacy preset kinds
+ * ('barracks', 'mage_tower', etc.) and new modular Kenney pieces ('piece').
+ * When `kind === 'piece'`, `pieceId` holds the BuildCatalog id.
+ */
 export interface Building {
   id: string;
-  kind: BuildingKind;
+  kind: string;
+  /** BuildCatalog piece id — set when kind === 'piece'. */
+  pieceId?: string;
   teamId: 1 | 2;
   position: [number, number, number];
+  /** Rotation in 90° increments (0 = 0°, 1 = 90°, 2 = 180°, 3 = 270°). */
+  rotation?: number;
   health: number;
   maxHealth: number;
   level: number;
+}
+
+// ── Batch animal tick update ──────────────────────────────────────────────────
+/** All fields are optional; only provided ones are applied. */
+export interface AnimalTickUpdate {
+  id: string;
+  position?:        [number, number, number];
+  behavior?:        AnimalBehavior;
+  targetPosition?:  [number, number, number];
+  lastBehaviorAt?:  number;
 }
 
 // ── Survival / exploration state ──────────────────────────────────────────────
@@ -106,7 +124,14 @@ export interface WorldState {
   damageAnimal: (animalId: string, dmg: number) => void;
   setAnimalBehavior: (animalId: string, behavior: AnimalBehavior, target?: [number,number,number]) => void;
   moveAnimal: (animalId: string, pos: [number,number,number]) => void;
+  /**
+   * Apply position + behavior updates for many animals in one set() call.
+   * Use this inside useFrame AI ticks to avoid N sequential synchronous
+   * Zustand notifications (which cascade via useSyncExternalStore in v5).
+   */
+  batchUpdateAnimals: (updates: AnimalTickUpdate[]) => void;
   addBuilding: (b: Building) => void;
+  removeBuilding: (buildingId: string) => void;
   damageBuilding: (buildingId: string, dmg: number) => void;
   upgradeUnit: (typeKey: string, stat: keyof UnitUpgrade) => void;
 }
@@ -317,7 +342,28 @@ export const useWorldStore = create<WorldState>((set, get) => ({
     animals: s.animals.map(a => a.id !== animalId ? a : { ...a, position: pos }),
   })),
 
-  addBuilding: (b) => set(s => ({ buildings: [...s.buildings, b] })),
+  batchUpdateAnimals: (updates) => {
+    if (updates.length === 0) return;
+    // Build id→update map for O(n) lookup
+    const map = new Map<string, AnimalTickUpdate>();
+    for (const u of updates) map.set(u.id, u);
+    set(s => ({
+      animals: s.animals.map(a => {
+        const u = map.get(a.id);
+        if (!u) return a;
+        return {
+          ...a,
+          ...(u.position       !== undefined ? { position:       u.position       } : {}),
+          ...(u.behavior       !== undefined ? { behavior:       u.behavior       } : {}),
+          ...(u.targetPosition !== undefined ? { targetPosition: u.targetPosition } : {}),
+          ...(u.lastBehaviorAt !== undefined ? { lastBehaviorAt: u.lastBehaviorAt } : {}),
+        };
+      }),
+    }));
+  },
+
+  addBuilding:    (b)               => set(s => ({ buildings: [...s.buildings, b] })),
+  removeBuilding: (buildingId)      => set(s => ({ buildings: s.buildings.filter(b => b.id !== buildingId) })),
 
   damageBuilding: (buildingId, dmg) => set(s => ({
     buildings: s.buildings.map(b =>
