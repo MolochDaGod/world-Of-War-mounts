@@ -158,7 +158,7 @@ function ProjectileMesh({ proj }: { proj: ActiveProjectile }) {
       <cylinderGeometry args={[0.04, 0.04, 0.8, 5]} />
       <meshStandardMaterial
         color={proj.kind === 'bolt' ? '#88ccff' : '#cc8844'}
-        emissive={proj.kind === 'bolt' ? '#4488cc' : '#0000'}
+        emissive={proj.kind === 'bolt' ? '#4488cc' : '#000000'}
         emissiveIntensity={proj.kind === 'bolt' ? 1.5 : 0}
       />
     </mesh>

@@ -10,8 +10,9 @@ import { AbilityHotbar }  from './AbilityHotbar';
 import { WinLoseScreen }  from './WinLoseScreen';
 import { ShopPanel }      from './ShopPanel';
 import { BuildPanel }     from './BuildPanel';
-import { RegimentBar }    from './RegimentBar';
-import { useBuildStore }  from '@/game/store/buildStore';
+import { RegimentBar }            from './RegimentBar';
+import { SelectionBoxOverlay }   from '@/game/input/RTSInputController';
+import { useBuildStore }          from '@/game/store/buildStore';
 
 // ── Time of day display ────────────────────────────────────────────────────────
 // Polls getState() at 1Hz instead of subscribing to timeOfDay (written at 60fps
@@ -358,6 +359,9 @@ export function OpenWorldHUD() {
           <WinLoseScreen />
         </div>
       )}
+
+      {/* ── RTS rubber-band selection box overlay ── */}
+      <SelectionBoxOverlay />
     </>
   );
 }

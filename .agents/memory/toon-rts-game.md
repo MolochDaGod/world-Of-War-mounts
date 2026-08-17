@@ -38,9 +38,17 @@ Note: **no `berserkers`** in the union — removed after TS errors.
 ## Critical Rules
 - **No PNG textures** in Toon_RTS — FBX materials are embedded. Traverse and replace with MeshToonMaterial.
 - **AnimeWater must NOT be in GameScene** — wave displacement puts plane above y=0, covering units.
-- **useShallow** on all array selectors; single `batchCombatTick` per combat tick.
-- **Actions as individual selectors**: `useGameStore(s => s.setPhase)` not `useGameStore(useShallow(s => ({setPhase: s.setPhase})))` — the latter caused "Invalid hook call" errors via HMR state corruption.
+- **useShallow** required on array selectors only; primitives and actions: individual `useGameStore(s => s.field)` selectors. NEVER `useGameStore(s => ({a, b, c}))` — new object every render → infinite loop.
+- **Actions as individual selectors**: `useGameStore(s => s.setPhase)` is safe because action refs are stable.
 - Animation retargeting across races silently fails when bone names differ — soldiers stay T-pose, no crash.
+
+## RTS Input System
+- `src/game/input/RTSInputController.tsx` — Canvas component (needs useThree): invisible ground plane for RMB raycasting; DOM listeners on canvas for LMB drag + RMB move command. Exports `SelectionBoxOverlay` (DOM) and `useSelectionBox()` hook using module-level pub/sub (no React context needed across Canvas boundary).
+- `src/game/effects/MoveMarker.tsx` — expanding ring VFX; `emitMoveMarker(pos)` called by RTSInputController.
+- `src/game/camera/RTSCamera.tsx` — MMB drag pan added; suppress keyboard/edge-scroll while MMB active.
+- Canvas `onPointerMissed` → deselect all (fires only on clean LMB clicks that hit nothing, not drags).
+- Regiment hitbox: invisible `<boxGeometry>` mesh at formation centre with `onClick` + `stopPropagation`.
+- **Player move orders**: `issueMove()` sets `unit.targetPosition`; CombatSystem checks this FIRST each tick, clears it on arrival (within 3 units), then resumes auto-combat. CombatSystem does NOT write `targetPosition` itself.
 
 ## Deployment positions
 Infantry z=±20, ranged z=±34, siege z=±48 (well within flat-center radius 40 of OpenWorld terrain).

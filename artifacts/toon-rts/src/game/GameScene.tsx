@@ -31,9 +31,12 @@ import { AbilityManager }  from './abilities/AbilityManager';
 import { AimController }   from './abilities/AimController';
 import { CombatSystem }    from './physics/CombatSystem';
 import { ProjectileSystem } from './effects/ProjectileSystem';
+import { MoveMarker }      from './effects/MoveMarker';
+import { RTSInputController } from './input/RTSInputController';
 import { BuildSystem }     from './building/BuildSystem';
 import { PlacedBuildings } from './building/PlacedBuildings';
 import { useWorldStore }   from './store/worldStore';
+import { useGameStore }    from './store/gameStore';
 import { useFrame }        from '@react-three/fiber';
 
 /**
@@ -82,6 +85,11 @@ export function GameScene() {
         dpr={[1, 2]}
         frameloop="always"
         performance={{ min: 0.5 }}
+        onPointerMissed={() => {
+          // LMB click hit nothing → deselect all regiments
+          const { phase, selectUnits } = useGameStore.getState();
+          if (phase === 'battle') selectUnits([]);
+        }}
       >
         <AdaptiveDpr pixelated />
         <AdaptiveEvents />
@@ -147,6 +155,10 @@ export function GameScene() {
 
           {/* Projectiles live outside Physics — they are purely visual */}
           <ProjectileSystem />
+
+          {/* Move-order VFX and RTS mouse input (ground plane + LMB/RMB handlers) */}
+          <MoveMarker />
+          <RTSInputController />
 
           <AbilityManager />
           <AimController />

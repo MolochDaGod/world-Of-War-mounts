@@ -12,6 +12,7 @@ import {
   Race,
   REGIMENT_DEFS,
 } from '@/game/store/gameStore';
+import { useShallow } from 'zustand/react/shallow';
 import {
   UNIT_ROSTER,
   UnitDef,
@@ -196,23 +197,23 @@ function EmptySlot() {
 
 // ── Main ArmyBuilder component ────────────────────────────────────────────────
 export function ArmyBuilder() {
-  const {
-    selectedRace, enemyRace,
-    setSelectedRace, setEnemyRace,
-    playerArmy, gold,
-    addToPlayerArmy, removeFromPlayerArmy, clearPlayerArmy,
-    spawnArmies, setDifficulty, difficulty,
-  } = useGameStore(s => ({
-    selectedRace: s.selectedRace, enemyRace: s.enemyRace,
-    setSelectedRace: s.setSelectedRace, setEnemyRace: s.setEnemyRace,
-    playerArmy: s.playerArmy, gold: s.gold,
-    addToPlayerArmy: s.addToPlayerArmy,
-    removeFromPlayerArmy: s.removeFromPlayerArmy,
-    clearPlayerArmy: s.clearPlayerArmy,
-    spawnArmies: s.spawnArmies,
-    setDifficulty: s.setDifficulty,
-    difficulty: s.difficulty,
-  }));
+  // Primitives — individual selectors (stable, no useShallow needed)
+  const selectedRace = useGameStore(s => s.selectedRace);
+  const enemyRace    = useGameStore(s => s.enemyRace);
+  const gold         = useGameStore(s => s.gold);
+  const difficulty   = useGameStore(s => s.difficulty);
+
+  // Array — must use useShallow to avoid new-object-every-render infinite loop
+  const playerArmy = useGameStore(useShallow(s => s.playerArmy));
+
+  // Actions — stable function refs, individual selectors are safe
+  const setSelectedRace    = useGameStore(s => s.setSelectedRace);
+  const setEnemyRace       = useGameStore(s => s.setEnemyRace);
+  const addToPlayerArmy    = useGameStore(s => s.addToPlayerArmy);
+  const removeFromPlayerArmy = useGameStore(s => s.removeFromPlayerArmy);
+  const clearPlayerArmy    = useGameStore(s => s.clearPlayerArmy);
+  const spawnArmies        = useGameStore(s => s.spawnArmies);
+  const setDifficulty      = useGameStore(s => s.setDifficulty);
 
   const [tab, setTab] = useState<'player' | 'enemy'>('player');
 

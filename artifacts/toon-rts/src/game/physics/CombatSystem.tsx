@@ -128,24 +128,47 @@ export function CombatSystem() {
           }
         }
       } else {
-        // March toward enemy
-        const dx = nearest.position[0] - unit.position[0];
-        const dz = nearest.position[2] - unit.position[2];
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        const step = cfg.speed * 0.033;
-        const facing = Math.atan2(dx, dz); // face toward enemy
-
-        patches.set(unit.id, {
-          ...patches.get(unit.id),
-          state: 'move',
-          targetPosition: nearest.position,
-          formationFacing: facing,
-          position: [
-            unit.position[0] + (dx / dist) * step,
-            unit.position[1],
-            unit.position[2] + (dz / dist) * step,
-          ],
-        });
+        // ── Player-issued move order takes priority ──────────────────────────
+        const pTarget = unit.targetPosition;
+        if (pTarget) {
+          const pdx = pTarget[0] - unit.position[0];
+          const pdz = pTarget[2] - unit.position[2];
+          const pdist = Math.sqrt(pdx * pdx + pdz * pdz);
+          if (pdist < 3) {
+            // Arrived — clear player order, transition to idle
+            patches.set(unit.id, { ...patches.get(unit.id), targetPosition: undefined, state: 'idle' });
+          } else {
+            const step = cfg.speed * 0.033;
+            const facing = Math.atan2(pdx, pdz);
+            patches.set(unit.id, {
+              ...patches.get(unit.id),
+              state: 'move',
+              formationFacing: facing,
+              position: [
+                unit.position[0] + (pdx / pdist) * step,
+                unit.position[1],
+                unit.position[2] + (pdz / pdist) * step,
+              ],
+            });
+          }
+        } else {
+          // Auto-march toward nearest enemy
+          const dx = nearest.position[0] - unit.position[0];
+          const dz = nearest.position[2] - unit.position[2];
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          const step = cfg.speed * 0.033;
+          const facing = Math.atan2(dx, dz);
+          patches.set(unit.id, {
+            ...patches.get(unit.id),
+            state: 'move',
+            formationFacing: facing,
+            position: [
+              unit.position[0] + (dx / dist) * step,
+              unit.position[1],
+              unit.position[2] + (dz / dist) * step,
+            ],
+          });
+        }
       }
     }
 

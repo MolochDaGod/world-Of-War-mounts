@@ -94,11 +94,18 @@ interface GameState {
   removeFromPlayerArmy: (index: number) => void;
   clearPlayerArmy: () => void;
 
+  /** Player-issued RTS move command target (for move marker VFX) */
+  commandTarget: [number, number, number] | null;
+
   /** Spawn armies from builder selections and start battle */
   spawnArmies: () => void;
   /** Legacy — spawns a default army without builder */
   spawnInitialArmies: () => void;
   resetGame: () => void;
+
+  /** RTS commands */
+  issueMove: (unitIds: string[], targetPosition: [number, number, number]) => void;
+  setCommandTarget: (pos: [number, number, number] | null) => void;
 }
 
 let uidCounter = 0;
@@ -226,6 +233,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerArmy: [],
   enemyArmy: [],
   gold: 2000,
+  commandTarget: null,
 
   setPhase: (phase) => set({ phase }),
   setSelectedRace: (selectedRace) => set({ selectedRace }),
@@ -281,6 +289,18 @@ export const useGameStore = create<GameState>((set, get) => ({
     teamScores: { ...state.teamScores, [`team${team}`]: score },
   })),
   setDifficulty: (difficulty) => set({ difficulty }),
+  setCommandTarget: (commandTarget) => set({ commandTarget }),
+  issueMove: (unitIds, targetPosition) => {
+    const idSet = new Set(unitIds);
+    set(state => ({
+      commandTarget: targetPosition,
+      units: state.units.map(u =>
+        idSet.has(u.id) && u.state !== 'dead'
+          ? { ...u, targetPosition, state: 'move' }
+          : u,
+      ),
+    }));
+  },
 
   addToPlayerArmy: (slot) => set((state) => {
     if (state.playerArmy.length >= 8) return {};

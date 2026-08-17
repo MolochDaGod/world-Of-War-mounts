@@ -244,8 +244,27 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
   // Selection ring radius scales with formation width
   const ringRadius = ((unit.formationCols - 1) * unit.spacing) / 2 + 1.2;
 
+  // Invisible click hitbox — covers the formation footprint for LMB selection
+  const selectUnits = useGameStore(s => s.selectUnits);
+  const hitW = (unit.formationCols - 1) * unit.spacing + 2;
+  const hitD = (unit.formationRows - 1) * unit.spacing + 2;
+
+  const handleClick = (e: { stopPropagation: () => void }) => {
+    e.stopPropagation(); // prevent ground plane from also deselecting
+    if (unit.state !== 'dead') selectUnits([unit.id]);
+  };
+
   return (
     <group name={`regiment-${unit.id}`}>
+      {/* Invisible hitbox for click detection */}
+      <mesh
+        position={[unit.position[0], 1.5, unit.position[2]]}
+        onClick={handleClick}
+        visible={false}
+      >
+        <boxGeometry args={[hitW, 3, hitD]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
       {slots.map((pos, i) => (
         <ToonRTSSoldier
           key={i}
