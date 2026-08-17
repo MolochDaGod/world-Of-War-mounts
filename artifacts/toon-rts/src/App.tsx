@@ -9,7 +9,7 @@ export default function App() {
   const phase = useGameStore(s => s.phase);
 
   return (
-    <div className="w-full h-screen overflow-hidden bg-[#0d1420] text-foreground font-sans selection:bg-amber-500/30 relative">
+    <div className="w-full h-screen overflow-hidden text-foreground font-sans selection:bg-amber-500/30 relative">
       {/* Loading screen — overlays everything, fades out when THREE.DefaultLoadingManager.onLoad fires */}
       <GameLoadingScreen minDisplayMs={800} />
 

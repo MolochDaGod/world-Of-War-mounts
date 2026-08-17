@@ -78,10 +78,15 @@ export function GameScene() {
         gl={{
           antialias: true,
           powerPreference: 'high-performance',
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.1,
           alpha: false,
           stencil: false,
+        }}
+        onCreated={({ gl }) => {
+          // toneMapping and toneMappingExposure are renderer properties, not
+          // WebGLRenderer constructor params — set them post-creation to avoid
+          // the "deprecated parameters" warning in Three.js r185+.
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 1.1;
         }}
         dpr={[1, 2]}
         frameloop="always"
