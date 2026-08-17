@@ -26,13 +26,13 @@ export function CombatSystem() {
     if (now - lastUpdate.current < 0.033) return;
     lastUpdate.current = now;
 
-    const { units, batchCombatTick, removeUnit } = useGameStore.getState();
+    const { units, batchCombatTick, batchRemoveUnits } = useGameStore.getState();
 
     const living = units.filter(u => u.state !== 'dead');
 
     // Collect all unit patches for this tick — single store write at the end
     const patches = new Map<string, Partial<UnitData>>();
-    // Collect kills so we can fire removeUnit timeouts after the batch
+    // Collect kills so we can fire batchRemoveUnits after the batch
     const kills: { killerId: number; killedId: string }[] = [];
     // Accumulate score deltas: team1 and team2
     let scoreDelta1 = 0;
@@ -123,10 +123,11 @@ export function CombatSystem() {
       batchCombatTick(patches, scoreDelta1, scoreDelta2);
     }
 
-    // Deferred unit removal after death animations (setTimeout keeps this
-    // outside the synchronous render cycle — no cascade risk).
-    for (const { killedId } of kills) {
-      setTimeout(() => removeUnit(killedId), 1200);
+    // Deferred unit removal after death animations — single batch removes all kills at once
+    // so N deaths in one tick trigger only one useSyncExternalStore notification.
+    if (kills.length > 0) {
+      const killedIds = kills.map(k => k.killedId);
+      setTimeout(() => batchRemoveUnits(killedIds), 1200);
     }
   });
 

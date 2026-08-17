@@ -61,6 +61,7 @@ interface GameState {
     scoreDelta2: number,
   ) => void;
   removeUnit: (id: string) => void;
+  batchRemoveUnits: (ids: string[]) => void;
   setTeamScore: (team: 1 | 2, score: number) => void;
   setDifficulty: (d: Difficulty) => void;
   spawnInitialArmies: () => void;
@@ -131,6 +132,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     units: state.units.filter(u => u.id !== id),
     selectedUnitIds: state.selectedUnitIds.filter(s => s !== id),
   })),
+
+  batchRemoveUnits: (ids) => {
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    set((state) => ({
+      units: state.units.filter(u => !idSet.has(u.id)),
+      selectedUnitIds: state.selectedUnitIds.filter(s => !idSet.has(s)),
+    }));
+  },
 
   setTeamScore: (team, score) => set((state) => ({
     teamScores: { ...state.teamScores, [`team${team}`]: score },
