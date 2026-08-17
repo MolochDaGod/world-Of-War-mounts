@@ -50,6 +50,16 @@ interface GameState {
   addUnit: (unit: UnitData) => void;
   updateUnit: (id: string, updates: Partial<UnitData>) => void;
   batchUpdateUnits: (updates: Map<string, Partial<UnitData>>) => void;
+  /**
+   * Single-set combat tick: applies unit patches AND score increments atomically.
+   * Use instead of calling batchUpdateUnits + setTeamScore separately so that
+   * only ONE useSyncExternalStore notification fires per combat tick.
+   */
+  batchCombatTick: (
+    patches: Map<string, Partial<UnitData>>,
+    scoreDelta1: number,
+    scoreDelta2: number,
+  ) => void;
   removeUnit: (id: string) => void;
   setTeamScore: (team: 1 | 2, score: number) => void;
   setDifficulty: (d: Difficulty) => void;
@@ -104,6 +114,17 @@ export const useGameStore = create<GameState>((set, get) => ({
       const patch = updates.get(u.id);
       return patch ? { ...u, ...patch } : u;
     }),
+  })),
+
+  batchCombatTick: (patches, scoreDelta1, scoreDelta2) => set((state) => ({
+    units: state.units.map(u => {
+      const patch = patches.get(u.id);
+      return patch ? { ...u, ...patch } : u;
+    }),
+    teamScores: {
+      team1: state.teamScores.team1 + scoreDelta1,
+      team2: state.teamScores.team2 + scoreDelta2,
+    },
   })),
 
   removeUnit: (id) => set((state) => ({

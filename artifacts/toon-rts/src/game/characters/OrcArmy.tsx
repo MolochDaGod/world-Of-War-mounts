@@ -5,6 +5,7 @@ import { Suspense, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore, UnitData } from '@/game/store/gameStore';
+import { useShallow } from 'zustand/react/shallow';
 import { OrcModels } from '@/game/assets/CraftpixManifest';
 import {
   useFBXCharacter,
@@ -155,10 +156,15 @@ function OrcUnit({
 
 // ─── OrcArmy ──────────────────────────────────────────────────────────────────
 export function OrcArmy() {
-  const units = useGameStore((state) =>
-    state.units.filter((u) => u.teamId === 2),
+  // useShallow caches the last filtered array and returns the same reference
+  // when contents are shallowly equal — prevents useSyncExternalStore from
+  // seeing a new snapshot on every call and triggering "Maximum update depth exceeded".
+  const units = useGameStore(
+    useShallow((state) => state.units.filter((u) => u.teamId === 2)),
   );
-  const selectedUnitIds = useGameStore((state) => state.selectedUnitIds);
+  const selectedUnitIds = useGameStore(
+    useShallow((state) => state.selectedUnitIds),
+  );
 
   return (
     <group name="orc-army">

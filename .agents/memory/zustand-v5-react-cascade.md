@@ -140,3 +140,25 @@ Files in this project that implement these patterns correctly:
 - `WildAnimals.tsx` — stable ID string selector; batch update via `batchUpdateAnimals()` once per 10Hz tick
 - `GameScene.tsx` (WorldTick) — getState() in useFrame, not reactive subscription
 - `OpenWorldHUD.tsx` (TimeOfDay) — interval polling at 1Hz
+
+## Pattern 6 — `useShallow` for array/object selectors
+
+Any `useGameStore(s => s.units.filter(...))` returns a **new reference on every call**. In Zustand v5, `useSyncExternalStore` calls `getSnapshot()` multiple times per cycle; new reference each time → React sees "inconsistent snapshot" → schedules another render → **"Maximum update depth exceeded"**.
+
+**Fix:** wrap with `useShallow` from `zustand/react/shallow`:
+```tsx
+import { useShallow } from 'zustand/react/shallow';
+const units = useGameStore(useShallow(s => s.units.filter(u => u.teamId === 2)));
+```
+`useShallow` caches the last result via `useRef`; returns same reference when shallow-equal → stable `getSnapshot()` → no cascade. Apply to **every** selector returning an array or object literal.
+
+## Pattern 7 — Combine all store writes per tick into one set()
+
+Multiple sequential `set()` calls in one `useFrame` tick (e.g. `batchUpdateUnits` + 2× `setTeamScore`) each fire a synchronous notification. **Fix:** one dedicated action:
+```ts
+batchCombatTick: (patches, scoreDelta1, scoreDelta2) => set(state => ({
+  units: state.units.map(u => { const p = patches.get(u.id); return p ? {...u,...p} : u; }),
+  teamScores: { team1: state.teamScores.team1 + scoreDelta1, team2: state.teamScores.team2 + scoreDelta2 },
+})),
+```
+One `set()` = one notification = one re-render round.

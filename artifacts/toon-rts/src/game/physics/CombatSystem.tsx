@@ -26,8 +26,7 @@ export function CombatSystem() {
     if (now - lastUpdate.current < 0.033) return;
     lastUpdate.current = now;
 
-    const { units, batchUpdateUnits, removeUnit, setTeamScore, teamScores } =
-      useGameStore.getState();
+    const { units, batchCombatTick, removeUnit } = useGameStore.getState();
 
     const living = units.filter(u => u.state !== 'dead');
 
@@ -117,19 +116,18 @@ export function CombatSystem() {
       }
     }
 
-    // Single store write for all unit updates this tick
-    if (patches.size > 0) {
-      batchUpdateUnits(patches);
+    // Single store write: unit patches + score deltas in one set() call.
+    // Combining these prevents multiple sequential useSyncExternalStore
+    // notifications that could cascade into "Maximum update depth exceeded".
+    if (patches.size > 0 || scoreDelta1 > 0 || scoreDelta2 > 0) {
+      batchCombatTick(patches, scoreDelta1, scoreDelta2);
     }
 
-    // Deferred unit removal after death animations
+    // Deferred unit removal after death animations (setTimeout keeps this
+    // outside the synchronous render cycle — no cascade risk).
     for (const { killedId } of kills) {
       setTimeout(() => removeUnit(killedId), 1200);
     }
-
-    // Apply score deltas using the teamScores already read at tick start
-    if (scoreDelta1 > 0) setTeamScore(1, teamScores.team1 + scoreDelta1);
-    if (scoreDelta2 > 0) setTeamScore(2, teamScores.team2 + scoreDelta2);
   });
 
   return null;
