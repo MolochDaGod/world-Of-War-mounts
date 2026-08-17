@@ -1,133 +1,171 @@
+/**
+ * CombatSystem — 30Hz regiment-scale combat with projectile emission.
+ *
+ * Key changes from per-soldier version:
+ *  - Each UnitData is now a REGIMENT with high HP (2000–3000).
+ *  - Damage is scaled to regiment level (180–400 per hit).
+ *  - Ranged units call emitProjectile() so ProjectileSystem renders the bolt/arrow/stone.
+ *  - Mages fire magic orbs using the same projectile system.
+ *  - Single batchCombatTick per frame to keep Zustand notifications minimal.
+ */
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGameStore, UnitData } from '../store/gameStore';
+import { emitProjectile, ProjectileKind } from '../effects/ProjectileSystem';
+import { ROSTER_MAP } from '../data/UnitRoster';
 
-// Per-unit attack cooldown tracker — keyed by unit id
-const attackTimers: Record<string, number> = {};
-
-// Damage config by unit type
+// ── Combat config per regiment type ──────────────────────────────────────────
 const UNIT_CONFIG: Record<UnitData['type'], {
-  damage: number; attackRange: number; speed: number; attackCooldown: number;
+  damage: number;
+  attackRange: number;  // world units — distance between regiment centres
+  speed: number;        // world units per second (regiment march speed)
+  attackCooldown: number; // seconds between hits
 }> = {
-  infantry:    { damage: 12,  attackRange: 2.5, speed: 4.5, attackCooldown: 1.0 },
-  cavalry:     { damage: 20,  attackRange: 3.0, speed: 8.0, attackCooldown: 0.8 },
-  mage:        { damage: 8,   attackRange: 2.0, speed: 3.5, attackCooldown: 1.5 },
-  boltThrower: { damage: 35,  attackRange: 18,  speed: 1.5, attackCooldown: 2.0 },
-  catapult:    { damage: 55,  attackRange: 22,  speed: 1.2, attackCooldown: 3.0 },
+  // Legacy
+  infantry:    { damage: 180, attackRange: 6,  speed: 4.5, attackCooldown: 1.0 },
+  // Melee
+  swordsmen:   { damage: 180, attackRange: 6,  speed: 4.5, attackCooldown: 1.0 },
+  spearmen:    { damage: 150, attackRange: 8,  speed: 4.0, attackCooldown: 1.0 },
+  shieldwall:  { damage: 120, attackRange: 5,  speed: 2.5, attackCooldown: 1.5 },
+  skirmishers: { damage: 130, attackRange: 6,  speed: 6.5, attackCooldown: 0.8 },
+  // Ranged infantry
+  archers:     { damage: 100, attackRange: 18, speed: 3.5, attackCooldown: 1.8 },
+  // Cavalry
+  cavalry:     { damage: 250, attackRange: 7,  speed: 8.0, attackCooldown: 0.8 },
+  heavyCavalry:{ damage: 350, attackRange: 8,  speed: 7.0, attackCooldown: 1.2 },
+  // Casters / siege
+  mage:        { damage: 200, attackRange: 14, speed: 2.5, attackCooldown: 2.0 },
+  boltThrower: { damage: 280, attackRange: 26, speed: 1.5, attackCooldown: 3.0 },
+  catapult:    { damage: 400, attackRange: 32, speed: 1.2, attackCooldown: 4.0 },
 };
+
+// Ranged unit types that emit visible projectiles
+const RANGED_TYPES = new Set<UnitData['type']>([
+  'archers', 'mage', 'boltThrower', 'catapult',
+]);
+
+function projectileKind(type: UnitData['type']): ProjectileKind {
+  if (type === 'mage')        return 'magic';
+  if (type === 'boltThrower') return 'bolt';
+  if (type === 'catapult')    return 'stone';
+  return 'arrow'; // archers
+}
+
+// Per-regiment attack cooldown tracker
+const attackTimers: Record<string, number> = {};
 
 export function CombatSystem() {
   const lastUpdate = useRef(0);
 
   useFrame((state) => {
     const now = state.clock.elapsedTime;
-
-    // Run combat logic at 30hz to avoid per-frame Zustand thrashing
-    if (now - lastUpdate.current < 0.033) return;
+    if (now - lastUpdate.current < 0.033) return; // ~30Hz
     lastUpdate.current = now;
 
     const { units, batchCombatTick, batchRemoveUnits } = useGameStore.getState();
-
     const living = units.filter(u => u.state !== 'dead');
 
-    // Collect all unit patches for this tick — single store write at the end
-    const patches = new Map<string, Partial<UnitData>>();
-    // Collect kills so we can fire batchRemoveUnits after the batch
-    const kills: { killerId: number; killedId: string }[] = [];
-    // Accumulate score deltas: team1 and team2
+    const patches   = new Map<string, Partial<UnitData>>();
+    const kills: { killedId: string }[] = [];
     let scoreDelta1 = 0;
     let scoreDelta2 = 0;
 
-    // Helper: get the current patched state of a unit (or its original state)
-    const getPatch = (id: string, base: UnitData): Partial<UnitData> & Pick<UnitData, keyof UnitData> => {
-      const existing = patches.get(id);
-      return existing ? { ...base, ...existing } : base;
-    };
-
     for (const unit of living) {
-      // Skip if already marked dead by an earlier iteration this tick
-      const unitPatch = patches.get(unit.id);
-      if (unitPatch?.state === 'dead') continue;
+      if (patches.get(unit.id)?.state === 'dead') continue;
 
-      const cfg = UNIT_CONFIG[unit.type];
+      const cfg = UNIT_CONFIG[unit.type] ?? UNIT_CONFIG.swordsmen;
 
-      // Find nearest living enemy — single scan per unit
+      // Find nearest living enemy regiment (by centre-to-centre distance)
       let nearest: UnitData | null = null;
       let minDist = Infinity;
-
       for (const other of living) {
         if (other.teamId === unit.teamId) continue;
-        // Respect kills already decided this tick
-        const otherPatch = patches.get(other.id);
-        if (otherPatch?.state === 'dead') continue;
-
+        if (patches.get(other.id)?.state === 'dead') continue;
         const dx = unit.position[0] - other.position[0];
         const dz = unit.position[2] - other.position[2];
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < minDist) { minDist = dist; nearest = other; }
+        const d  = Math.sqrt(dx * dx + dz * dz);
+        if (d < minDist) { minDist = d; nearest = other; }
       }
 
       if (!nearest) {
-        if (unit.state !== 'idle') {
-          patches.set(unit.id, { ...patches.get(unit.id), state: 'idle' });
-        }
+        if (unit.state !== 'idle') patches.set(unit.id, { ...patches.get(unit.id), state: 'idle' });
         continue;
       }
 
-      if (minDist <= cfg.attackRange) {
-        // In attack range — face and attack
-        if (unit.state !== 'attack') {
-          patches.set(unit.id, { ...patches.get(unit.id), state: 'attack' });
-        }
+      const inRange = minDist <= cfg.attackRange;
+
+      if (inRange) {
+        // Attack
+        if (unit.state !== 'attack') patches.set(unit.id, { ...patches.get(unit.id), state: 'attack' });
 
         const timer = attackTimers[unit.id] ?? 0;
         if (now - timer >= cfg.attackCooldown) {
           attackTimers[unit.id] = now;
 
-          // Use already-patched health for the target if it was hit this tick
-          const nearestPatch = patches.get(nearest.id);
-          const currentHp = nearestPatch?.health ?? nearest.health;
-          const newHp = Math.max(0, currentHp - cfg.damage);
+          // Emit projectile for ranged units
+          if (RANGED_TYPES.has(unit.type)) {
+            const kind = projectileKind(unit.type);
+            const jitter = (): [number,number,number] => [
+              nearest!.position[0] + (Math.random() - 0.5) * 2,
+              nearest!.position[1],
+              nearest!.position[2] + (Math.random() - 0.5) * 2,
+            ];
+            emitProjectile(unit.position, jitter(), kind);
+          }
+
+          // Apply damage
+          const nearPatch = patches.get(nearest.id);
+          const curHp = nearPatch?.health ?? nearest.health;
+          const newHp = Math.max(0, curHp - cfg.damage);
 
           if (newHp <= 0) {
-            patches.set(nearest.id, { ...nearestPatch, health: 0, state: 'dead' });
-            kills.push({ killerId: unit.teamId, killedId: nearest.id });
+            patches.set(nearest.id, { ...nearPatch, health: 0, state: 'dead' });
+            kills.push({ killedId: nearest.id });
             delete attackTimers[nearest.id];
             if (unit.teamId === 1) scoreDelta1++; else scoreDelta2++;
           } else {
-            patches.set(nearest.id, { ...nearestPatch, health: newHp });
+            patches.set(nearest.id, { ...nearPatch, health: newHp });
           }
         }
       } else {
-        // Move toward enemy
+        // March toward enemy
         const dx = nearest.position[0] - unit.position[0];
         const dz = nearest.position[2] - unit.position[2];
         const dist = Math.sqrt(dx * dx + dz * dz);
-        const step = cfg.speed * 0.033; // step per combat tick (~30hz)
-        const nx = unit.position[0] + (dx / dist) * step;
-        const nz = unit.position[2] + (dz / dist) * step;
+        const step = cfg.speed * 0.033;
+        const facing = Math.atan2(dx, dz); // face toward enemy
 
         patches.set(unit.id, {
           ...patches.get(unit.id),
           state: 'move',
           targetPosition: nearest.position,
-          position: [nx, unit.position[1], nz],
+          formationFacing: facing,
+          position: [
+            unit.position[0] + (dx / dist) * step,
+            unit.position[1],
+            unit.position[2] + (dz / dist) * step,
+          ],
         });
       }
     }
 
-    // Single store write: unit patches + score deltas in one set() call.
-    // Combining these prevents multiple sequential useSyncExternalStore
-    // notifications that could cascade into "Maximum update depth exceeded".
     if (patches.size > 0 || scoreDelta1 > 0 || scoreDelta2 > 0) {
       batchCombatTick(patches, scoreDelta1, scoreDelta2);
     }
 
-    // Deferred unit removal after death animations — single batch removes all kills at once
-    // so N deaths in one tick trigger only one useSyncExternalStore notification.
     if (kills.length > 0) {
       const killedIds = kills.map(k => k.killedId);
-      setTimeout(() => batchRemoveUnits(killedIds), 1200);
+      setTimeout(() => batchRemoveUnits(killedIds), 1400);
+    }
+
+    // ── Victory detection ──────────────────────────────────────────────────
+    const { setPhase, phase } = useGameStore.getState();
+    if (phase === 'battle') {
+      const aliveTeam1 = living.filter(u => u.teamId === 1 && !patches.get(u.id)?.state?.includes('dead')).length;
+      const aliveTeam2 = living.filter(u => u.teamId === 2 && !patches.get(u.id)?.state?.includes('dead')).length;
+      if (living.length > 0 && (aliveTeam1 === 0 || aliveTeam2 === 0)) {
+        setTimeout(() => setPhase('victory'), 1600);
+      }
     }
   });
 

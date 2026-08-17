@@ -1,3 +1,12 @@
+/**
+ * GameScene — R3F Canvas for Race Wars.
+ *
+ * Key changes in this revision:
+ *  - AnimeWater removed (it covered the battlefield at y=-0.25).
+ *  - OrcArmy + ElfArmy replaced by BattleArmy (Toon_RTS FBX regiments in formation).
+ *  - ProjectileSystem added for arrow/bolt/stone/magic VFX.
+ *  - Map usage expanded: armies now spawn from z=±20 to z=±50 (vs old z=±16-22).
+ */
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
@@ -8,37 +17,34 @@ import {
   Preload,
   PerformanceMonitor,
 } from '@react-three/drei';
-import { RTSCamera }      from './camera/RTSCamera';
-import { OpenWorld }      from './world/OpenWorld';
-import { GrassField }     from './world/GrassField';
-import { AnimeWater }     from './world/AnimeWater';
-import { WorldTrees }     from './world/WorldTrees';
-import { WorldMountains } from './world/WorldMountains';
-import { ResourceNodes }  from './world/ResourceNodes';
-import { WorldItems }     from './world/WorldItems';
-import { WildAnimals }    from './wildlife/WildAnimals';
-import { OrcArmy }        from './characters/OrcArmy';
-import { ElfArmy }        from './characters/ElfArmy';
-import { MedievalNPCs }   from './characters/MedievalNPCs';
-import { AbilityManager } from './abilities/AbilityManager';
-import { AimController }  from './abilities/AimController';
-import { CombatSystem }   from './physics/CombatSystem';
-import { BuildSystem }    from './building/BuildSystem';
+import { RTSCamera }       from './camera/RTSCamera';
+import { OpenWorld }       from './world/OpenWorld';
+import { GrassField }      from './world/GrassField';
+import { WorldTrees }      from './world/WorldTrees';
+import { WorldMountains }  from './world/WorldMountains';
+import { ResourceNodes }   from './world/ResourceNodes';
+import { WorldItems }      from './world/WorldItems';
+import { WildAnimals }     from './wildlife/WildAnimals';
+import { BattleArmy }      from './characters/ToonRTSRegiment';
+import { MedievalNPCs }    from './characters/MedievalNPCs';
+import { AbilityManager }  from './abilities/AbilityManager';
+import { AimController }   from './abilities/AimController';
+import { CombatSystem }    from './physics/CombatSystem';
+import { ProjectileSystem } from './effects/ProjectileSystem';
+import { BuildSystem }     from './building/BuildSystem';
 import { PlacedBuildings } from './building/PlacedBuildings';
-import { useWorldStore }  from './store/worldStore';
-import { useFrame }       from '@react-three/fiber';
+import { useWorldStore }   from './store/worldStore';
+import { useFrame }        from '@react-three/fiber';
 
 /**
- * Ticks the world time-of-day and day/night cycle inside the R3F render loop.
- * Reads timeOfDay from getState() inside useFrame to avoid subscribing to
- * a value that changes every frame — which would trigger 60fps React re-renders
- * and cause "Maximum update depth exceeded" via useSyncExternalStore cascades.
+ * Day/night sky colour driven by worldStore timeOfDay.
+ * Reads via getState() inside useFrame — no React subscription — to avoid
+ * 60fps useSyncExternalStore cascades that cause "Maximum update depth exceeded".
  */
 function WorldTick() {
   const tickTime = useWorldStore(s => s.tickTime);
   useFrame((state, delta) => {
     tickTime(delta);
-    // Read latest timeOfDay directly from store (no React subscription needed)
     const timeOfDay = useWorldStore.getState().timeOfDay;
     const t = timeOfDay < 6 || timeOfDay >= 20
       ? 0    // night
@@ -57,24 +63,12 @@ function WorldTick() {
   return null;
 }
 
-/**
- * GameScene — R3F Canvas configured for open-world RTS/survival deployment.
- *
- * Canvas choices:
- *  shadows PCFShadowMap    — not deprecated (PCFSoftShadowMap is deprecated in r185)
- *  gl.antialias            — hardware MSAA
- *  gl.powerPreference      — discrete GPU
- *  gl.stencil false        — not needed; saves memory bandwidth
- *  dpr [1,2]               — HiDPI; AdaptiveDpr scales down under GPU pressure
- *  performance.min 0.5     — permits dropping DPR before fps tanks
- *  far: 1200               — large open world (300×300) needs extended far plane
- */
 export function GameScene() {
   return (
     <div className="w-full h-screen absolute inset-0 -z-10">
       <Canvas
         shadows={{ type: THREE.PCFShadowMap }}
-        camera={{ position: [0, 40, 50], fov: 50, near: 0.5, far: 1200 }}
+        camera={{ position: [0, 45, 60], fov: 50, near: 0.5, far: 1400 }}
         gl={{
           antialias: true,
           powerPreference: 'high-performance',
@@ -82,9 +76,6 @@ export function GameScene() {
           stencil: false,
         }}
         onCreated={({ gl }) => {
-          // toneMapping and toneMappingExposure are renderer properties, not
-          // WebGLRenderer constructor params — set them post-creation to avoid
-          // the "deprecated parameters" warning in Three.js r185+.
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.1;
         }}
@@ -99,20 +90,20 @@ export function GameScene() {
           onIncline={() => console.debug('[RaceWars] perf ↑')}
         />
 
-        {/* Sky / atmosphere */}
+        {/* Sky / atmosphere — colour updated each frame by WorldTick */}
         <color attach="background" args={['#4a7fa5']} />
-        <fogExp2 attach="fog" args={['#c8dcea', 0.005]} />
+        <fogExp2 attach="fog" args={['#c8dcea', 0.004]} />
 
-        {/* Three-point lighting rig — large world needs wider shadow frustum */}
-        <ambientLight intensity={0.6} color="#d8eaf8" />
+        {/* Three-point lighting */}
+        <ambientLight intensity={0.65} color="#d8eaf8" />
         <directionalLight
           position={[80, 120, 60]}
           intensity={2.5}
           castShadow
-          shadow-camera-left={-180}
-          shadow-camera-right={180}
-          shadow-camera-top={180}
-          shadow-camera-bottom={-180}
+          shadow-camera-left={-200}
+          shadow-camera-right={200}
+          shadow-camera-top={200}
+          shadow-camera-bottom={-200}
           shadow-mapSize={[4096, 4096]}
           shadow-bias={-0.0003}
         />
@@ -127,9 +118,9 @@ export function GameScene() {
             {/* ── Ground & terrain ── */}
             <OpenWorld />
             <GrassField />
-            <AnimeWater />
+            {/* AnimeWater removed — it covered the battlefield at y≈-0.1 to +0.07 */}
 
-            {/* ── Environment (FBX loaded in these) ── */}
+            {/* ── Environment ── */}
             <WorldTrees />
             <WorldMountains />
 
@@ -137,21 +128,25 @@ export function GameScene() {
             <ResourceNodes />
             <WorldItems />
 
-            {/* ── Characters ── */}
-            <OrcArmy />
-            <ElfArmy />
+            {/* ── Armies (Toon_RTS FBX regiments in formation) ── */}
+            <BattleArmy />
+
+            {/* ── Ambient NPCs ── */}
             <MedievalNPCs />
 
             {/* ── Wildlife ── */}
             <WildAnimals />
 
-            {/* ── Combat & abilities ── */}
+            {/* ── Combat ── */}
             <CombatSystem />
 
-            {/* ── Modular building system ── */}
+            {/* ── Buildings ── */}
             <PlacedBuildings />
             <BuildSystem />
           </Physics>
+
+          {/* Projectiles live outside Physics — they are purely visual */}
+          <ProjectileSystem />
 
           <AbilityManager />
           <AimController />

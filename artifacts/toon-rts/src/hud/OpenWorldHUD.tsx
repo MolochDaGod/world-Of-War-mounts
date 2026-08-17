@@ -10,6 +10,7 @@ import { AbilityHotbar }  from './AbilityHotbar';
 import { WinLoseScreen }  from './WinLoseScreen';
 import { ShopPanel }      from './ShopPanel';
 import { BuildPanel }     from './BuildPanel';
+import { RegimentBar }    from './RegimentBar';
 import { useBuildStore }  from '@/game/store/buildStore';
 
 // ── Time of day display ────────────────────────────────────────────────────────
@@ -258,7 +259,7 @@ export function OpenWorldHUD() {
             <UnitInfoPanel />
           </div>
 
-          {/* Bottom-center — Ability hotbar */}
+          {/* Bottom-center — Regiment bar + Ability hotbar */}
           <div
             style={{
               display: 'flex',
@@ -268,6 +269,7 @@ export function OpenWorldHUD() {
               pointerEvents: 'auto',
             }}
           >
+            <RegimentBar />
             <AbilityHotbar />
           </div>
 

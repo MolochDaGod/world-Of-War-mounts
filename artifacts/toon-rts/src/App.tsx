@@ -1,6 +1,6 @@
 import { GameScene }        from './game/GameScene';
 import { OpenWorldHUD }     from './hud/OpenWorldHUD';
-import { DifficultySelect } from './hud/DifficultySelect';
+import { ArmyBuilder }      from './hud/ArmyBuilder';
 import { RaceSelector }     from './hud/RaceSelector';
 import { GameLoadingScreen } from './game/assets/GameLoadingScreen';
 import { useGameStore }     from './game/store/gameStore';
@@ -18,7 +18,7 @@ export default function App() {
 
       {/* 2-D overlay layers */}
       {phase === 'menu'                              && <RaceSelector />}
-      {phase === 'setup'                             && <DifficultySelect />}
+      {phase === 'setup'                             && <ArmyBuilder />}
       {(phase === 'battle' || phase === 'victory')   && <OpenWorldHUD />}
     </div>
   );

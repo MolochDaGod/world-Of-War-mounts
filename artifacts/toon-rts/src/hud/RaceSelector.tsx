@@ -11,14 +11,19 @@ const RACES: { name: Race; desc: string; units: string; color: string }[] = [
 ];
 
 export function RaceSelector() {
-  const { setSelectedRace, setEnemyRace, spawnInitialArmies } = useGameStore();
+  // Actions are stable in Zustand v5 — individual selectors are safe without useShallow
+  const setSelectedRace = useGameStore(s => s.setSelectedRace);
+  const setEnemyRace    = useGameStore(s => s.setEnemyRace);
+  const setPhase        = useGameStore(s => s.setPhase);
+  const clearPlayerArmy = useGameStore(s => s.clearPlayerArmy);
   const [player, setPlayer] = useState<Race>('WesternKingdoms');
   const [enemy,  setEnemy]  = useState<Race>('Orcs');
 
   const handleStart = () => {
     setSelectedRace(player);
     setEnemyRace(enemy);
-    spawnInitialArmies();
+    clearPlayerArmy();
+    setPhase('setup');
   };
 
   return (
