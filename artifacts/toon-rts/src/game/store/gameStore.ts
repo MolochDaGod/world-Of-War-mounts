@@ -44,9 +44,11 @@ export interface AbilityTarget {
   distance: number;
 }
 
-/** Army builder regiment selection */
+/** Army builder regiment selection — maxSoldiers/hp override from faction data */
 export interface RegimentSlot {
-  unitType: UnitType;
+  unitType:    UnitType;
+  maxSoldiers?: number;  // faction-specific soldier count (overrides REGIMENT_DEFS)
+  hpOverride?:  number;  // faction-specific HP pool
 }
 
 interface GameState {
@@ -181,7 +183,7 @@ function buildUnits(army: RegimentSlot[], race: Race, teamId: 1 | 2, diffMult: n
 
   return army.map((slot, i) => {
     const def  = REGIMENT_DEFS[slot.unitType] ?? REGIMENT_DEFS.swordsmen;
-    const hp   = Math.round(def.hp * diffMult);
+    const hp   = Math.round((slot.hpOverride ?? def.hp) * diffMult);
     return {
       id: uid(),
       race,
@@ -191,7 +193,7 @@ function buildUnits(army: RegimentSlot[], race: Race, teamId: 1 | 2, diffMult: n
       maxHealth: hp,
       state: 'idle',
       teamId,
-      maxSoldiers: def.maxSoldiers,
+      maxSoldiers: slot.maxSoldiers ?? def.maxSoldiers,
       formationRows: def.formationRows,
       formationCols: def.formationCols,
       formationFacing: facing,

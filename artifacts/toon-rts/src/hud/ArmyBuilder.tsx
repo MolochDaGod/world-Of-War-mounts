@@ -1,179 +1,183 @@
 /**
- * ArmyBuilder — Total War-style army composition screen.
+ * ArmyBuilder — faction-specific army composition screen.
  *
- * Layout:
- *   Top:    Race selectors (player left, enemy right) + gold counter
- *   Middle: 2×5 unit card grid (10 archetypes)
- *   Bottom: Player army slots (up to 8) + BATTLE button
+ * Units are grouped into Infantry / Mounted / Siege sections.
+ * Portrait icons come from /assets/unit-icons/ (generated AI images + reference images).
+ * Faction meta from FactionData.ts; game engine uses Race internally.
  */
 import { useState } from 'react';
-import {
-  useGameStore,
-  Race,
-  REGIMENT_DEFS,
-} from '@/game/store/gameStore';
+import { useGameStore, REGIMENT_DEFS } from '@/game/store/gameStore';
 import { useShallow } from 'zustand/react/shallow';
 import {
-  UNIT_ROSTER,
-  UnitDef,
-  RACE_META,
-  getUnitName,
-  getUnitDescription,
-} from '@/game/data/UnitRoster';
+  Faction, FACTION_META, FACTION_DISPLAY, FACTION_UNITS, FACTION_TO_RACE,
+  RACE_TO_FACTION, FactionUnit,
+} from '@/game/data/FactionData';
 
-const ALL_RACES: Race[] = [
-  'WesternKingdoms', 'Elves', 'Dwarves', 'Orcs', 'Barbarians', 'Undead',
-];
+const FACTIONS: Faction[] = ['Crusade', 'Fabled', 'Legion'];
 
-// ── Stat bar ─────────────────────────────────────────────────────────────────
+// ── Stat bar ──────────────────────────────────────────────────────────────────
 function StatBar({ label, value }: { label: string; value: number }) {
+  const color = value > 70 ? '#4caf50' : value > 40 ? '#ff9800' : '#f44336';
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-      <span style={{ width: 36, fontSize: 9, color: '#aaa', flexShrink: 0 }}>{label}</span>
-      <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2 }}>
-        <div
-          style={{
-            width: `${value}%`, height: '100%', borderRadius: 2,
-            background: value > 70 ? '#4caf50' : value > 40 ? '#ff9800' : '#f44336',
-          }}
-        />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+      <span style={{ width: 26, fontSize: 8, color: '#888', flexShrink: 0, letterSpacing: '0.05em' }}>
+        {label}
+      </span>
+      <div style={{ flex: 1, height: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 2 }}>
+        <div style={{ width: `${value}%`, height: '100%', borderRadius: 2, background: color,
+          transition: 'width 0.3s ease' }} />
       </div>
+      <span style={{ fontSize: 8, color, width: 20, textAlign: 'right' }}>{value}</span>
     </div>
   );
 }
 
-// ── Unit card ─────────────────────────────────────────────────────────────────
+// ── Unit portrait card ────────────────────────────────────────────────────────
 function UnitCard({
-  def, index, race, gold, onAdd,
+  unit, gold, alreadyInArmy, onAdd,
 }: {
-  def: UnitDef; index: number; race: Race; gold: number; onAdd: () => void;
+  unit: FactionUnit; gold: number; alreadyInArmy: number; onAdd: () => void;
 }) {
-  const name = getUnitName(race, index);
-  const desc = getUnitDescription(index);
-  const cost = def.cost;
-  const canAfford = gold >= cost;
-  const regDef = REGIMENT_DEFS[def.type];
   const [hover, setHover] = useState(false);
+  const canAfford = gold >= unit.cost;
+  const regDef = REGIMENT_DEFS[unit.type] ?? REGIMENT_DEFS.swordsmen;
 
   return (
-    <button
+    <div
       onClick={canAfford ? onAdd : undefined}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      title={desc}
       style={{
+        display: 'flex', flexDirection: 'column',
         background: hover && canAfford
-          ? 'rgba(255,215,0,0.15)'
-          : 'rgba(255,255,255,0.04)',
-        border: `1px solid ${hover && canAfford ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.1)'}`,
-        borderRadius: 8,
-        cursor: canAfford ? 'pointer' : 'not-allowed',
-        padding: '8px 6px',
-        textAlign: 'left',
-        opacity: canAfford ? 1 : 0.45,
-        transition: 'background 0.15s, border 0.15s, opacity 0.15s',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 3,
-        minHeight: 110,
+          ? 'rgba(255,215,0,0.09)'
+          : 'rgba(255,255,255,0.03)',
+        border: `1px solid ${hover && canAfford ? 'rgba(255,215,0,0.4)' : 'rgba(255,255,255,0.08)'}`,
+        borderRadius: 10, padding: '10px 8px',
+        cursor: canAfford ? 'pointer' : 'default',
+        opacity: canAfford ? 1 : 0.4,
+        transition: 'all 0.15s',
+        width: 108, flexShrink: 0,
+        position: 'relative',
       }}
     >
-      {/* Icon + name row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontSize: 22 }}>{def.icon}</span>
-        <div>
-          <div style={{
-            fontSize: 11, fontWeight: 700, color: '#f0e8d5',
-            fontFamily: "'Cinzel', serif", lineHeight: 1.2,
-          }}>
-            {name}
-          </div>
-          <div style={{ fontSize: 9, color: '#aaa', marginTop: 1 }}>
-            {regDef.maxSoldiers} men · {def.isRanged ? 'Ranged' : 'Melee'}
-          </div>
-        </div>
-      </div>
-
-      {/* Stat bars */}
-      <div style={{ marginTop: 2 }}>
-        <StatBar label="ATK" value={def.statAttack} />
-        <StatBar label="DEF" value={def.statDefense} />
-        <StatBar label="SPD" value={def.statSpeed} />
-        {def.isRanged && <StatBar label="RNG" value={def.statRange} />}
-      </div>
-
-      {/* Cost */}
+      {/* Portrait */}
       <div style={{
-        marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 4,
+        width: '100%', height: 80, marginBottom: 6,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: 6,
+        background: 'rgba(0,0,0,0.25)',
+        overflow: 'hidden',
       }}>
-        <span style={{ fontSize: 12 }}>💰</span>
-        <span style={{ fontSize: 11, color: canAfford ? '#ffd700' : '#888', fontWeight: 700 }}>
-          {cost}
-        </span>
+        <img
+          src={unit.icon}
+          alt={unit.name}
+          style={{ height: '100%', width: '100%', objectFit: 'contain' }}
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none';
+          }}
+        />
       </div>
-    </button>
+
+      {/* Name */}
+      <div style={{
+        fontSize: 10, fontWeight: 700, color: '#f0e8d5',
+        fontFamily: "'Cinzel', serif", lineHeight: 1.2,
+        marginBottom: 3, textAlign: 'center',
+      }}>{unit.name}</div>
+
+      {/* Soldiers + type */}
+      <div style={{
+        fontSize: 9, color: '#888', textAlign: 'center', marginBottom: 5,
+      }}>
+        {unit.maxSoldiers} {unit.maxSoldiers === 1 ? 'engine' : 'men'}
+        {' · '}{unit.isRanged ? 'Ranged' : 'Melee'}
+      </div>
+
+      {/* Stats */}
+      <div style={{ marginBottom: 6 }}>
+        <StatBar label="ATK" value={unit.statAttack} />
+        <StatBar label="DEF" value={unit.statDefense} />
+        <StatBar label="SPD" value={unit.statSpeed} />
+        {unit.isRanged && <StatBar label="RNG" value={unit.statRange} />}
+      </div>
+
+      {/* Cost row */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginTop: 'auto',
+      }}>
+        <span style={{ fontSize: 11, color: canAfford ? '#ffd700' : '#666', fontWeight: 700 }}>
+          💰 {unit.cost}
+        </span>
+        {canAfford && (
+          <span style={{
+            fontSize: 14, color: '#4caf50', fontWeight: 900, lineHeight: 1,
+          }}>+</span>
+        )}
+      </div>
+
+      {/* Count badge if already in army */}
+      {alreadyInArmy > 0 && (
+        <div style={{
+          position: 'absolute', top: 4, right: 4,
+          background: '#ffd700', color: '#000',
+          fontSize: 9, fontWeight: 900,
+          width: 16, height: 16, borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>{alreadyInArmy}</div>
+      )}
+    </div>
   );
 }
 
-// ── Race selector pill ────────────────────────────────────────────────────────
-function RacePill({
-  race, selected, onSelect,
-}: { race: Race; selected: boolean; onSelect: () => void }) {
-  const meta = RACE_META[race];
+// ── Section header ────────────────────────────────────────────────────────────
+function SectionHeader({ icon, label, color }: { icon: string; label: string; color: string }) {
   return (
-    <button
-      onClick={onSelect}
-      style={{
-        background: selected ? meta.bgColor : 'rgba(255,255,255,0.04)',
-        border: `1px solid ${selected ? meta.color : 'rgba(255,255,255,0.12)'}`,
-        borderRadius: 6,
-        padding: '4px 10px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 5,
-        color: selected ? meta.color : '#888',
-        fontSize: 12,
-        fontWeight: selected ? 700 : 400,
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: '6px 0 8px',
+      marginBottom: 6,
+    }}>
+      <span style={{ fontSize: 16 }}>{icon}</span>
+      <span style={{
+        fontSize: 10, fontWeight: 700, letterSpacing: '0.2em',
+        color, textTransform: 'uppercase',
         fontFamily: "'Cinzel', serif",
-        transition: 'all 0.15s',
-        flexShrink: 0,
-      }}
-    >
-      <span style={{ fontSize: 14 }}>{meta.icon}</span>
-      {race}
-    </button>
+      }}>{label}</span>
+      <div style={{ flex: 1, height: 1, background: `${color}30` }} />
+    </div>
   );
 }
 
 // ── Army slot strip ───────────────────────────────────────────────────────────
 function ArmySlot({
-  def, index, race, onRemove,
-}: { def: UnitDef; index: number; race: Race; onRemove: () => void }) {
-  const name = getUnitName(race, UNIT_ROSTER.findIndex(u => u.type === def.type));
+  unit, onRemove,
+}: { unit: FactionUnit; onRemove: () => void }) {
   return (
     <div
-      style={{
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,215,0,0.25)',
-        borderRadius: 8,
-        padding: '6px 8px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 3,
-        minWidth: 64,
-        position: 'relative',
-        cursor: 'pointer',
-        transition: 'background 0.1s',
-      }}
       onClick={onRemove}
-      title={`Remove ${name}`}
+      title={`Remove ${unit.name}`}
+      style={{
+        width: 64, flexShrink: 0,
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid rgba(255,215,0,0.2)',
+        borderRadius: 8, padding: '5px 4px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+        cursor: 'pointer', transition: 'background 0.1s',
+        position: 'relative',
+      }}
     >
-      <span style={{ fontSize: 20 }}>{def.icon}</span>
-      <span style={{ fontSize: 9, color: '#ccc', textAlign: 'center', lineHeight: 1.2 }}>{name}</span>
+      <img src={unit.icon} alt={unit.name}
+        style={{ width: 38, height: 38, objectFit: 'contain' }}
+        onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }}
+      />
       <span style={{
-        position: 'absolute', top: 2, right: 4, fontSize: 10, color: '#f44', fontWeight: 700,
+        fontSize: 8, color: '#bbb', textAlign: 'center', lineHeight: 1.2,
+      }}>{unit.name}</span>
+      <span style={{
+        position: 'absolute', top: 2, right: 4,
+        fontSize: 9, color: '#f44', fontWeight: 900,
       }}>×</span>
     </div>
   );
@@ -182,324 +186,294 @@ function ArmySlot({
 function EmptySlot() {
   return (
     <div style={{
-      border: '1px dashed rgba(255,255,255,0.15)',
-      borderRadius: 8,
-      minWidth: 64,
-      minHeight: 72,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: 'rgba(255,255,255,0.2)',
-      fontSize: 20,
+      width: 64, flexShrink: 0,
+      border: '1px dashed rgba(255,255,255,0.12)',
+      borderRadius: 8, minHeight: 72,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: 'rgba(255,255,255,0.18)', fontSize: 22,
     }}>+</div>
   );
 }
 
-// ── Main ArmyBuilder component ────────────────────────────────────────────────
+// ── Main ArmyBuilder ──────────────────────────────────────────────────────────
 export function ArmyBuilder() {
-  // Primitives — individual selectors (stable, no useShallow needed)
+  // Store primitives — individual selectors
   const selectedRace = useGameStore(s => s.selectedRace);
   const enemyRace    = useGameStore(s => s.enemyRace);
   const gold         = useGameStore(s => s.gold);
   const difficulty   = useGameStore(s => s.difficulty);
 
-  // Array — must use useShallow to avoid new-object-every-render infinite loop
+  // Store array — useShallow required
   const playerArmy = useGameStore(useShallow(s => s.playerArmy));
 
-  // Actions — stable function refs, individual selectors are safe
-  const setSelectedRace    = useGameStore(s => s.setSelectedRace);
-  const setEnemyRace       = useGameStore(s => s.setEnemyRace);
-  const addToPlayerArmy    = useGameStore(s => s.addToPlayerArmy);
+  // Store actions — stable, individual selectors
+  const setSelectedRace     = useGameStore(s => s.setSelectedRace);
+  const setEnemyRace        = useGameStore(s => s.setEnemyRace);
+  const addToPlayerArmy     = useGameStore(s => s.addToPlayerArmy);
   const removeFromPlayerArmy = useGameStore(s => s.removeFromPlayerArmy);
-  const clearPlayerArmy    = useGameStore(s => s.clearPlayerArmy);
-  const spawnArmies        = useGameStore(s => s.spawnArmies);
-  const setDifficulty      = useGameStore(s => s.setDifficulty);
+  const clearPlayerArmy     = useGameStore(s => s.clearPlayerArmy);
+  const spawnArmies         = useGameStore(s => s.spawnArmies);
+  const setDifficulty       = useGameStore(s => s.setDifficulty);
+  const setPhase            = useGameStore(s => s.setPhase);
 
-  const [tab, setTab] = useState<'player' | 'enemy'>('player');
+  // Derive active factions from races in store
+  const playerFaction: Faction = RACE_TO_FACTION[selectedRace] ?? 'Crusade';
+  const enemyFaction:  Faction = RACE_TO_FACTION[enemyRace]    ?? 'Legion';
 
-  const playerMeta = RACE_META[selectedRace];
-  const enemyMeta  = RACE_META[enemyRace];
+  const factionMeta  = FACTION_META[playerFaction];
+  const factionUnits = FACTION_UNITS[playerFaction];
+
+  // Count how many of each unit type are already in the army
+  const typeCounts = playerArmy.reduce<Record<string, number>>((acc, s) => {
+    acc[s.unitType] = (acc[s.unitType] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  // Map army slots back to FactionUnit objects for display
+  const armyUnits: (FactionUnit | null)[] = playerArmy.map(slot => {
+    return factionUnits.find(u => u.type === slot.unitType) ?? null;
+  });
+
+  const handleAdd = (unit: FactionUnit) => {
+    const regDef = REGIMENT_DEFS[unit.type] ?? REGIMENT_DEFS.swordsmen;
+    addToPlayerArmy({
+      unitType:    unit.type,
+      maxSoldiers: unit.maxSoldiers,
+      hpOverride:  Math.round(regDef.hp * (unit.maxSoldiers / regDef.maxSoldiers)),
+    });
+  };
+
+  const infantry = factionUnits.filter(u => u.category === 'infantry');
+  const mounted  = factionUnits.filter(u => u.category === 'mounted');
+  const siege    = factionUnits.filter(u => u.category === 'siege');
 
   return (
-    <div
-      className="pointer-events-auto"
-      style={{
-        position: 'absolute', inset: 0,
-        background: 'rgba(5,8,15,0.92)',
-        backdropFilter: 'blur(8px)',
-        zIndex: 50,
-        display: 'flex',
-        flexDirection: 'column',
-        fontFamily: 'system-ui, sans-serif',
-        overflow: 'hidden',
-      }}
-    >
-      {/* ── HEADER ─────────────────────────────────────────────────── */}
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 50,
+      display: 'flex', flexDirection: 'column',
+      background: '#050810',
+      backgroundImage: `radial-gradient(ellipse at 50% -10%, ${factionMeta.glowColor.replace('0.4','0.12')} 0%, transparent 55%)`,
+      fontFamily: 'system-ui, sans-serif',
+      overflow: 'hidden',
+    }}>
+
+      {/* ── HEADER ─────────────────────────────────────────────────────── */}
       <div style={{
-        background: 'rgba(0,0,0,0.4)',
-        borderBottom: '1px solid rgba(255,215,0,0.2)',
-        padding: '10px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '8px 20px',
+        background: 'rgba(0,0,0,0.45)',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
         flexShrink: 0,
       }}>
-        <div style={{
-          fontFamily: "'Cinzel', serif",
-          fontSize: 20, color: '#ffd700',
-          textShadow: '0 0 20px rgba(255,215,0,0.4)',
-        }}>
-          ⚔ Army Muster
+        {/* Emblem + faction name */}
+        <img src={factionMeta.emblem} alt={FACTION_DISPLAY[playerFaction]}
+          style={{
+            width: 42, height: 42,
+            filter: `drop-shadow(0 0 10px ${factionMeta.primaryColor})`,
+          }}
+        />
+        <div>
+          <div style={{
+            fontFamily: "'Cinzel', serif",
+            fontSize: 17, color: factionMeta.primaryColor,
+            fontWeight: 700, letterSpacing: '0.08em',
+          }}>
+            {FACTION_DISPLAY[playerFaction].toUpperCase()}
+          </div>
+          <div style={{ fontSize: 10, color: '#555' }}>Army Muster</div>
         </div>
 
-        {/* Gold counter */}
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* Gold */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          background: 'rgba(255,215,0,0.1)',
-          border: '1px solid rgba(255,215,0,0.3)',
-          borderRadius: 8, padding: '5px 14px',
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'rgba(255,215,0,0.08)',
+          border: '1px solid rgba(255,215,0,0.25)',
+          borderRadius: 8, padding: '5px 12px',
         }}>
-          <span style={{ fontSize: 18 }}>💰</span>
+          <span style={{ fontSize: 16 }}>💰</span>
           <span style={{
-            fontSize: 20, fontWeight: 700, color: '#ffd700',
+            fontSize: 18, fontWeight: 700, color: '#ffd700',
             fontFamily: "'Cinzel', serif",
           }}>{gold}</span>
-          <span style={{ fontSize: 11, color: '#aaa' }}>gold remaining</span>
+          <span style={{ fontSize: 10, color: '#666' }}>remaining</span>
         </div>
 
         {/* Difficulty */}
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 5 }}>
           {(['easy', 'normal', 'hard'] as const).map(d => (
             <button key={d} onClick={() => setDifficulty(d)} style={{
-              background: difficulty === d ? 'rgba(255,215,0,0.2)' : 'rgba(255,255,255,0.05)',
-              border: `1px solid ${difficulty === d ? 'rgba(255,215,0,0.6)' : 'rgba(255,255,255,0.15)'}`,
-              borderRadius: 6, padding: '4px 12px', cursor: 'pointer',
-              color: difficulty === d ? '#ffd700' : '#888',
-              fontSize: 11, fontFamily: "'Cinzel', serif",
+              background: difficulty === d ? 'rgba(255,215,0,0.18)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${difficulty === d ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.1)'}`,
+              borderRadius: 6, padding: '4px 11px', cursor: 'pointer',
+              color: difficulty === d ? '#ffd700' : '#666',
+              fontSize: 10, fontFamily: "'Cinzel', serif",
             }}>{d[0].toUpperCase() + d.slice(1)}</button>
+          ))}
+        </div>
+
+        {/* Change faction */}
+        <button
+          onClick={() => setPhase('menu')}
+          style={{
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 6, padding: '4px 12px', cursor: 'pointer',
+            color: '#888', fontSize: 10,
+          }}>
+          ← Change Faction
+        </button>
+
+        {/* Enemy picker — small inline */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ fontSize: 10, color: '#666' }}>vs</span>
+          {FACTIONS.map(f => {
+            const m = FACTION_META[f];
+            const sel = f === enemyFaction;
+            return (
+              <button key={f} onClick={() => setEnemyRace(FACTION_TO_RACE[f])} style={{
+                display: 'flex', alignItems: 'center', gap: 3,
+                background: sel ? `${m.primaryColor}18` : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${sel ? m.primaryColor + '60' : 'rgba(255,255,255,0.08)'}`,
+                borderRadius: 6, padding: '3px 8px', cursor: 'pointer',
+              }}>
+                <img src={m.emblem} alt={f}
+                  style={{ width: 18, height: 18, filter: sel ? 'none' : 'brightness(0.4)' }} />
+                <span style={{ fontSize: 9, color: sel ? m.primaryColor : '#555' }}>
+                  {FACTION_DISPLAY[f]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── BODY: unit picker ───────────────────────────────────────────── */}
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column',
+        overflow: 'hidden', padding: '12px 20px 0',
+      }}>
+
+        {/* INFANTRY */}
+        <SectionHeader icon="⚔️" label="Infantry" color={factionMeta.primaryColor} />
+        <div style={{
+          display: 'flex', gap: 10, flexWrap: 'nowrap',
+          overflowX: 'auto', paddingBottom: 12,
+        }}>
+          {infantry.map(unit => (
+            <UnitCard
+              key={unit.type}
+              unit={unit}
+              gold={gold}
+              alreadyInArmy={typeCounts[unit.type] ?? 0}
+              onAdd={() => handleAdd(unit)}
+            />
+          ))}
+        </div>
+
+        {/* MOUNTED */}
+        <SectionHeader icon="🐴" label="Mounted" color={factionMeta.primaryColor} />
+        <div style={{
+          display: 'flex', gap: 10, flexWrap: 'nowrap',
+          overflowX: 'auto', paddingBottom: 12,
+        }}>
+          {mounted.map(unit => (
+            <UnitCard
+              key={unit.type}
+              unit={unit}
+              gold={gold}
+              alreadyInArmy={typeCounts[unit.type] ?? 0}
+              onAdd={() => handleAdd(unit)}
+            />
+          ))}
+        </div>
+
+        {/* SIEGE */}
+        <SectionHeader icon="💣" label="Siege" color={factionMeta.primaryColor} />
+        <div style={{
+          display: 'flex', gap: 10, flexWrap: 'nowrap',
+          overflowX: 'auto', paddingBottom: 12,
+        }}>
+          {siege.map(unit => (
+            <UnitCard
+              key={unit.type}
+              unit={unit}
+              gold={gold}
+              alreadyInArmy={typeCounts[unit.type] ?? 0}
+              onAdd={() => handleAdd(unit)}
+            />
           ))}
         </div>
       </div>
 
-      {/* ── BODY ──────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-
-        {/* Left panel — race + unit grid */}
-        <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column',
-          padding: '12px 16px', overflow: 'hidden',
-        }}>
-          {/* Race selector tabs */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
-            <button onClick={() => setTab('player')} style={{
-              background: tab === 'player' ? playerMeta.bgColor : 'transparent',
-              border: `1px solid ${tab === 'player' ? playerMeta.color : 'rgba(255,255,255,0.1)'}`,
-              borderRadius: '6px 6px 0 0', padding: '5px 14px', cursor: 'pointer',
-              color: tab === 'player' ? playerMeta.color : '#666',
-              fontSize: 12, fontFamily: "'Cinzel', serif",
-            }}>
-              {playerMeta.icon} Your Army
-            </button>
-            <button onClick={() => setTab('enemy')} style={{
-              background: tab === 'enemy' ? enemyMeta.bgColor : 'transparent',
-              border: `1px solid ${tab === 'enemy' ? enemyMeta.color : 'rgba(255,255,255,0.1)'}`,
-              borderRadius: '6px 6px 0 0', padding: '5px 14px', cursor: 'pointer',
-              color: tab === 'enemy' ? enemyMeta.color : '#666',
-              fontSize: 12, fontFamily: "'Cinzel', serif",
-            }}>
-              {enemyMeta.icon} Enemy
-            </button>
-          </div>
-
-          {tab === 'player' ? (
-            <>
-              {/* Player race selection */}
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 10, color: '#888', marginBottom: 4 }}>SELECT YOUR RACE</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                  {ALL_RACES.map(r => (
-                    <RacePill
-                      key={r} race={r}
-                      selected={selectedRace === r}
-                      onSelect={() => { setSelectedRace(r); clearPlayerArmy(); }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Unit grid 2 rows × 5 cols */}
-              <div style={{ fontSize: 10, color: '#888', marginBottom: 6 }}>
-                CHOOSE REGIMENTS · click to add · {playerArmy.length}/8 slots used
-              </div>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(5, 1fr)',
-                gap: 6, flex: 1, overflow: 'auto',
-              }}>
-                {UNIT_ROSTER.map((def, i) => (
-                  <UnitCard
-                    key={def.type} def={def} index={i}
-                    race={selectedRace} gold={gold}
-                    onAdd={() => addToPlayerArmy({ unitType: def.type })}
-                  />
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Enemy race selection */}
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 10, color: '#888', marginBottom: 4 }}>SELECT ENEMY RACE</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                  {ALL_RACES.map(r => (
-                    <RacePill
-                      key={r} race={r}
-                      selected={enemyRace === r}
-                      onSelect={() => setEnemyRace(r)}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div style={{
-                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexDirection: 'column', gap: 12, color: '#666',
-              }}>
-                <span style={{ fontSize: 48 }}>{enemyMeta.icon}</span>
-                <div style={{ fontFamily: "'Cinzel', serif", fontSize: 18, color: enemyMeta.color }}>
-                  {enemyRace}
-                </div>
-                <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 260 }}>
-                  The enemy general will muster a force matching your army's strength.
-                  Select their race then go to Your Army to build your force.
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Right panel — army preview */}
-        <div style={{
-          width: 220, borderLeft: '1px solid rgba(255,215,0,0.12)',
-          padding: '16px 12px', display: 'flex',
-          flexDirection: 'column', gap: 8, overflow: 'auto', flexShrink: 0,
-        }}>
-          <div style={{
-            fontFamily: "'Cinzel', serif", fontSize: 12,
-            color: '#ffd700', marginBottom: 4,
-          }}>
-            {playerMeta.icon} {selectedRace} Force
-          </div>
-
-          {/* Spend summary */}
-          <div style={{ fontSize: 10, color: '#888' }}>
-            Spent: {2000 - gold} / 2000 gold
-          </div>
-          <div style={{ height: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 2, marginBottom: 4 }}>
-            <div style={{
-              height: '100%', borderRadius: 2,
-              background: '#ffd700',
-              width: `${((2000 - gold) / 2000) * 100}%`,
-            }} />
-          </div>
-
-          {playerArmy.length === 0 ? (
-            <div style={{ color: '#444', fontSize: 12, textAlign: 'center', marginTop: 20 }}>
-              No regiments mustered yet.{'\n'}Click units to add them.
-            </div>
-          ) : (
-            playerArmy.map((slot, i) => {
-              const def = UNIT_ROSTER.find(u => u.type === slot.unitType);
-              if (!def) return null;
-              const idx = UNIT_ROSTER.indexOf(def);
-              return (
-                <div key={i} style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: 6, padding: '5px 8px', cursor: 'pointer',
-                }}
-                  onClick={() => removeFromPlayerArmy(i)}
-                  title="Click to remove"
-                >
-                  <span style={{ fontSize: 18 }}>{def.icon}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 10, color: '#ddd', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {getUnitName(selectedRace, idx)}
-                    </div>
-                    <div style={{ fontSize: 9, color: '#888' }}>
-                      {REGIMENT_DEFS[slot.unitType]?.maxSoldiers} men
-                    </div>
-                  </div>
-                  <span style={{ fontSize: 10, color: '#f44' }}>×</span>
-                </div>
-              );
-            })
-          )}
-
-          {/* Clear */}
-          {playerArmy.length > 0 && (
-            <button onClick={clearPlayerArmy} style={{
-              background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 5, padding: '4px 8px',
-              color: '#888', fontSize: 10, cursor: 'pointer', marginTop: 4,
-            }}>
-              Clear All
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ── BOTTOM — army strip + battle button ────────────────────── */}
+      {/* ── ARMY STRIP ─────────────────────────────────────────────────── */}
       <div style={{
         background: 'rgba(0,0,0,0.5)',
         borderTop: '1px solid rgba(255,215,0,0.15)',
         padding: '10px 20px',
-        display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
+        flexShrink: 0,
       }}>
-        {/* Army slot strip */}
-        <div style={{ flex: 1, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {Array.from({ length: 8 }).map((_, i) => {
-            const slot = playerArmy[i];
-            if (!slot) return <EmptySlot key={i} />;
-            const def = UNIT_ROSTER.find(u => u.type === slot.unitType);
-            if (!def) return <EmptySlot key={i} />;
-            const idx = UNIT_ROSTER.indexOf(def);
-            return (
-              <ArmySlot
-                key={i} def={def} index={idx}
-                race={selectedRace}
-                onRemove={() => removeFromPlayerArmy(i)}
-              />
-            );
-          })}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8,
+        }}>
+          <span style={{
+            fontSize: 10, color: '#888', fontFamily: "'Cinzel', serif",
+            letterSpacing: '0.12em', textTransform: 'uppercase',
+          }}>
+            Your Army — {playerArmy.length}/8 Regiments
+          </span>
+          {playerArmy.length > 0 && (
+            <button onClick={clearPlayerArmy} style={{
+              fontSize: 9, color: '#f44', background: 'none',
+              border: 'none', cursor: 'pointer', padding: '0 4px',
+            }}>Clear All</button>
+          )}
         </div>
 
-        {/* Battle button */}
-        <button
-          onClick={() => playerArmy.length > 0 && spawnArmies()}
-          disabled={playerArmy.length === 0}
-          style={{
-            background: playerArmy.length > 0
-              ? 'linear-gradient(135deg, #b8860b 0%, #ffd700 50%, #b8860b 100%)'
-              : 'rgba(100,100,100,0.3)',
-            border: 'none',
-            borderRadius: 10,
-            padding: '14px 36px',
-            fontFamily: "'Cinzel', serif",
-            fontSize: 18,
-            fontWeight: 700,
-            color: playerArmy.length > 0 ? '#1a0e00' : '#555',
-            cursor: playerArmy.length > 0 ? 'pointer' : 'not-allowed',
-            textShadow: playerArmy.length > 0 ? '0 1px 0 rgba(255,255,255,0.3)' : 'none',
-            boxShadow: playerArmy.length > 0 ? '0 0 24px rgba(255,215,0,0.4)' : 'none',
-            transition: 'all 0.2s',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-          }}
-        >
-          ⚔ March to Battle
-        </button>
+        <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
+          {/* Army slots */}
+          <div style={{ display: 'flex', gap: 6, flex: 1, overflowX: 'auto' }}>
+            {Array.from({ length: 8 }).map((_, i) => {
+              const unit = armyUnits[i];
+              return unit
+                ? <ArmySlot key={i} unit={unit} onRemove={() => removeFromPlayerArmy(i)} />
+                : <EmptySlot key={i} />;
+            })}
+          </div>
+
+          {/* Battle button */}
+          <button
+            onClick={playerArmy.length > 0 ? spawnArmies : undefined}
+            disabled={playerArmy.length === 0}
+            style={{
+              flexShrink: 0,
+              padding: '0 32px',
+              background: playerArmy.length > 0
+                ? `linear-gradient(135deg, ${factionMeta.primaryColor}aa, ${factionMeta.primaryColor})`
+                : 'rgba(255,255,255,0.06)',
+              border: `2px solid ${playerArmy.length > 0 ? factionMeta.primaryColor : 'rgba(255,255,255,0.1)'}`,
+              borderRadius: 10,
+              color: playerArmy.length > 0 ? '#fff' : '#444',
+              fontFamily: "'Cinzel', serif",
+              fontSize: 14, fontWeight: 700, letterSpacing: '0.08em',
+              cursor: playerArmy.length > 0 ? 'pointer' : 'default',
+              transition: 'all 0.2s',
+              boxShadow: playerArmy.length > 0
+                ? `0 0 20px ${factionMeta.glowColor}`
+                : 'none',
+            }}
+          >
+            ⚔ BATTLE
+          </button>
+        </div>
+
+        <div style={{
+          fontSize: 9, color: '#333', marginTop: 6, letterSpacing: '0.15em',
+        }}>
+          Click a regiment to add · Click army slot to remove · {playerArmy.length === 8 ? '⚠ FULL — remove a regiment to add another' : `${8 - playerArmy.length} slots free`}
+        </div>
       </div>
     </div>
   );

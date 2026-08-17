@@ -1,121 +1,295 @@
+/**
+ * RaceSelector — three-faction choice screen.
+ *
+ * Faction → Race mapping lives in FactionData.ts.
+ * Player picks ONE faction; enemy picks ONE (default = different faction).
+ */
 import { useState } from 'react';
-import { useGameStore, Race } from '../game/store/gameStore';
+import { useGameStore } from '../game/store/gameStore';
+import {
+  Faction, FACTION_META, FACTION_DISPLAY, FACTION_TO_RACE,
+} from '../game/data/FactionData';
 
-const RACES: { name: Race; desc: string; units: string; color: string }[] = [
-  { name: 'Barbarians',      desc: 'Fierce warriors from the northern steppes.',       units: 'Berserkers · Wolf Riders',  color: '#c0392b' },
-  { name: 'Dwarves',         desc: 'Stout defenders of the mountain halls.',            units: 'Shieldbearers · Gyrocopters', color: '#8e6b3e' },
-  { name: 'Elves',           desc: 'Masters of magic, archery and bolt throwers.',      units: 'Rangers · Unicorn Knights',  color: '#27ae60' },
-  { name: 'Orcs',            desc: 'A relentless greenskin tide with siege power.',     units: 'Grunts · Warg Riders',       color: '#5d8a3c' },
-  { name: 'Undead',          desc: 'The restless dead seeking to consume all.',         units: 'Skeletons · Death Knights',  color: '#8e44ad' },
-  { name: 'WesternKingdoms', desc: 'Noble knights and disciplined soldiers.',           units: 'Swordsmen · Paladins',       color: '#2980b9' },
-];
+const FACTIONS: Faction[] = ['Crusade', 'Fabled', 'Legion'];
 
+// ── Single faction card ───────────────────────────────────────────────────────
+function FactionCard({
+  faction, selected, side, onClick,
+}: {
+  faction: Faction;
+  selected: boolean;
+  side: 'player' | 'enemy';
+  onClick: () => void;
+}) {
+  const meta = FACTION_META[faction];
+  const ringColor = side === 'player' ? '#4a9eff' : '#e03030';
+
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1,
+        background: selected ? meta.bgGradient : 'rgba(255,255,255,0.03)',
+        border: selected
+          ? `2px solid ${ringColor}`
+          : '2px solid rgba(255,255,255,0.08)',
+        borderRadius: 16,
+        padding: '20px 16px 18px',
+        cursor: 'pointer',
+        textAlign: 'left',
+        transition: 'all 0.2s ease',
+        transform: selected ? 'scale(1.03)' : 'scale(1)',
+        boxShadow: selected ? `0 0 32px ${meta.glowColor}, 0 0 8px ${meta.glowColor}` : 'none',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Subtle bg gradient bloom */}
+      {selected && (
+        <div style={{
+          position: 'absolute', inset: 0, opacity: 0.12,
+          background: `radial-gradient(ellipse at 50% 0%, ${meta.primaryColor} 0%, transparent 70%)`,
+          pointerEvents: 'none',
+        }} />
+      )}
+
+      {/* Emblem */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+        <img
+          src={meta.emblem}
+          alt={FACTION_DISPLAY[faction]}
+          style={{
+            width: 90, height: 90,
+            filter: selected
+              ? `drop-shadow(0 0 16px ${meta.primaryColor}) drop-shadow(0 0 6px ${meta.primaryColor})`
+              : 'brightness(0.6)',
+            transition: 'filter 0.25s ease',
+          }}
+        />
+      </div>
+
+      {/* Name */}
+      <div style={{
+        textAlign: 'center',
+        fontFamily: "'Cinzel', serif",
+        fontSize: 15,
+        fontWeight: 700,
+        color: selected ? meta.primaryColor : '#888',
+        letterSpacing: '0.08em',
+        marginBottom: 10,
+        transition: 'color 0.2s',
+      }}>
+        {FACTION_DISPLAY[faction].toUpperCase()}
+      </div>
+
+      {/* Lore */}
+      <p style={{
+        fontSize: 11,
+        color: selected ? '#ccc' : '#555',
+        lineHeight: 1.55,
+        marginBottom: 12,
+        transition: 'color 0.2s',
+      }}>
+        {meta.lore}
+      </p>
+
+      {/* Trait tags */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+        {meta.traits.map(t => (
+          <span key={t} style={{
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            padding: '3px 8px',
+            borderRadius: 20,
+            background: selected ? `${meta.primaryColor}22` : 'rgba(255,255,255,0.05)',
+            border: `1px solid ${selected ? meta.primaryColor + '55' : 'rgba(255,255,255,0.1)'}`,
+            color: selected ? meta.primaryColor : '#666',
+            textTransform: 'uppercase',
+            transition: 'all 0.2s',
+          }}>{t}</span>
+        ))}
+      </div>
+
+      {/* Selected checkmark */}
+      {selected && (
+        <div style={{
+          position: 'absolute', top: 10, right: 12,
+          width: 22, height: 22, borderRadius: '50%',
+          background: ringColor,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 12, color: '#fff', fontWeight: 900,
+        }}>✓</div>
+      )}
+    </button>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export function RaceSelector() {
-  // Actions are stable in Zustand v5 — individual selectors are safe without useShallow
   const setSelectedRace = useGameStore(s => s.setSelectedRace);
   const setEnemyRace    = useGameStore(s => s.setEnemyRace);
   const setPhase        = useGameStore(s => s.setPhase);
   const clearPlayerArmy = useGameStore(s => s.clearPlayerArmy);
-  const [player, setPlayer] = useState<Race>('WesternKingdoms');
-  const [enemy,  setEnemy]  = useState<Race>('Orcs');
+
+  const [player, setPlayer] = useState<Faction>('Crusade');
+  const [enemy,  setEnemy]  = useState<Faction>('Legion');
 
   const handleStart = () => {
-    setSelectedRace(player);
-    setEnemyRace(enemy);
+    setSelectedRace(FACTION_TO_RACE[player]);
+    setEnemyRace(FACTION_TO_RACE[enemy]);
     clearPlayerArmy();
     setPhase('setup');
   };
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0d0f14]/95 backdrop-blur-md overflow-auto py-8">
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 50,
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      background: '#060810',
+      backgroundImage: 'radial-gradient(ellipse at 50% -20%, rgba(40,50,120,0.5) 0%, transparent 60%)',
+      overflow: 'auto', padding: '24px 20px 32px',
+    }}>
       {/* Title */}
-      <div className="mb-10 text-center">
-        <h1 className="text-6xl font-serif text-amber-500 tracking-widest drop-shadow-[0_0_30px_rgba(245,166,35,0.4)]">
-          RACE WARS
-        </h1>
-        <p className="text-gray-400 text-lg mt-2 tracking-widest uppercase font-light">
-          Choose Your Factions
+      <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <h1 style={{
+            fontFamily: "'Cinzel', serif",
+            fontSize: 'clamp(40px, 5vw, 64px)',
+            color: '#e8c060',
+            letterSpacing: '0.18em',
+            textShadow: '0 0 40px rgba(232,192,96,0.5), 0 0 80px rgba(232,192,96,0.2)',
+            margin: 0,
+            lineHeight: 1,
+          }}>RACE WARS</h1>
+        </div>
+        <p style={{
+          fontSize: 12, color: '#555', letterSpacing: '0.3em',
+          textTransform: 'uppercase', margin: '10px 0 0',
+        }}>
+          Choose Your Factions · Marshal Your Forces · Conquer
         </p>
       </div>
 
-      <div className="flex gap-16 items-start mb-10 w-full max-w-6xl px-8">
-        {/* Player faction */}
-        <div className="flex-1">
-          <h2 className="text-center text-blue-400 font-serif text-2xl mb-5 tracking-widest uppercase">
-            ⚔ Your Faction
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            {RACES.map(r => (
-              <button
-                key={r.name}
-                onClick={() => setPlayer(r.name)}
-                className={`hud-panel p-4 rounded-xl text-left transition-all duration-200 hover:scale-102 cursor-pointer ${
-                  player === r.name
-                    ? 'ring-2 ring-blue-400 bg-blue-900/30 scale-105'
-                    : 'opacity-60 hover:opacity-90'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="w-3 h-3 rounded-full" style={{ background: r.color }} />
-                  <span className="font-serif text-amber-400 text-base">{r.name}</span>
-                </div>
-                <p className="text-gray-400 text-xs leading-snug">{r.desc}</p>
-                <p className="text-xs mt-2 font-semibold" style={{ color: r.color }}>{r.units}</p>
-              </button>
-            ))}
-          </div>
+      {/* ── Player faction pick ──────────────────────────────────────────── */}
+      <div style={{ width: '100%', maxWidth: 860, marginBottom: 24 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12,
+        }}>
+          <div style={{
+            height: 1, flex: 1,
+            background: 'linear-gradient(90deg,transparent,rgba(74,158,255,0.4))',
+          }} />
+          <span style={{
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
+            color: '#4a9eff', textTransform: 'uppercase',
+          }}>⚔ Your Faction</span>
+          <div style={{
+            height: 1, flex: 1,
+            background: 'linear-gradient(90deg,rgba(74,158,255,0.4),transparent)',
+          }} />
         </div>
 
-        {/* VS divider */}
-        <div className="flex flex-col items-center gap-4 pt-16">
-          <div className="text-amber-500 font-serif text-4xl font-bold">VS</div>
-          <div className="w-px h-32 bg-gradient-to-b from-transparent via-amber-500/50 to-transparent" />
-        </div>
-
-        {/* Enemy faction */}
-        <div className="flex-1">
-          <h2 className="text-center text-red-400 font-serif text-2xl mb-5 tracking-widest uppercase">
-            ☠ Enemy Faction
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            {RACES.map(r => (
-              <button
-                key={r.name}
-                onClick={() => setEnemy(r.name)}
-                className={`hud-panel p-4 rounded-xl text-left transition-all duration-200 hover:scale-102 cursor-pointer ${
-                  enemy === r.name
-                    ? 'ring-2 ring-red-400 bg-red-900/30 scale-105'
-                    : 'opacity-60 hover:opacity-90'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="w-3 h-3 rounded-full" style={{ background: r.color }} />
-                  <span className="font-serif text-amber-400 text-base">{r.name}</span>
-                </div>
-                <p className="text-gray-400 text-xs leading-snug">{r.desc}</p>
-                <p className="text-xs mt-2 font-semibold" style={{ color: r.color }}>{r.units}</p>
-              </button>
-            ))}
-          </div>
+        <div style={{ display: 'flex', gap: 14 }}>
+          {FACTIONS.map(f => (
+            <FactionCard
+              key={f}
+              faction={f}
+              selected={player === f}
+              side="player"
+              onClick={() => setPlayer(f)}
+            />
+          ))}
         </div>
       </div>
 
-      {/* Warning if same faction */}
+      {/* VS divider */}
+      <div style={{ textAlign: 'center', marginBottom: 20 }}>
+        <span style={{
+          fontFamily: "'Cinzel', serif",
+          fontSize: 28, fontWeight: 900,
+          color: '#e8c060',
+          textShadow: '0 0 20px rgba(232,192,96,0.5)',
+          letterSpacing: '0.15em',
+        }}>VS</span>
+      </div>
+
+      {/* ── Enemy faction pick ───────────────────────────────────────────── */}
+      <div style={{ width: '100%', maxWidth: 860, marginBottom: 32 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12,
+        }}>
+          <div style={{
+            height: 1, flex: 1,
+            background: 'linear-gradient(90deg,transparent,rgba(224,48,48,0.4))',
+          }} />
+          <span style={{
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
+            color: '#e03030', textTransform: 'uppercase',
+          }}>☠ Enemy Faction</span>
+          <div style={{
+            height: 1, flex: 1,
+            background: 'linear-gradient(90deg,rgba(224,48,48,0.4),transparent)',
+          }} />
+        </div>
+
+        <div style={{ display: 'flex', gap: 14 }}>
+          {FACTIONS.map(f => (
+            <FactionCard
+              key={f}
+              faction={f}
+              selected={enemy === f}
+              side="enemy"
+              onClick={() => setEnemy(f)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Mirror match warning */}
       {player === enemy && (
-        <p className="text-yellow-400 text-sm mb-4 italic">
-          ⚠ Mirror match — both armies will use the same models!
+        <p style={{
+          fontSize: 12, color: '#f0a030',
+          marginBottom: 16, fontStyle: 'italic',
+        }}>
+          ⚠ Mirror match — both armies will share the same models.
         </p>
       )}
 
+      {/* Marshal button */}
       <button
         onClick={handleStart}
-        className="px-16 py-5 bg-amber-600 hover:bg-amber-500 active:scale-95 text-white font-serif text-2xl rounded-full shadow-[0_0_30px_rgba(245,166,35,0.5)] transition-all hover:scale-105 hover:shadow-[0_0_50px_rgba(245,166,35,0.7)]"
+        style={{
+          padding: '16px 64px',
+          fontFamily: "'Cinzel', serif",
+          fontSize: 20, fontWeight: 700,
+          color: '#fff',
+          background: 'linear-gradient(135deg,#b87820,#e8a030,#b87820)',
+          border: '2px solid rgba(255,215,0,0.6)',
+          borderRadius: 50,
+          cursor: 'pointer',
+          boxShadow: '0 0 40px rgba(232,160,48,0.4), 0 4px 20px rgba(0,0,0,0.5)',
+          transition: 'all 0.2s',
+          letterSpacing: '0.1em',
+          marginBottom: 18,
+        }}
+        onMouseEnter={e => {
+          (e.target as HTMLElement).style.boxShadow = '0 0 60px rgba(232,160,48,0.7), 0 4px 30px rgba(0,0,0,0.5)';
+          (e.target as HTMLElement).style.transform = 'scale(1.05)';
+        }}
+        onMouseLeave={e => {
+          (e.target as HTMLElement).style.boxShadow = '0 0 40px rgba(232,160,48,0.4), 0 4px 20px rgba(0,0,0,0.5)';
+          (e.target as HTMLElement).style.transform = 'scale(1)';
+        }}
       >
-        Enter Battlefield
+        Marshal Your Forces
       </button>
 
-      <p className="text-gray-600 text-xs mt-6 tracking-widest">
-        WASD/Arrows to pan · Scroll to zoom · Q/E/R/F/T to cast abilities · Click units to select
+      <p style={{
+        fontSize: 10, color: '#333', letterSpacing: '0.25em',
+        textTransform: 'uppercase',
+      }}>
+        WASD · Scroll Zoom · MMB Pan · LMB Select · RMB Move · RMB+Units = Attack-Move
       </p>
     </div>
   );

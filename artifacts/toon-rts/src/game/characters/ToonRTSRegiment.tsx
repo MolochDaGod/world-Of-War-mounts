@@ -19,6 +19,7 @@ import { useGameStore, UnitData } from '@/game/store/gameStore';
 import { useShallow } from 'zustand/react/shallow';
 import { ROSTER_MAP, ModelCategory } from '@/game/data/UnitRoster';
 import { getSoldierAssets, getMageAssets, SoldierAssets } from '@/game/assets/ToonRTSManifest';
+import { getVariantSet, getShowSet } from '@/game/data/UnitMeshConfig';
 import { SelectionRing, BaseFallback } from './CharacterBase';
 
 // ── Formation helpers ─────────────────────────────────────────────────────────
@@ -74,9 +75,11 @@ interface SoldierProps {
   position: [number, number, number];
   facing: number;
   teamId: 1 | 2;
+  race: UnitData['race'];
+  unitType: UnitData['type'];
 }
 
-function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId }: SoldierProps) {
+function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId, race, unitType }: SoldierProps) {
   // All 6 useFBX calls — cached by URL, so N soldiers only load each path once.
   const modelFBX = useFBX(assets.modelPath);
   const idleFBX  = useFBX(assets.idlePath);
@@ -89,10 +92,23 @@ function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId }: So
   const scene = useMemo(() => {
     const cloned = SkeletonUtils.clone(modelFBX) as THREE.Group;
     cloned.scale.setScalar(assets.scale);
+
+    // Mesh customisation: show only the variant meshes for this unit type
+    const variantSet = getVariantSet(race);
+    const showSet    = getShowSet(race, unitType);
+
     const color = new THREE.Color(TEAM_COLOR[teamId]);
     cloned.traverse(child => {
       const mesh = child as THREE.SkinnedMesh;
-      if (mesh.isSkinnedMesh) {
+      if (!mesh.isSkinnedMesh) return;
+
+      // Hide variant meshes that are not selected for this unit type
+      if (variantSet.has(mesh.name)) {
+        mesh.visible = showSet.has(mesh.name);
+      }
+
+      // Apply toon material only to visible meshes
+      if (mesh.visible) {
         mesh.material = new THREE.MeshToonMaterial({
           color,
           emissive: color,
@@ -104,7 +120,7 @@ function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId }: So
     });
     return cloned;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelFBX, assets.modelPath, assets.scale, teamId]);
+  }, [modelFBX, assets.modelPath, assets.scale, teamId, race, unitType]);
 
   // Mixer lives for the lifetime of this component
   const mixerRef      = useRef<THREE.AnimationMixer | null>(null);
@@ -273,6 +289,8 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
           position={pos}
           facing={unit.formationFacing}
           teamId={unit.teamId}
+          race={unit.race}
+          unitType={unit.type}
         />
       ))}
       <SelectionRing
