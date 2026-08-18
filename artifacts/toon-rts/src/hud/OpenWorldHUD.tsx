@@ -13,6 +13,8 @@ import { BuildPanel }     from './BuildPanel';
 import { RegimentBar }            from './RegimentBar';
 import { SelectionBoxOverlay }   from '@/game/input/RTSInputController';
 import { CommandBar }            from './CommandBar';
+import { CombatTimer }           from './CombatTimer';
+import { UnitAbilityBar }        from './UnitAbilityBar';
 import { useBuildStore }          from '@/game/store/buildStore';
 
 // ── Time of day display ────────────────────────────────────────────────────────
@@ -267,10 +269,11 @@ export function OpenWorldHUD() {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '8px',
+              gap: '6px',
               pointerEvents: 'auto',
             }}
           >
+            <UnitAbilityBar />
             <RegimentBar />
             <AbilityHotbar />
           </div>
@@ -360,6 +363,9 @@ export function OpenWorldHUD() {
           <WinLoseScreen />
         </div>
       )}
+
+      {/* ── Combat timer ── */}
+      <CombatTimer />
 
       {/* ── RTS command mode bar ── */}
       <CommandBar />

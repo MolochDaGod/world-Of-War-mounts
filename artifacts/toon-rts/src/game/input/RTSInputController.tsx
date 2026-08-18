@@ -66,7 +66,16 @@ export function RTSInputController() {
         case 'KeyF': setCommandMode('fight');   e.preventDefault(); break;
         case 'KeyP': setCommandMode('patrol');  e.preventDefault(); break;
         case 'KeyL': setCommandMode('lob');     e.preventDefault(); break;
-        case 'Escape': setCommandMode('default'); break;
+        case 'KeyS': {
+          const { selectedUnitIds, toggleStandGround } = useGameStore.getState();
+          if (selectedUnitIds.length > 0) { toggleStandGround(selectedUnitIds); e.preventDefault(); }
+          break;
+        }
+        case 'Escape': {
+          useGameStore.getState().setPendingAbility(null);
+          setCommandMode('default');
+          break;
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -108,8 +117,31 @@ export function RTSInputController() {
 
     // ── Execute the current command mode at a ground position ─────────────────
     const executeCommand = (hit: THREE.Vector3) => {
-      const { selectedUnitIds, issueMove, issueAttackMove, issuePatrol, issueLob } =
-        useGameStore.getState();
+      const store = useGameStore.getState();
+      const { selectedUnitIds, issueMove, issueAttackMove, issuePatrol, issueLob,
+              pendingAbility, placeTotem, triggerAbility, setPendingAbility, combatElapsed } = store;
+
+      // ── Pending ability ground click (e.g. holy totem placement) ────────────
+      if (pendingAbility) {
+        const dest: [number, number, number] = [hit.x, 0, hit.z];
+        if (pendingAbility.abilityId === 'holy_totem') {
+          placeTotem({
+            id: `totem_${Date.now()}`,
+            position: dest,
+            teamId: 1, // player is always team 1
+            radius: 14,
+            healPerSec: 35,
+            expiresAt: combatElapsed + 12,
+          });
+          emitMoveMarker(dest);
+        } else {
+          triggerAbility(pendingAbility.unitIds, pendingAbility.abilityId, dest);
+          emitMoveMarker(dest);
+        }
+        setPendingAbility(null);
+        return;
+      }
+
       if (selectedUnitIds.length === 0) return;
 
       const dest: [number, number, number] = [hit.x, 0, hit.z];

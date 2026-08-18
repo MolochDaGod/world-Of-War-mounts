@@ -29,6 +29,7 @@ import { BattleArmy }      from './characters/ToonRTSRegiment';
 import { MedievalNPCs }    from './characters/MedievalNPCs';
 import { AbilityManager }  from './abilities/AbilityManager';
 import { AimController }   from './abilities/AimController';
+import { UnitAbilityVFX }  from './abilities/UnitAbilityVFX';
 import { CombatSystem }    from './physics/CombatSystem';
 import { ProjectileSystem } from './effects/ProjectileSystem';
 import { MoveMarker }      from './effects/MoveMarker';
@@ -160,6 +161,7 @@ export function GameScene() {
           <MoveMarker />
           <RTSInputController />
 
+          <UnitAbilityVFX />
           <AbilityManager />
           <AimController />
           <Preload all />
