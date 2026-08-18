@@ -17,7 +17,8 @@ export type UnitType =
   | 'boltThrower'     // long-range bolt weapon
   | 'catapult'        // siege artillery
   | 'grieeGlee'       // Orc+Goblin pair — stone-throw siege, close melee
-  | 'skeletonWarrior';// Summoned skeleton horde — cheap, weak, many
+  | 'skeletonWarrior' // Summoned skeleton horde — cheap, weak, many
+  | 'meshyWarrior';   // Elite baked-GLB warrior (Meshy AI character)
 
 export type UnitState = 'idle' | 'move' | 'attack' | 'dead';
 export type AbilityType = 'fire' | 'ice' | 'lightning' | 'meteor' | 'wind';
@@ -96,6 +97,8 @@ interface GameState {
   enemyArmy: RegimentSlot[];    // AI-selected
   gold: number;                 // player's gold budget
   playerCommander: string | null;  // chosen CommanderDef id (null = no commander)
+  mapType: 'battlefield' | 'arena';
+  setMapType: (t: 'battlefield' | 'arena') => void;
 
   setPhase: (phase: GamePhase) => void;
   setSelectedRace: (race: Race) => void;
@@ -178,6 +181,7 @@ export const REGIMENT_DEFS: Record<UnitType, {
   // GLB-rendered units
   grieeGlee:      { hp: 3800, maxSoldiers: 3,  formationRows: 1, formationCols: 3, spacing: 5.0, cost: 500 },
   skeletonWarrior:{ hp: 500,  maxSoldiers: 10, formationRows: 2, formationCols: 5, spacing: 1.1, cost: 60  },
+  meshyWarrior:   { hp: 2600, maxSoldiers: 8,  formationRows: 2, formationCols: 4, spacing: 1.6, cost: 250 },
 };
 
 // Categorise types for positioning
@@ -285,6 +289,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   enemyArmy: [],
   gold: 2000,
   playerCommander: null,
+  mapType: 'battlefield' as const,
   commandTarget: null,
   totems: [],
   bountyBursts: [],
@@ -694,5 +699,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     teamScores: { team1: 0, team2: 0 },
     playerArmy: [], gold: 2000,
     playerCommander: null,
+    mapType: 'battlefield',
   }),
 }));

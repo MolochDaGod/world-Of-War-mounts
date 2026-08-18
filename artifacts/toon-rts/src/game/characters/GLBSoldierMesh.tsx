@@ -97,10 +97,10 @@ export function GLBSoldierMesh({
     // Cross-fade from whatever is running
     const old = currentAnim.current ? findAction(actions, currentAnim.current) : null;
     old?.fadeOut(0.25);
-    next.reset().setLoop(
-      unitState === 'dead' ? THREE.LoopOnce : THREE.LoopRepeat,
-      Infinity,
-    );
+    next.reset()
+      .setLoop(unitState === 'dead' ? THREE.LoopOnce : THREE.LoopRepeat, Infinity)
+      .setEffectiveTimeScale(0.72)   // cinematic slow-down
+      .setEffectiveWeight(1);
     next.clampWhenFinished = unitState === 'dead';
     next.fadeIn(0.25).play();
     currentAnim.current = target;

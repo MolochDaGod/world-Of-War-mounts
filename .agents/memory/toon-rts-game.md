@@ -21,9 +21,24 @@ Universal infantry animations: **Dwarves Worker** clips (idle, run, attack, deat
 - `ToonRTSRegiment` in `src/game/characters/ToonRTSRegiment.tsx` renders N soldiers in formation grid.
 - `BattleArmy` (same file) renders all units from store.
 
-## UnitType union (11 values)
-`infantry | swordsmen | spearmen | shieldwall | archers | skirmishers | cavalry | heavyCavalry | mage | boltThrower | catapult`
+## UnitType union (14 values)
+`infantry | swordsmen | spearmen | shieldwall | archers | skirmishers | cavalry | heavyCavalry | mage | boltThrower | catapult | grieeGlee | skeletonWarrior | meshyWarrior`
 Note: **no `berserkers`** in the union — removed after TS errors.
+GLB units (`grieeGlee`, `skeletonWarrior`, `meshyWarrior`) are routed via `BattleArmy` to their own regiment components, bypassing the FBX pipeline.
+
+## Map System
+`gameStore.mapType: 'battlefield' | 'arena'` — toggled via ArmyBuilder map selector.
+`GameScene` uses `MapEnvironment` (terrain conditional) + `MapAmbients` (hides NPCs/wildlife in arena) + `ArenaLighting` (crimson sky in arena).
+Arena GLB: `/assets/environments/arena_warzone.glb`, scale 0.18, rendered by `ArenaWarzone.tsx`.
+
+## VFX / Commander Auras
+`BattleVFXOverlay.tsx` — pulsing ground rings under living commanders; colour by aura type (attack=red, speed=green, defense=blue). Reads `commanderArchetype` field on unit + `COMMANDER_BY_ID` from CommanderDefs.
+
+## Combat Timing
+`CombatSystem TICK = 0.05` (20 Hz, cinematic pace). GLB/Meshy animations run at `setEffectiveTimeScale(0.72)`.
+
+## Meshy AI Warrior
+`meshyWarrior` unit — `MeshySoldier.tsx` loads `/assets/characters/meshy/character.glb` + 10 animation GLBs, merges clips onto one mixer. Formation: 2×4, cost 250, hp 2600, dmg 145. Available in all 3 factions: Champion (Crusade), Blade Dancer (Fabled), Death Champion (Legion).
 
 ## Army Builder Flow
 `menu` → RaceSelector sets races → `setup` (ArmyBuilder.tsx) → player picks regiments → `spawnArmies()` → `battle` → CombatSystem → victory triggers `setPhase('victory')`.

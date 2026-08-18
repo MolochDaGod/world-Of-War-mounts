@@ -21,7 +21,7 @@ import { emitProjectile, ProjectileKind } from '../effects/ProjectileSystem';
 import { ABILITY_DEFS } from '../data/AbilityDefs';
 import { COMMANDER_BY_ID } from '../data/CommanderDefs';
 
-const TICK = 0.033; // seconds per combat frame (≈ 30 Hz)
+const TICK = 0.05; // seconds per combat frame (≈ 20 Hz) — cinematic pace
 const BATTLE_LIMIT = 480; // 8-minute timer
 
 // ── Slower combat config ──────────────────────────────────────────────────────
@@ -43,8 +43,9 @@ const UNIT_CONFIG: Record<UnitData['type'], {
   boltThrower:    { damage: 154, attackRange: 26, speed: 1.5, attackCooldown: 3.9 },
   catapult:       { damage: 220, attackRange: 32, speed: 1.2, attackCooldown: 5.2 },
   // GLB units
-  grieeGlee:      { damage: 240, attackRange: 14, speed: 3.0, attackCooldown: 3.5 },
-  skeletonWarrior:{ damage:  55, attackRange:  5, speed: 5.5, attackCooldown: 0.9 },
+  grieeGlee:      { damage: 240, attackRange: 14, speed: 2.5, attackCooldown: 3.5 },
+  skeletonWarrior:{ damage:  55, attackRange:  5, speed: 4.5, attackCooldown: 0.9 },
+  meshyWarrior:   { damage: 145, attackRange:  6, speed: 4.0, attackCooldown: 1.1 },
 };
 
 const RANGED_TYPES = new Set<UnitData['type']>(['archers', 'mage', 'boltThrower', 'catapult', 'grieeGlee']);

@@ -23,8 +23,9 @@ import { getVariantSet, getShowSet, getEquipmentList, EQUIPMENT_GLB } from '@/ga
 import { SelectionRing, BaseFallback } from './CharacterBase';
 import { RegimentLabel } from './RegimentLabel';
 import { COMMANDER_BY_ID } from '@/game/data/CommanderDefs';
-import { GrieeGleeRegiment } from './GrieeGleeRegiment';
+import { GrieeGleeRegiment }      from './GrieeGleeRegiment';
 import { SkeletonWarriorRegiment } from './SkeletonWarriorRegiment';
+import { MeshyWarriorRegiment }    from './MeshyWarriorRegiment';
 
 // ── Formation helpers ─────────────────────────────────────────────────────────
 
@@ -436,7 +437,7 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
 // ── BattleArmy — renders all regiments for all teams ─────────────────────────
 
 // GLB-rendered unit types — bypass the FBX pipeline entirely
-const GLB_UNIT_TYPES = new Set<string>(['grieeGlee', 'skeletonWarrior']);
+const GLB_UNIT_TYPES = new Set<string>(['grieeGlee', 'skeletonWarrior', 'meshyWarrior']);
 
 export function BattleArmy() {
   const units = useGameStore(
@@ -453,6 +454,9 @@ export function BattleArmy() {
         }
         if (unit.type === 'skeletonWarrior') {
           return <SkeletonWarriorRegiment key={unit.id} unit={unit} isSelected={sel} />;
+        }
+        if (unit.type === 'meshyWarrior') {
+          return <MeshyWarriorRegiment key={unit.id} unit={unit} isSelected={sel} />;
         }
         return (
           <ToonRTSRegiment

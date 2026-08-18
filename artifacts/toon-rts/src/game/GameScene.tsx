@@ -34,11 +34,13 @@ import { CombatSystem }    from './physics/CombatSystem';
 import { ProjectileSystem } from './effects/ProjectileSystem';
 import { MoveMarker }      from './effects/MoveMarker';
 import { RTSInputController } from './input/RTSInputController';
-import { BuildSystem }     from './building/BuildSystem';
-import { PlacedBuildings } from './building/PlacedBuildings';
-import { RagdollSystem }   from './effects/RagdollSystem';
-import { useWorldStore }   from './store/worldStore';
-import { useGameStore }    from './store/gameStore';
+import { BuildSystem }       from './building/BuildSystem';
+import { PlacedBuildings }   from './building/PlacedBuildings';
+import { RagdollSystem }     from './effects/RagdollSystem';
+import { BattleVFXOverlay }  from './effects/BattleVFXOverlay';
+import { ArenaWarzone }      from './world/ArenaWarzone';
+import { useWorldStore }     from './store/worldStore';
+import { useGameStore }      from './store/gameStore';
 import { useFrame }        from '@react-three/fiber';
 import {
   EffectComposer,
@@ -72,6 +74,53 @@ function WorldTick() {
     }
   });
   return null;
+}
+
+/**
+ * Swaps sky colour, fog, and fill lights for arena mode.
+ * Reads mapType via getState() inside useFrame to avoid cascade issues.
+ */
+function ArenaLighting() {
+  useFrame(state => {
+    const { mapType } = useGameStore.getState();
+    const bg = state.scene.background as THREE.Color | null;
+    if (!(bg instanceof THREE.Color)) return;
+    if (mapType === 'arena') {
+      bg.setRGB(0.06, 0.02, 0.02);   // deep crimson night
+    }
+    // battlefield colour is handled by WorldTick
+  });
+  return null;
+}
+
+/**
+ * Conditionally renders the open-world terrain OR the arena GLB.
+ * Also suppresses ambient NPCs / wildlife in arena mode.
+ */
+function MapAmbients() {
+  const mapType = useGameStore(s => s.mapType);
+  if (mapType === 'arena') return null;
+  return (
+    <>
+      <MedievalNPCs />
+      <WildAnimals />
+    </>
+  );
+}
+
+function MapEnvironment() {
+  const mapType = useGameStore(s => s.mapType);
+  if (mapType === 'arena') {
+    return <ArenaWarzone />;
+  }
+  return (
+    <>
+      <OpenWorld />
+      <GrassField />
+      <WorldTrees />
+      <WorldMountains />
+    </>
+  );
 }
 
 export function GameScene() {
@@ -126,19 +175,15 @@ export function GameScene() {
         <directionalLight position={[-60, 40, -60]} intensity={0.45} color="#7ba8e0" />
         <hemisphereLight args={['#e0f0d8', '#604020', 0.4]} />
 
+        {/* Sky/fog — battlefield blue; ArenaLighting overrides in arena mode */}
         <WorldTick />
+        <ArenaLighting />
         <RTSCamera />
 
         <Suspense fallback={null}>
           <Physics gravity={[0, -25, 0]}>
-            {/* ── Ground & terrain ── */}
-            <OpenWorld />
-            <GrassField />
-            {/* AnimeWater removed — it covered the battlefield at y≈-0.1 to +0.07 */}
-
-            {/* ── Environment ── */}
-            <WorldTrees />
-            <WorldMountains />
+            {/* ── Ground & terrain (map-conditional) ── */}
+            <MapEnvironment />
 
             {/* ── Interactive world objects ── */}
             <ResourceNodes />
@@ -147,11 +192,8 @@ export function GameScene() {
             {/* ── Armies (Toon_RTS FBX regiments in formation) ── */}
             <BattleArmy />
 
-            {/* ── Ambient NPCs ── */}
-            <MedievalNPCs />
-
-            {/* ── Wildlife ── */}
-            <WildAnimals />
+            {/* ── Ambient NPCs & wildlife (battlefield only) ── */}
+            <MapAmbients />
 
             {/* ── Combat ── */}
             <CombatSystem />
@@ -166,6 +208,7 @@ export function GameScene() {
 
           {/* Projectiles live outside Physics — they are purely visual */}
           <ProjectileSystem />
+          <BattleVFXOverlay />
 
           {/* Move-order VFX and RTS mouse input (ground plane + LMB/RMB handlers) */}
           <MoveMarker />

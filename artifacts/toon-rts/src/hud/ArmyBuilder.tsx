@@ -9,6 +9,48 @@ import { useState } from 'react';
 import { useGameStore, REGIMENT_DEFS } from '@/game/store/gameStore';
 import { useShallow } from 'zustand/react/shallow';
 import { CommanderSelectPanel } from './CommanderSelectPanel';
+
+// ── Map selector sub-component ────────────────────────────────────────────────
+function MapSelector() {
+  const mapType    = useGameStore(s => s.mapType);
+  const setMapType = useGameStore(s => s.setMapType);
+
+  const btn = (id: 'battlefield' | 'arena', label: string, icon: string) => {
+    const active = mapType === id;
+    return (
+      <button
+        key={id}
+        onClick={() => setMapType(id)}
+        style={{
+          flex: 1,
+          padding: '7px 0',
+          background: active ? 'rgba(255,255,255,0.13)' : 'rgba(255,255,255,0.04)',
+          border: `1.5px solid ${active ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.1)'}`,
+          borderRadius: 7,
+          color: active ? '#fff' : '#666',
+          fontSize: 11, fontWeight: active ? 700 : 400,
+          letterSpacing: '0.06em',
+          cursor: 'pointer',
+          transition: 'all 0.18s',
+        }}
+      >
+        {icon} {label}
+      </button>
+    );
+  };
+
+  return (
+    <div>
+      <div style={{ fontSize: 8, color: '#555', letterSpacing: '0.15em', marginBottom: 5 }}>
+        BATTLEFIELD
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        {btn('battlefield', 'Open Field', '🌿')}
+        {btn('arena', 'War Zone', '⚔️')}
+      </div>
+    </div>
+  );
+}
 import {
   Faction, FACTION_META, FACTION_DISPLAY, FACTION_UNITS, FACTION_TO_RACE,
   RACE_TO_FACTION, FactionUnit,
@@ -476,8 +518,9 @@ export function ArmyBuilder() {
           Click a regiment to add · Click army slot to remove · {playerArmy.length === 8 ? '⚠ FULL — remove a regiment to add another' : `${8 - playerArmy.length} slots free`}
         </div>
 
-        {/* Commander selection — shown below army builder */}
-        <div style={{ marginTop: 14 }}>
+        {/* Map + Commander selection */}
+        <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <MapSelector />
           <CommanderSelectPanel />
         </div>
       </div>
