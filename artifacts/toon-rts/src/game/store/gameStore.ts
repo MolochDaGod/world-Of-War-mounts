@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { AbilityId, ABILITY_DEFS, TotemData } from '../data/AbilityDefs';
-import { COMMANDER_BY_ID } from '../data/CommanderDefs';
+import { COMMANDER_BY_ID, getCommandersForRace } from '../data/CommanderDefs';
 
 export type Race = 'Barbarians' | 'Dwarves' | 'Elves' | 'Orcs' | 'Undead' | 'WesternKingdoms';
 
@@ -629,8 +629,30 @@ export const useGameStore = create<GameState>((set, get) => ({
       commanderName: cmdDef.name,
     }] : [];
 
+    // Spawn a random enemy commander for the AI
+    const enemyCommanders = getCommandersForRace(enemyRace);
+    const enemyCmdDef = enemyCommanders[Math.floor(Math.random() * enemyCommanders.length)] ?? null;
+    const enemyCmdUnit: UnitData[] = enemyCmdDef ? [{
+      id: uid(),
+      race: enemyRace,
+      type: 'swordsmen',
+      position: [0, 0, -18],
+      health: Math.round(enemyCmdDef.hp * diffMult),
+      maxHealth: Math.round(enemyCmdDef.hp * diffMult),
+      state: 'idle' as UnitState,
+      teamId: 2,
+      maxSoldiers: 1,
+      formationRows: 1,
+      formationCols: 1,
+      formationFacing: 0,
+      spacing: 1.0,
+      isCommander: true,
+      commanderArchetype: enemyCmdDef.id,
+      commanderName: enemyCmdDef.name,
+    }] : [];
+
     set({
-      units: [...team1, ...cmdUnit, ...team2],
+      units: [...team1, ...cmdUnit, ...team2, ...enemyCmdUnit],
       phase: 'battle',
       teamScores: { team1: 0, team2: 0 },
       enemyArmy: eArmy,
