@@ -1,19 +1,31 @@
 /**
- * RTSInputController — all RTS mouse commands inside the R3F Canvas.
+ * RTSInputController — all RTS mouse + keyboard commands inside the R3F Canvas.
  *
- * LMB single click on ground   → deselect all (handled via onPointerMissed on Canvas)
- * LMB drag on ground           → rubber-band box select (player team 1 only)
- * RMB click                    → issue move order to selected regiments + show MoveMarker
- * MMB drag                     → camera pan (handled in RTSCamera)
+ * Mouse:
+ *   LMB single click on ground   → deselect all (via Canvas onPointerMissed)
+ *   LMB drag on ground           → rubber-band box select (player team 1 only)
+ *   RMB click                    → execute current command mode at target location
+ *   MMB drag                     → camera pan (handled in RTSCamera)
  *
- * SelectionBoxOverlay is a companion DOM component rendered OUTSIDE the Canvas
- * (add it to the HUD layer). It reads module-level box state via useSelectionBox().
+ * Keyboard (battle phase):
+ *   M — Move mode       click ground → ordered march
+ *   F — Fight mode      click ground → attack-move; click enemy → focus attack
+ *   P — Patrol mode     click A then B → patrol route
+ *   L — Lob mode        click ground → siege units fire there
+ *   Escape              → cancel active mode (return to default)
+ *
+ * SelectionBoxOverlay is a companion DOM component for the HUD layer.
  */
 import { useEffect, useRef, useState } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from '@/game/store/gameStore';
 import { emitMoveMarker } from '@/game/effects/MoveMarker';
+import {
+  getCommandMode, setCommandMode,
+  getPatrolAnchor, setPatrolAnchor, clearPatrolAnchor,
+  MODE_CURSOR,
+} from '@/game/input/CommandMode';
 
 // ── Module-level selection-box state (shared with SelectionBoxOverlay) ────────
 interface BoxRect { x1: number; y1: number; x2: number; y2: number }
@@ -21,7 +33,6 @@ let _box: BoxRect | null = null;
 const _listeners: Set<() => void> = new Set();
 function _notifyBox() { _listeners.forEach(fn => fn()); }
 
-/** Subscribe to selection box changes from outside the Canvas. */
 export function useSelectionBox(): BoxRect | null {
   const [box, setBox] = useState<BoxRect | null>(_box);
   useEffect(() => {
@@ -40,17 +51,31 @@ export function RTSInputController() {
 
   useEffect(() => {
     const canvas = gl.domElement;
-
-    // Prevent browser context menu on right-click inside the canvas
     const noCtx = (e: MouseEvent) => e.preventDefault();
     canvas.addEventListener('contextmenu', noCtx);
+
+    // ── Keyboard shortcuts ────────────────────────────────────────────────────
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Ignore when typing in an input field
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const phase = useGameStore.getState().phase;
+      if (phase !== 'battle') return;
+
+      switch (e.code) {
+        case 'KeyM': setCommandMode('move');    e.preventDefault(); break;
+        case 'KeyF': setCommandMode('fight');   e.preventDefault(); break;
+        case 'KeyP': setCommandMode('patrol');  e.preventDefault(); break;
+        case 'KeyL': setCommandMode('lob');     e.preventDefault(); break;
+        case 'Escape': setCommandMode('default'); break;
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
 
     // ── Drag state ────────────────────────────────────────────────────────────
     let dragStart: { x: number; y: number } | null = null;
     let isDragging = false;
-    const DRAG_THRESHOLD = 8; // px
+    const DRAG_THRESHOLD = 8;
 
-    // Convert canvas-relative client coords → NDC for raycasting
     const toNDC = (cx: number, cy: number): THREE.Vector2 => {
       const rect = canvas.getBoundingClientRect();
       return new THREE.Vector2(
@@ -59,7 +84,6 @@ export function RTSInputController() {
       );
     };
 
-    // Raycast the invisible ground plane → world position
     const groundHit = (cx: number, cy: number): THREE.Vector3 | null => {
       const ground = groundRef.current;
       if (!ground) return null;
@@ -68,7 +92,6 @@ export function RTSInputController() {
       return hits[0]?.point ?? null;
     };
 
-    // Project a world position to canvas pixel coords
     const worldToScreen = (wp: [number, number, number]): { x: number; y: number } => {
       const rect  = canvas.getBoundingClientRect();
       const v = new THREE.Vector3(...wp).project(camera);
@@ -78,7 +101,59 @@ export function RTSInputController() {
       };
     };
 
-    // ── Mouse event handlers ───────────────────────────────────────────────────
+    // Apply cursor style to canvas based on active command mode
+    const updateCursor = () => {
+      canvas.style.cursor = MODE_CURSOR[getCommandMode()];
+    };
+
+    // ── Execute the current command mode at a ground position ─────────────────
+    const executeCommand = (hit: THREE.Vector3) => {
+      const { selectedUnitIds, issueMove, issueAttackMove, issuePatrol, issueLob } =
+        useGameStore.getState();
+      if (selectedUnitIds.length === 0) return;
+
+      const dest: [number, number, number] = [hit.x, 0, hit.z];
+      const mode = getCommandMode();
+
+      switch (mode) {
+        case 'default':
+        case 'move':
+          issueMove(selectedUnitIds, dest);
+          emitMoveMarker(dest);
+          if (mode === 'move') setCommandMode('default');
+          break;
+
+        case 'fight':
+          issueAttackMove(selectedUnitIds, dest);
+          emitMoveMarker(dest);
+          setCommandMode('default');
+          break;
+
+        case 'patrol': {
+          const anchor = getPatrolAnchor();
+          if (!anchor) {
+            // First click — store anchor, show marker
+            setPatrolAnchor(dest);
+            emitMoveMarker(dest);
+          } else {
+            // Second click — issue patrol route
+            issuePatrol(selectedUnitIds, anchor, dest);
+            emitMoveMarker(dest);
+            clearPatrolAnchor();
+            setCommandMode('default');
+          }
+          break;
+        }
+
+        case 'lob':
+          issueLob(selectedUnitIds, dest);
+          emitMoveMarker(dest);
+          setCommandMode('default');
+          break;
+      }
+    };
+
+    // ── Mouse event handlers ──────────────────────────────────────────────────
     const onMouseDown = (e: MouseEvent) => {
       if (e.button === 0) {
         dragStart  = { x: e.clientX, y: e.clientY };
@@ -87,6 +162,7 @@ export function RTSInputController() {
     };
 
     const onMouseMove = (e: MouseEvent) => {
+      updateCursor();
       if (!dragStart || !(e.buttons & 1)) { dragStart = null; return; }
       const dx = e.clientX - dragStart.x;
       const dy = e.clientY - dragStart.y;
@@ -108,7 +184,7 @@ export function RTSInputController() {
       // ── LMB ──
       if (e.button === 0) {
         if (isDragging && _box) {
-          // Box-select player regiments whose centre falls inside the box
+          // Box-select player regiments whose screen centre falls inside the box
           const { units, selectUnits } = useGameStore.getState();
           const selected: string[] = [];
           for (const unit of units) {
@@ -126,41 +202,59 @@ export function RTSInputController() {
             }
           }
           selectUnits(selected);
+        } else {
+          // Single LMB in command mode → execute on ground
+          const mode = getCommandMode();
+          if (mode !== 'default') {
+            const hit = groundHit(e.clientX, e.clientY);
+            if (hit) executeCommand(hit);
+          }
+          // otherwise deselect handled by Canvas onPointerMissed
         }
-        // Single-click deselect handled by onPointerMissed on the Canvas element
         _box = null;
         _notifyBox();
         dragStart  = null;
         isDragging = false;
       }
 
-      // ── RMB — issue move command ──
+      // ── RMB — execute command (default = move) ────────────────────────────
       if (e.button === 2) {
-        const { selectedUnitIds, issueMove } = useGameStore.getState();
+        const mode = getCommandMode();
+        const { selectedUnitIds } = useGameStore.getState();
         if (selectedUnitIds.length === 0) return;
         const hit = groundHit(e.clientX, e.clientY);
         if (!hit) return;
-        const dest: [number, number, number] = [hit.x, 0, hit.z];
-        issueMove(selectedUnitIds, dest);
-        emitMoveMarker(dest);
+
+        if (mode === 'default' || mode === 'move') {
+          // RMB always issues a move order in default / move mode
+          const { issueMove } = useGameStore.getState();
+          const dest: [number, number, number] = [hit.x, 0, hit.z];
+          issueMove(selectedUnitIds, dest);
+          emitMoveMarker(dest);
+          if (mode === 'move') setCommandMode('default');
+        } else {
+          // In other modes, RMB executes that mode's action
+          executeCommand(hit);
+        }
       }
     };
 
     canvas.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);   // window so drag works outside canvas
+    window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup',   onMouseUp);
 
     return () => {
       canvas.removeEventListener('contextmenu', noCtx);
       canvas.removeEventListener('mousedown',   onMouseDown);
+      window.removeEventListener('keydown',     onKeyDown);
       window.removeEventListener('mousemove',   onMouseMove);
       window.removeEventListener('mouseup',     onMouseUp);
+      canvas.style.cursor = 'default';
       _box = null;
       _notifyBox();
     };
   }, [camera, gl]);
 
-  // Invisible ground plane — used for RMB raycasting
   return (
     <mesh
       ref={groundRef}
@@ -175,11 +269,6 @@ export function RTSInputController() {
 }
 
 // ── SelectionBoxOverlay (rendered outside Canvas in the HUD layer) ────────────
-
-/**
- * Renders the rubber-band selection rectangle.
- * Place <SelectionBoxOverlay /> anywhere above the canvas in absolute-position space.
- */
 export function SelectionBoxOverlay() {
   const box = useSelectionBox();
   if (!box) return null;

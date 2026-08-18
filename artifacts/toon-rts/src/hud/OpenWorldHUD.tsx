@@ -12,6 +12,7 @@ import { ShopPanel }      from './ShopPanel';
 import { BuildPanel }     from './BuildPanel';
 import { RegimentBar }            from './RegimentBar';
 import { SelectionBoxOverlay }   from '@/game/input/RTSInputController';
+import { CommandBar }            from './CommandBar';
 import { useBuildStore }          from '@/game/store/buildStore';
 
 // ── Time of day display ────────────────────────────────────────────────────────
@@ -359,6 +360,9 @@ export function OpenWorldHUD() {
           <WinLoseScreen />
         </div>
       )}
+
+      {/* ── RTS command mode bar ── */}
+      <CommandBar />
 
       {/* ── RTS rubber-band selection box overlay ── */}
       <SelectionBoxOverlay />

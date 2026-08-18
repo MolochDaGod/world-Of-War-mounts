@@ -94,6 +94,23 @@ export function CombatSystem() {
 
       const inRange = minDist <= cfg.attackRange;
 
+      // ── LOB MODE: siege unit fires at forced target position ──────────────
+      if (unit.lobTarget && (unit.type === 'catapult' || unit.type === 'boltThrower')) {
+        if (unit.state !== 'attack') patches.set(unit.id, { ...patches.get(unit.id), state: 'attack' });
+        const timer = attackTimers[unit.id] ?? 0;
+        if (now - timer >= cfg.attackCooldown) {
+          attackTimers[unit.id] = now;
+          const lt = unit.lobTarget;
+          const spread = (): [number,number,number] => [
+            lt[0] + (Math.random() - 0.5) * 4,
+            0,
+            lt[2] + (Math.random() - 0.5) * 4,
+          ];
+          emitProjectile(unit.position, spread(), projectileKind(unit.type));
+        }
+        continue;
+      }
+
       if (inRange) {
         // Attack
         if (unit.state !== 'attack') patches.set(unit.id, { ...patches.get(unit.id), state: 'attack' });
@@ -128,16 +145,32 @@ export function CombatSystem() {
           }
         }
       } else {
-        // ── Player-issued move order takes priority ──────────────────────────
+        // ── Player-issued move / patrol / attack-move priority ───────────────
         const pTarget = unit.targetPosition;
         if (pTarget) {
           const pdx = pTarget[0] - unit.position[0];
           const pdz = pTarget[2] - unit.position[2];
           const pdist = Math.sqrt(pdx * pdx + pdz * pdz);
+
           if (pdist < 3) {
-            // Arrived — clear player order, transition to idle
-            patches.set(unit.id, { ...patches.get(unit.id), targetPosition: undefined, state: 'idle' });
+            // Arrived at waypoint
+            if (unit.patrolA && unit.patrolB) {
+              // Patrol: bounce to the other leg
+              const nextWp  = unit.patrolToB ? unit.patrolB : unit.patrolA;
+              patches.set(unit.id, {
+                ...patches.get(unit.id),
+                targetPosition: nextWp,
+                patrolToB: !unit.patrolToB,
+                state: 'idle',
+              });
+            } else {
+              patches.set(unit.id, { ...patches.get(unit.id), targetPosition: undefined, state: 'idle' });
+            }
           } else {
+            // Check attack-move: engage any enemy within attack range on the way
+            if (unit.attackMove && nearest && minDist <= cfg.attackRange) {
+              // Switch to attacking this tick (handled above via inRange path next tick)
+            }
             const step = cfg.speed * 0.033;
             const facing = Math.atan2(pdx, pdz);
             patches.set(unit.id, {

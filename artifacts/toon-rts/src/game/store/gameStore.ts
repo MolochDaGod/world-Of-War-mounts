@@ -36,6 +36,12 @@ export interface UnitData {
   formationCols: number;
   formationFacing: number; // Y rotation in radians
   spacing: number;         // formation slot spacing in world units
+  // RTS command orders
+  attackMove?: boolean;                           // move & engage any enemy on the way
+  patrolA?: [number, number, number];             // patrol waypoint A
+  patrolB?: [number, number, number];             // patrol waypoint B
+  patrolToB?: boolean;                            // which leg of patrol we're on
+  lobTarget?: [number, number, number];           // artillery forced target
 }
 
 export interface AbilityTarget {
@@ -106,7 +112,11 @@ interface GameState {
   resetGame: () => void;
 
   /** RTS commands */
-  issueMove: (unitIds: string[], targetPosition: [number, number, number]) => void;
+  issueMove:        (unitIds: string[], targetPosition: [number, number, number]) => void;
+  issueAttackMove:  (unitIds: string[], targetPosition: [number, number, number]) => void;
+  issuePatrol:      (unitIds: string[], patrolA: [number,number,number], patrolB: [number,number,number]) => void;
+  issueLob:         (unitIds: string[], target: [number, number, number]) => void;
+  issueStop:        (unitIds: string[]) => void;
   setCommandTarget: (pos: [number, number, number] | null) => void;
 }
 
@@ -298,7 +308,57 @@ export const useGameStore = create<GameState>((set, get) => ({
       commandTarget: targetPosition,
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead'
-          ? { ...u, targetPosition, state: 'move' }
+          ? { ...u, targetPosition, attackMove: false,
+              patrolA: undefined, patrolB: undefined, lobTarget: undefined, state: 'move' }
+          : u,
+      ),
+    }));
+  },
+
+  issueAttackMove: (unitIds, targetPosition) => {
+    const idSet = new Set(unitIds);
+    set(state => ({
+      commandTarget: targetPosition,
+      units: state.units.map(u =>
+        idSet.has(u.id) && u.state !== 'dead'
+          ? { ...u, targetPosition, attackMove: true,
+              patrolA: undefined, patrolB: undefined, lobTarget: undefined, state: 'move' }
+          : u,
+      ),
+    }));
+  },
+
+  issuePatrol: (unitIds, patrolA, patrolB) => {
+    const idSet = new Set(unitIds);
+    set(state => ({
+      units: state.units.map(u =>
+        idSet.has(u.id) && u.state !== 'dead'
+          ? { ...u, patrolA, patrolB, patrolToB: true,
+              targetPosition: patrolA, attackMove: false, lobTarget: undefined, state: 'move' }
+          : u,
+      ),
+    }));
+  },
+
+  issueLob: (unitIds, target) => {
+    const SIEGE = new Set(['catapult', 'boltThrower']);
+    const idSet = new Set(unitIds);
+    set(state => ({
+      units: state.units.map(u =>
+        idSet.has(u.id) && u.state !== 'dead' && SIEGE.has(u.type)
+          ? { ...u, lobTarget: target, patrolA: undefined, patrolB: undefined, attackMove: false }
+          : u,
+      ),
+    }));
+  },
+
+  issueStop: (unitIds) => {
+    const idSet = new Set(unitIds);
+    set(state => ({
+      units: state.units.map(u =>
+        idSet.has(u.id) && u.state !== 'dead'
+          ? { ...u, targetPosition: undefined, attackMove: false,
+              patrolA: undefined, patrolB: undefined, lobTarget: undefined, state: 'idle' }
           : u,
       ),
     }));
