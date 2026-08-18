@@ -96,10 +96,10 @@ export function CombatSystem() {
         }
       }
     }
-    /** Returns the attack multiplier for a unit given its team's commander aura. */
-    function commanderAttackMult(u: UnitData): number {
+    /** Returns the commander aura multiplier for a unit and a given stat type. */
+    function commanderMult(u: UnitData, stat: 'attack' | 'speed' | 'defense'): number {
       const aura = cmdAura.get(u.teamId);
-      if (!aura || aura.type !== 'attack') return 1;
+      if (!aura || aura.type !== stat) return 1;
       const dx = u.position[0] - aura.x;
       const dz = u.position[2] - aura.z;
       return dx*dx + dz*dz <= aura.radius * aura.radius ? aura.mult : 1;
@@ -293,8 +293,10 @@ export function CombatSystem() {
           let drMult = 1.0;
           if (targetType === 'shieldwall') drMult *= 0.80;
           if (patches.get(nearest.id)?.standGround || nearest.standGround) drMult *= 0.75;
+          // Defense aura: reduce incoming damage by 1/mult for buffed defenders
+          drMult *= 1 / commanderMult(nearest, 'defense');
 
-          const rawDmg = cfg.damage * dmgMult * drMult * commanderAttackMult(unit);
+          const rawDmg = cfg.damage * dmgMult * drMult * commanderMult(unit, 'attack');
           const hp     = Math.max(0, curHp(nearest) - rawDmg);
 
           // ── Charge boost: consume flag ───────────────────────────────
@@ -343,7 +345,8 @@ export function CombatSystem() {
           continue;
         }
 
-        const speedMult = unit.speedBoostUntil && elapsed < unit.speedBoostUntil ? 1.8 : 1.0;
+        const speedMult = (unit.speedBoostUntil && elapsed < unit.speedBoostUntil ? 1.8 : 1.0)
+          * commanderMult(unit, 'speed');
         // Shield bash passive: shieldwall is slow but gets a slight debuff reduction
         // Skirmisher wraith passive: −15 % incoming damage (handled via DR above)
 
