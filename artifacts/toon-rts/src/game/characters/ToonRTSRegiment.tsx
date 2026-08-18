@@ -12,14 +12,14 @@
  */
 import { Suspense, useRef, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { useFBX } from '@react-three/drei';
+import { useFBX, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { useGameStore, UnitData } from '@/game/store/gameStore';
 import { useShallow } from 'zustand/react/shallow';
 import { ROSTER_MAP, ModelCategory } from '@/game/data/UnitRoster';
 import { getSoldierAssets, getMageAssets, SoldierAssets } from '@/game/assets/ToonRTSManifest';
-import { getVariantSet, getShowSet } from '@/game/data/UnitMeshConfig';
+import { getVariantSet, getShowSet, getEquipmentList, EQUIPMENT_GLB } from '@/game/data/UnitMeshConfig';
 import { SelectionRing, BaseFallback } from './CharacterBase';
 import { RegimentLabel } from './RegimentLabel';
 import { COMMANDER_BY_ID } from '@/game/data/CommanderDefs';
@@ -69,6 +69,78 @@ const TEAM_COLOR: Record<1 | 2, string> = {
   2: '#ff4444',
 };
 
+// ── Equipment GLB helpers ─────────────────────────────────────────────────────
+
+/**
+ * Bones a rigid equipment mesh may hang from. Only meshes whose immediate
+ * GLB parent is one of these containers are classified as attachable
+ * equipment — body/arms/head/legs variants stay FBX-side skinned meshes.
+ */
+const EQUIPMENT_CONTAINERS = new Set([
+  'R_hand_container', 'L_hand_container', 'L_shield_container',
+  'Quiver_container', 'Bone_wood', 'Bone_bag',
+]);
+
+/**
+ * Case-insensitive index of named equipment meshes inside an equipment GLB
+ * scene. Cached per GLB scene (useGLTF caches by URL, so one map per race).
+ */
+const _equipIndexCache = new WeakMap<THREE.Object3D, Map<string, THREE.Mesh>>();
+
+function getEquipIndex(glbScene: THREE.Object3D): Map<string, THREE.Mesh> {
+  let idx = _equipIndexCache.get(glbScene);
+  if (!idx) {
+    idx = new Map();
+    glbScene.traverse(obj => {
+      const mesh = obj as THREE.Mesh;
+      // Only rigid (non-skinned) meshes under a known container bone
+      if (
+        mesh.isMesh &&
+        !(mesh as THREE.SkinnedMesh).isSkinnedMesh &&
+        mesh.parent && EQUIPMENT_CONTAINERS.has(mesh.parent.name)
+      ) {
+        idx!.set(mesh.name.toLowerCase(), mesh);
+      }
+    });
+    _equipIndexCache.set(glbScene, idx);
+  }
+  return idx;
+}
+
+/**
+ * GLB equipment is authored in metres; the character FBX rigs are in inches
+ * (verified: identical body meshes measure 39.37× larger in the FBX than the
+ * GLB, and the container bones carry world scale 1). Attached equipment must
+ * be converted metres → inches to match the skeleton's space.
+ */
+const EQUIPMENT_TO_FBX_SCALE = 39.3701;
+
+/**
+ * Clones an equipment mesh from the GLB and attaches it to the bone of the
+ * soldier skeleton matching the mesh's parent container in the GLB
+ * (e.g. R_hand_container, L_shield_container, Quiver_container).
+ */
+function attachEquipment(
+  soldierRoot: THREE.Object3D,
+  source: THREE.Mesh,
+  material: THREE.Material,
+): boolean {
+  const containerName = source.parent?.name;
+  if (!containerName) return false;
+  const bone = soldierRoot.getObjectByName(containerName);
+  if (!bone) return false;
+
+  const clone = source.clone();
+  clone.position.copy(source.position).multiplyScalar(EQUIPMENT_TO_FBX_SCALE);
+  clone.quaternion.copy(source.quaternion);
+  clone.scale.copy(source.scale).multiplyScalar(EQUIPMENT_TO_FBX_SCALE);
+  clone.material = material;
+  clone.castShadow = true;
+  clone.receiveShadow = false;
+  bone.add(clone);
+  return true;
+}
+
 // ── Single animated soldier (suspends while loading) ─────────────────────────
 
 // ── Commander gold colours ─────────────────────────────────────────────────────
@@ -96,6 +168,9 @@ function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId, race
   const atk2FBX  = useFBX(assets.attack2Path);
   const dieFBX   = useFBX(assets.deathPath);
 
+  // Race-specific equipment GLB — cached by URL, shared across all soldiers
+  const equipGLTF = useGLTF(EQUIPMENT_GLB[race]);
+
   // Clone per instance so each soldier has its own independent skeleton
   const scene = useMemo(() => {
     const cloned = SkeletonUtils.clone(modelFBX) as THREE.Group;
@@ -106,8 +181,16 @@ function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId, race
     const variantSet = getVariantSet(race);
     // Commander uses its own curated mesh set; others use UnitMeshConfig
     const cmdDef = isCommander && commanderArchetype ? COMMANDER_BY_ID[commanderArchetype] : null;
+
+    // Split requested meshes: names present in the equipment GLB get
+    // bone-attached; the rest are skinned body parts shown on the FBX.
+    const equipIndex = getEquipIndex(equipGLTF.scene);
+    const requested: readonly string[] = cmdDef ? cmdDef.meshShow : [];
+    const equipNames: string[] = cmdDef
+      ? requested.filter(n => equipIndex.has(n.toLowerCase()))
+      : [...getEquipmentList(race, unitType)];
     const showSet = cmdDef
-      ? new Set(cmdDef.meshShow)
+      ? new Set(requested.filter(n => !equipIndex.has(n.toLowerCase())))
       : getShowSet(race, unitType);
 
     const color = isCommander
@@ -137,9 +220,21 @@ function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId, race
         mesh.receiveShadow = false;
       }
     });
+
+    // Attach GLB equipment (weapons/shields/quivers) to skeleton bones
+    for (const name of equipNames) {
+      const source = equipIndex.get(name.toLowerCase());
+      if (!source) continue;
+      attachEquipment(cloned, source, new THREE.MeshToonMaterial({
+        color,
+        emissive,
+        emissiveIntensity: isCommander ? 0.18 : 0.05,
+      }));
+    }
+
     return cloned;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelFBX, assets.modelPath, assets.scale, teamId, race, unitType, isCommander, commanderArchetype]);
+  }, [modelFBX, equipGLTF, assets.modelPath, assets.scale, teamId, race, unitType, isCommander, commanderArchetype]);
 
   // Mixer lives for the lifetime of this component
   const mixerRef      = useRef<THREE.AnimationMixer | null>(null);
@@ -217,8 +312,9 @@ function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId, race
     if (unitState === 'dead') {
       opacityRef.current = Math.max(0, opacityRef.current - delta * 0.6);
       groupRef.current.traverse(child => {
-        const mesh = child as THREE.SkinnedMesh;
-        if (mesh.isSkinnedMesh) {
+        const mesh = child as THREE.Mesh;
+        // Includes both skinned body parts and bone-attached equipment
+        if (mesh.isMesh) {
           const mat = mesh.material as THREE.MeshToonMaterial;
           mat.transparent = true;
           mat.opacity = opacityRef.current;

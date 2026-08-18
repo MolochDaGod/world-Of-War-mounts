@@ -2,4 +2,5 @@
 - [Ability system + Commander](ability-system.md) — Abilities, charges, stand ground, VFX, combat timer; 18 commander heroes; postprocessing; ragdoll physics; floating labels.
 - [Toon RTS Three.js fixes](toon-rts-threejs-fixes.md) — Key bugs fixed in the Three.js r185 upgrade pass; critical patterns for future turns.
 - [Zustand v5 + R3F subscription cascade](zustand-v5-react-cascade.md) — How useSyncExternalStore causes "Maximum update depth exceeded"; fix patterns for getState() in useFrame, stable selectors, per-entity subscriptions, interval polling.
+- [Equipment GLB attachment](equipment-glb-attachment.md) — GLB weapons attach to FBX container bones; GLB metres vs FBX inches ⇒ ×39.37 scale; Node loader stubs for headless checks.
 - [Kenney building system](kenney-building-system.md) — Modular placement system: asset paths, scale factors, texture-override pattern, ghost preview, buildStore separation, GLB filenames.
