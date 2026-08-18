@@ -5,17 +5,19 @@ import { COMMANDER_BY_ID, getCommandersForRace } from '../data/CommanderDefs';
 export type Race = 'Barbarians' | 'Dwarves' | 'Elves' | 'Orcs' | 'Undead' | 'WesternKingdoms';
 
 export type UnitType =
-  | 'infantry'      // legacy alias for swordsmen
-  | 'swordsmen'     // basic melee
-  | 'spearmen'      // anti-cavalry
-  | 'shieldwall'    // heavy defensive
-  | 'archers'       // ranged infantry
-  | 'skirmishers'   // fast light infantry
-  | 'cavalry'       // mounted
-  | 'heavyCavalry'  // charging cavalry
-  | 'mage'          // spell casters
-  | 'boltThrower'   // long-range bolt weapon
-  | 'catapult';     // siege artillery
+  | 'infantry'        // legacy alias for swordsmen
+  | 'swordsmen'       // basic melee
+  | 'spearmen'        // anti-cavalry
+  | 'shieldwall'      // heavy defensive
+  | 'archers'         // ranged infantry
+  | 'skirmishers'     // fast light infantry
+  | 'cavalry'         // mounted
+  | 'heavyCavalry'    // charging cavalry
+  | 'mage'            // spell casters
+  | 'boltThrower'     // long-range bolt weapon
+  | 'catapult'        // siege artillery
+  | 'grieeGlee'       // Orc+Goblin pair — stone-throw siege, close melee
+  | 'skeletonWarrior';// Summoned skeleton horde — cheap, weak, many
 
 export type UnitState = 'idle' | 'move' | 'attack' | 'dead';
 export type AbilityType = 'fire' | 'ice' | 'lightning' | 'meteor' | 'wind';
@@ -171,14 +173,17 @@ export const REGIMENT_DEFS: Record<UnitType, {
   cavalry:     { hp: 1800, maxSoldiers: 8,  formationRows: 2, formationCols: 4, spacing: 2.0, cost: 200 },
   heavyCavalry:{ hp: 2200, maxSoldiers: 6,  formationRows: 2, formationCols: 3, spacing: 2.4, cost: 350 },
   mage:        { hp: 800,  maxSoldiers: 4,  formationRows: 2, formationCols: 2, spacing: 2.0, cost: 300 },
-  boltThrower: { hp: 1200, maxSoldiers: 2,  formationRows: 1, formationCols: 2, spacing: 3.0, cost: 350 },
-  catapult:    { hp: 800,  maxSoldiers: 1,  formationRows: 1, formationCols: 1, spacing: 1.0, cost: 400 },
+  boltThrower:    { hp: 1200, maxSoldiers: 2,  formationRows: 1, formationCols: 2, spacing: 3.0, cost: 350 },
+  catapult:       { hp: 800,  maxSoldiers: 1,  formationRows: 1, formationCols: 1, spacing: 1.0, cost: 400 },
+  // GLB-rendered units
+  grieeGlee:      { hp: 3800, maxSoldiers: 3,  formationRows: 1, formationCols: 3, spacing: 5.0, cost: 500 },
+  skeletonWarrior:{ hp: 500,  maxSoldiers: 10, formationRows: 2, formationCols: 5, spacing: 1.1, cost: 60  },
 };
 
 // Categorise types for positioning
 function regimentCategory(t: UnitType): 'melee' | 'ranged' | 'siege' {
   if (t === 'archers' || t === 'mage') return 'ranged';
-  if (t === 'boltThrower' || t === 'catapult') return 'siege';
+  if (t === 'boltThrower' || t === 'catapult' || t === 'grieeGlee') return 'siege';
   return 'melee';
 }
 

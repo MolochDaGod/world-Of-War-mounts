@@ -40,17 +40,20 @@ const UNIT_CONFIG: Record<UnitData['type'], {
   cavalry:     { damage: 138, attackRange: 7,  speed: 8.0, attackCooldown: 1.0 },
   heavyCavalry:{ damage: 192, attackRange: 8,  speed: 7.0, attackCooldown: 1.6 },
   mage:        { damage: 110, attackRange: 14, speed: 2.5, attackCooldown: 2.6 },
-  boltThrower: { damage: 154, attackRange: 26, speed: 1.5, attackCooldown: 3.9 },
-  catapult:    { damage: 220, attackRange: 32, speed: 1.2, attackCooldown: 5.2 },
+  boltThrower:    { damage: 154, attackRange: 26, speed: 1.5, attackCooldown: 3.9 },
+  catapult:       { damage: 220, attackRange: 32, speed: 1.2, attackCooldown: 5.2 },
+  // GLB units
+  grieeGlee:      { damage: 240, attackRange: 14, speed: 3.0, attackCooldown: 3.5 },
+  skeletonWarrior:{ damage:  55, attackRange:  5, speed: 5.5, attackCooldown: 0.9 },
 };
 
-const RANGED_TYPES = new Set<UnitData['type']>(['archers', 'mage', 'boltThrower', 'catapult']);
-const SIEGE_TYPES  = new Set<UnitData['type']>(['boltThrower', 'catapult']);
+const RANGED_TYPES = new Set<UnitData['type']>(['archers', 'mage', 'boltThrower', 'catapult', 'grieeGlee']);
+const SIEGE_TYPES  = new Set<UnitData['type']>(['boltThrower', 'catapult', 'grieeGlee']);
 
 function projectileKind(type: UnitData['type']): ProjectileKind {
-  if (type === 'mage')        return 'magic';
-  if (type === 'boltThrower') return 'bolt';
-  if (type === 'catapult')    return 'stone';
+  if (type === 'mage')                    return 'magic';
+  if (type === 'boltThrower')             return 'bolt';
+  if (type === 'catapult' || type === 'grieeGlee') return 'stone';
   return 'arrow';
 }
 
