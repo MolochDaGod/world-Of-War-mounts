@@ -14,6 +14,10 @@ import * as THREE from 'three';
 
 export type ProjectileKind = 'arrow' | 'bolt' | 'stone' | 'magic';
 
+// Ragdoll emitter — imported lazily to avoid circular deps
+let _emitRagdoll: ((pos: [number,number,number]) => void) | null = null;
+import('./RagdollSystem').then(m => { _emitRagdoll = m.emitRagdoll; });
+
 interface ActiveProjectile {
   id: number;
   kind: ProjectileKind;
@@ -184,6 +188,10 @@ export function ProjectileSystem() {
           life: 0.35,
           kind: p.kind,
         });
+        // Spawn physics ragdoll on catapult/stone impact
+        if (p.kind === 'stone') {
+          _emitRagdoll?.([p.to.x, 0, p.to.z]);
+        }
         changed = true;
       } else {
         remaining.push(p);

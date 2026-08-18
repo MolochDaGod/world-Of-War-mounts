@@ -19,6 +19,7 @@ import { useFrame } from '@react-three/fiber';
 import { useGameStore, UnitData } from '../store/gameStore';
 import { emitProjectile, ProjectileKind } from '../effects/ProjectileSystem';
 import { ABILITY_DEFS } from '../data/AbilityDefs';
+import { COMMANDER_BY_ID } from '../data/CommanderDefs';
 
 const TICK = 0.033; // seconds per combat frame (≈ 30 Hz)
 const BATTLE_LIMIT = 480; // 8-minute timer
@@ -74,6 +75,31 @@ export function CombatSystem() {
             tickCombatElapsed, expireTotems, setPhase } = store;
 
     if (phase !== 'battle') return;
+
+    // ── Commander leadership aura — pre-compute per team ─────────────────
+    type AuraData = { x: number; z: number; radius: number; mult: number; type: string };
+    const cmdAura = new Map<1|2, AuraData>();
+    for (const u of units) {
+      if ((u as any).isCommander && u.state !== 'dead') {
+        const def = COMMANDER_BY_ID[(u as any).commanderArchetype ?? ''];
+        if (def) {
+          cmdAura.set(u.teamId, {
+            x: u.position[0], z: u.position[2],
+            radius: def.leadershipBonus.auraRadius,
+            mult: def.leadershipBonus.multiplier,
+            type: def.leadershipBonus.type,
+          });
+        }
+      }
+    }
+    /** Returns the attack multiplier for a unit given its team's commander aura. */
+    function commanderAttackMult(u: UnitData): number {
+      const aura = cmdAura.get(u.teamId);
+      if (!aura || aura.type !== 'attack') return 1;
+      const dx = u.position[0] - aura.x;
+      const dz = u.position[2] - aura.z;
+      return dx*dx + dz*dz <= aura.radius * aura.radius ? aura.mult : 1;
+    }
 
     // ── 1. Tick combat elapsed ──────────────────────────────────────────────
     localElapsed += TICK;
@@ -264,7 +290,7 @@ export function CombatSystem() {
           if (targetType === 'shieldwall') drMult *= 0.80;
           if (patches.get(nearest.id)?.standGround || nearest.standGround) drMult *= 0.75;
 
-          const rawDmg = cfg.damage * dmgMult * drMult;
+          const rawDmg = cfg.damage * dmgMult * drMult * commanderAttackMult(unit);
           const hp     = Math.max(0, curHp(nearest) - rawDmg);
 
           // ── Charge boost: consume flag ───────────────────────────────

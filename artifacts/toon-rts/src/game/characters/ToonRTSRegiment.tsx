@@ -21,6 +21,8 @@ import { ROSTER_MAP, ModelCategory } from '@/game/data/UnitRoster';
 import { getSoldierAssets, getMageAssets, SoldierAssets } from '@/game/assets/ToonRTSManifest';
 import { getVariantSet, getShowSet } from '@/game/data/UnitMeshConfig';
 import { SelectionRing, BaseFallback } from './CharacterBase';
+import { RegimentLabel } from './RegimentLabel';
+import { COMMANDER_BY_ID } from '@/game/data/CommanderDefs';
 
 // ── Formation helpers ─────────────────────────────────────────────────────────
 
@@ -69,6 +71,10 @@ const TEAM_COLOR: Record<1 | 2, string> = {
 
 // ── Single animated soldier (suspends while loading) ─────────────────────────
 
+// ── Commander gold colours ─────────────────────────────────────────────────────
+const COMMANDER_COLOR = '#ffd700';
+const COMMANDER_EMISSIVE = '#cc8800';
+
 interface SoldierProps {
   assets: SoldierAssets;
   unitState: UnitData['state'];
@@ -77,9 +83,11 @@ interface SoldierProps {
   teamId: 1 | 2;
   race: UnitData['race'];
   unitType: UnitData['type'];
+  isCommander?: boolean;
+  commanderArchetype?: string;
 }
 
-function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId, race, unitType }: SoldierProps) {
+function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId, race, unitType, isCommander, commanderArchetype }: SoldierProps) {
   // All 6 useFBX calls — cached by URL, so N soldiers only load each path once.
   const modelFBX = useFBX(assets.modelPath);
   const idleFBX  = useFBX(assets.idlePath);
@@ -91,13 +99,24 @@ function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId, race
   // Clone per instance so each soldier has its own independent skeleton
   const scene = useMemo(() => {
     const cloned = SkeletonUtils.clone(modelFBX) as THREE.Group;
-    cloned.scale.setScalar(assets.scale);
+    // Commander is 1.5× the normal scale
+    cloned.scale.setScalar(isCommander ? assets.scale * 1.5 : assets.scale);
 
     // Mesh customisation: show only the variant meshes for this unit type
     const variantSet = getVariantSet(race);
-    const showSet    = getShowSet(race, unitType);
+    // Commander uses its own curated mesh set; others use UnitMeshConfig
+    const cmdDef = isCommander && commanderArchetype ? COMMANDER_BY_ID[commanderArchetype] : null;
+    const showSet = cmdDef
+      ? new Set(cmdDef.meshShow)
+      : getShowSet(race, unitType);
 
-    const color = new THREE.Color(TEAM_COLOR[teamId]);
+    const color = isCommander
+      ? new THREE.Color(COMMANDER_COLOR)
+      : new THREE.Color(TEAM_COLOR[teamId]);
+    const emissive = isCommander
+      ? new THREE.Color(COMMANDER_EMISSIVE)
+      : color;
+
     cloned.traverse(child => {
       const mesh = child as THREE.SkinnedMesh;
       if (!mesh.isSkinnedMesh) return;
@@ -111,8 +130,8 @@ function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId, race
       if (mesh.visible) {
         mesh.material = new THREE.MeshToonMaterial({
           color,
-          emissive: color,
-          emissiveIntensity: 0.05,
+          emissive,
+          emissiveIntensity: isCommander ? 0.18 : 0.05,
         });
         mesh.castShadow = true;
         mesh.receiveShadow = false;
@@ -120,7 +139,7 @@ function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId, race
     });
     return cloned;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelFBX, assets.modelPath, assets.scale, teamId, race, unitType]);
+  }, [modelFBX, assets.modelPath, assets.scale, teamId, race, unitType, isCommander, commanderArchetype]);
 
   // Mixer lives for the lifetime of this component
   const mixerRef      = useRef<THREE.AnimationMixer | null>(null);
@@ -223,7 +242,7 @@ function ToonRTSSoldier(props: SoldierProps) {
     <Suspense
       fallback={
         <group position={props.position}>
-          <BaseFallback color={TEAM_COLOR[props.teamId]} />
+          <BaseFallback color={props.isCommander ? COMMANDER_COLOR : TEAM_COLOR[props.teamId]} />
         </group>
       }
     >
@@ -235,9 +254,13 @@ function ToonRTSSoldier(props: SoldierProps) {
 // ── Regiment (one UnitData → N soldiers in formation) ────────────────────────
 
 export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelected: boolean }) {
+  const isCommander = !!(unit as any).isCommander;
+  const commanderArchetype: string | undefined = (unit as any).commanderArchetype;
+
   // Compute alive soldiers from health ratio
   const aliveSoldiers = unit.state === 'dead'
     ? 0
+    : isCommander ? 1
     : Math.max(1, Math.ceil((unit.health / unit.maxHealth) * unit.maxSoldiers));
 
   const assets   = useMemo(() => getAssets(unit), [unit.race, unit.type]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -291,11 +314,22 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
           teamId={unit.teamId}
           race={unit.race}
           unitType={unit.type}
+          isCommander={isCommander}
+          commanderArchetype={commanderArchetype}
         />
       ))}
-      <SelectionRing
-        visible={isSelected}
-        radius={ringRadius}
+
+      {/* Commander: gold leadership ring always visible */}
+      {isCommander && (
+        <SelectionRing visible radius={ringRadius + 0.5} />
+      )}
+      <SelectionRing visible={isSelected} radius={ringRadius} />
+
+      {/* Floating label — shows for all regiments except dead ones */}
+      <RegimentLabel
+        unit={unit}
+        aliveSoldiers={aliveSoldiers}
+        labelHeight={isCommander ? 5.5 : 4}
       />
     </group>
   );

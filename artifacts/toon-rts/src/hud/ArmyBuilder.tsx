@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { useGameStore, REGIMENT_DEFS } from '@/game/store/gameStore';
 import { useShallow } from 'zustand/react/shallow';
+import { CommanderSelectPanel } from './CommanderSelectPanel';
 import {
   Faction, FACTION_META, FACTION_DISPLAY, FACTION_UNITS, FACTION_TO_RACE,
   RACE_TO_FACTION, FactionUnit,
@@ -473,6 +474,11 @@ export function ArmyBuilder() {
           fontSize: 9, color: '#333', marginTop: 6, letterSpacing: '0.15em',
         }}>
           Click a regiment to add · Click army slot to remove · {playerArmy.length === 8 ? '⚠ FULL — remove a regiment to add another' : `${8 - playerArmy.length} slots free`}
+        </div>
+
+        {/* Commander selection — shown below army builder */}
+        <div style={{ marginTop: 14 }}>
+          <CommanderSelectPanel />
         </div>
       </div>
     </div>

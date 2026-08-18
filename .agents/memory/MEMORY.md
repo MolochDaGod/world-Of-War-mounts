@@ -1,5 +1,5 @@
 - [Toon RTS game setup](toon-rts-game.md) — Open-world RTS/survival in artifacts/toon-rts; craftpix asset paths, scene structure, critical rules.
-- [Ability system](ability-system.md) — Per-unit abilities, charges, stand ground, VFX, combat timer; faction heal archetypes; NaturesBounty uses Date.now() not R3F clock.
+- [Ability system + Commander](ability-system.md) — Abilities, charges, stand ground, VFX, combat timer; 18 commander heroes; postprocessing; ragdoll physics; floating labels.
 - [Toon RTS Three.js fixes](toon-rts-threejs-fixes.md) — Key bugs fixed in the Three.js r185 upgrade pass; critical patterns for future turns.
 - [Zustand v5 + R3F subscription cascade](zustand-v5-react-cascade.md) — How useSyncExternalStore causes "Maximum update depth exceeded"; fix patterns for getState() in useFrame, stable selectors, per-entity subscriptions, interval polling.
 - [Kenney building system](kenney-building-system.md) — Modular placement system: asset paths, scale factors, texture-override pattern, ghost preview, buildStore separation, GLB filenames.

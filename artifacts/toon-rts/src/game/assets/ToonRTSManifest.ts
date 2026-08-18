@@ -68,12 +68,14 @@ const BOLT_MODEL: Record<Race, string> = {
 };
 
 // ── Infantry/misc animation paths (universal Dwarves Worker) ──────────────────
+// Uploaded animation FBX files — now in /assets/characters/animations/
+const CA = '/assets/characters/animations';
 const INF_ANIM: Pick<SoldierAssets, 'idlePath'|'runPath'|'attack1Path'|'attack2Path'|'deathPath'> = {
-  idlePath:    `${DWF_W}/_idle.FBX`,
-  runPath:     `${DWF_W}/run.FBX`,
-  attack1Path: `${DWF_W}/DWF_worker_07_attack.FBX`,
-  attack2Path: `${B}/Barbarians/animation/Spearman/BRB_spearman_07_attack.FBX`,
-  deathPath:   `${DWF_W}/DWF_worker_10_death_B.FBX`,
+  idlePath:    `${CA}/idle.fbx`,
+  runPath:     `${CA}/run.fbx`,
+  attack1Path: `${CA}/attack.fbx`,
+  attack2Path: `${CA}/attack_heavy.fbx`,
+  deathPath:   `${CA}/death.fbx`,
 };
 
 // ── Cavalry animation paths per race (fallback = Orcs cavalry) ────────────────

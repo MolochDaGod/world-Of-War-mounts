@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { AbilityId, ABILITY_DEFS, TotemData } from '../data/AbilityDefs';
+import { COMMANDER_BY_ID } from '../data/CommanderDefs';
 
 export type Race = 'Barbarians' | 'Dwarves' | 'Elves' | 'Orcs' | 'Undead' | 'WesternKingdoms';
 
@@ -56,6 +57,10 @@ export interface UnitData {
   multiShotReady?: boolean;                    // one-tick multi-shot flag
   // Per-ability charge tracker: abilityId → { charges, nextChargeAt (combatElapsed s) }
   abilityCharges?: Partial<Record<string, { charges: number; nextChargeAt: number }>>;
+  // Commander hero fields
+  isCommander?:        boolean;
+  commanderArchetype?: string;   // CommanderDef id
+  commanderName?:      string;   // display name
 }
 
 export interface AbilityTarget {
@@ -88,6 +93,7 @@ interface GameState {
   playerArmy: RegimentSlot[];   // selected by player (max 8)
   enemyArmy: RegimentSlot[];    // AI-selected
   gold: number;                 // player's gold budget
+  playerCommander: string | null;  // chosen CommanderDef id (null = no commander)
 
   setPhase: (phase: GamePhase) => void;
   setSelectedRace: (race: Race) => void;
@@ -137,6 +143,7 @@ interface GameState {
   issueStop:        (unitIds: string[]) => void;
   toggleStandGround:(unitIds: string[]) => void;
   setCommandTarget: (pos: [number, number, number] | null) => void;
+  setPlayerCommander: (id: string | null) => void;
   // ── Ability actions ─────────────────────────────────────────────────────────
   triggerAbility:   (unitIds: string[], abilityId: AbilityId, target?: [number,number,number]) => void;
   setPendingAbility:(pending: { abilityId: AbilityId; unitIds: string[] } | null) => void;
@@ -272,6 +279,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerArmy: [],
   enemyArmy: [],
   gold: 2000,
+  playerCommander: null,
   commandTarget: null,
   totems: [],
   bountyBursts: [],
@@ -333,6 +341,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   })),
   setDifficulty: (difficulty) => set({ difficulty }),
   setCommandTarget: (commandTarget) => set({ commandTarget }),
+  setPlayerCommander: (id) => set({ playerCommander: id }),
   issueMove: (unitIds, targetPosition) => {
     const idSet = new Set(unitIds);
     set(state => ({
@@ -598,8 +607,30 @@ export const useGameStore = create<GameState>((set, get) => ({
     const team1 = buildUnits(pArmy,  selectedRace, 1, 1.0);
     const team2 = buildUnits(eArmy,  enemyRace,    2, diffMult);
 
+    // Spawn commander hero unit if one was chosen
+    const { playerCommander } = get();
+    const cmdDef = playerCommander ? COMMANDER_BY_ID[playerCommander] : null;
+    const cmdUnit: UnitData[] = cmdDef ? [{
+      id: uid(),
+      race: selectedRace,
+      type: 'swordsmen',
+      position: [0, 0, 18],
+      health: cmdDef.hp,
+      maxHealth: cmdDef.hp,
+      state: 'idle' as UnitState,
+      teamId: 1,
+      maxSoldiers: 1,
+      formationRows: 1,
+      formationCols: 1,
+      formationFacing: Math.PI,
+      spacing: 1.0,
+      isCommander: true,
+      commanderArchetype: cmdDef.id,
+      commanderName: cmdDef.name,
+    }] : [];
+
     set({
-      units: [...team1, ...team2],
+      units: [...team1, ...cmdUnit, ...team2],
       phase: 'battle',
       teamScores: { team1: 0, team2: 0 },
       enemyArmy: eArmy,
@@ -635,5 +666,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     units: [], phase: 'menu',
     teamScores: { team1: 0, team2: 0 },
     playerArmy: [], gold: 2000,
+    playerCommander: null,
   }),
 }));

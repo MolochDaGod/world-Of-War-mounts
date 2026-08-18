@@ -36,9 +36,16 @@ import { MoveMarker }      from './effects/MoveMarker';
 import { RTSInputController } from './input/RTSInputController';
 import { BuildSystem }     from './building/BuildSystem';
 import { PlacedBuildings } from './building/PlacedBuildings';
+import { RagdollSystem }   from './effects/RagdollSystem';
 import { useWorldStore }   from './store/worldStore';
 import { useGameStore }    from './store/gameStore';
 import { useFrame }        from '@react-three/fiber';
+import {
+  EffectComposer,
+  Bloom,
+  Vignette,
+  SMAA,
+} from '@react-three/postprocessing';
 
 /**
  * Day/night sky colour driven by worldStore timeOfDay.
@@ -152,6 +159,9 @@ export function GameScene() {
             {/* ── Buildings ── */}
             <PlacedBuildings />
             <BuildSystem />
+
+            {/* ── Ragdoll physics (spawned on catapult impact) ── */}
+            <RagdollSystem />
           </Physics>
 
           {/* Projectiles live outside Physics — they are purely visual */}
@@ -165,6 +175,18 @@ export function GameScene() {
           <AbilityManager />
           <AimController />
           <Preload all />
+
+          {/* ── Post-processing ── */}
+          <EffectComposer multisampling={0}>
+            <SMAA />
+            <Bloom
+              intensity={0.45}
+              luminanceThreshold={0.75}
+              luminanceSmoothing={0.85}
+              mipmapBlur
+            />
+            <Vignette eskil={false} offset={0.12} darkness={0.65} />
+          </EffectComposer>
         </Suspense>
       </Canvas>
     </div>
