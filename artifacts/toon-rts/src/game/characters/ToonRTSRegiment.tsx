@@ -26,6 +26,7 @@ import { COMMANDER_BY_ID } from '@/game/data/CommanderDefs';
 import { GrieeGleeRegiment }      from './GrieeGleeRegiment';
 import { SkeletonWarriorRegiment } from './SkeletonWarriorRegiment';
 import { MeshyWarriorRegiment }    from './MeshyWarriorRegiment';
+import { HeroCommanderMesh }       from './HeroCommanderMesh';
 
 // ── Formation helpers ─────────────────────────────────────────────────────────
 
@@ -403,20 +404,40 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
         <boxGeometry args={[hitW, 3, hitD]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      {slots.map((pos, i) => (
-        <ToonRTSSoldier
-          key={i}
-          assets={assets}
-          unitState={unit.state}
-          position={pos}
-          facing={unit.formationFacing}
-          teamId={unit.teamId}
-          race={unit.race}
-          unitType={unit.type}
-          isCommander={isCommander}
-          commanderArchetype={commanderArchetype}
-        />
-      ))}
+      {slots.map((pos, i) => {
+        // Slot 0 of a commander regiment: render the unique hero model if defined
+        if (i === 0 && isCommander && commanderArchetype) {
+          const cmdDef = COMMANDER_BY_ID[commanderArchetype];
+          if (cmdDef?.heroModelPath) {
+            return (
+              <Suspense key={`hero-${unit.id}`} fallback={null}>
+                <HeroCommanderMesh
+                  modelPath={cmdDef.heroModelPath}
+                  texturePath={cmdDef.heroTexturePath}
+                  modelScale={cmdDef.heroModelScale ?? 0.012}
+                  position={pos}
+                  facing={unit.formationFacing}
+                  teamId={unit.teamId}
+                />
+              </Suspense>
+            );
+          }
+        }
+        return (
+          <ToonRTSSoldier
+            key={i}
+            assets={assets}
+            unitState={unit.state}
+            position={pos}
+            facing={unit.formationFacing}
+            teamId={unit.teamId}
+            race={unit.race}
+            unitType={unit.type}
+            isCommander={isCommander && i === 0}
+            commanderArchetype={commanderArchetype}
+          />
+        );
+      })}
 
       {/* Commander: gold leadership ring always visible */}
       {isCommander && (

@@ -26,6 +26,12 @@ export interface CommanderDef {
   hp:             number;            // commander HP pool
   basedOnType:    UnitType;          // used for animation category
   leadershipBonus: LeadershipBonus;
+  /** Optional unique hero model rendered instead of the base FBX at slot 0 */
+  heroModelPath?:    string;
+  /** Companion texture for FBX heroes that need an external PNG */
+  heroTexturePath?:  string;
+  /** World-space scale for the hero model (default: 0.012 GLB / 0.01 FBX) */
+  heroModelScale?:   number;
 }
 
 // ── Western Kingdoms ─────────────────────────────────────────────────────────
@@ -42,6 +48,9 @@ const WK: CommanderDef[] = [
     hp: 8000,
     basedOnType: 'shieldwall',
     leadershipBonus: { auraRadius: 12, type: 'attack', multiplier: 1.20 },
+    heroModelPath:   '/assets/characters/heroes/samurai.fbx',
+    heroTexturePath: '/assets/characters/heroes/samurai_tex.png',
+    heroModelScale:  0.01,
   },
   {
     id: 'wk_warlord',
@@ -55,6 +64,9 @@ const WK: CommanderDef[] = [
     hp: 7000,
     basedOnType: 'spearmen',
     leadershipBonus: { auraRadius: 18, type: 'defense', multiplier: 1.18 },
+    heroModelPath:   '/assets/characters/heroes/golem.fbx',
+    heroTexturePath: '/assets/characters/heroes/golem_tex.png',
+    heroModelScale:  0.01,
   },
   {
     id: 'wk_archmage',
@@ -68,6 +80,9 @@ const WK: CommanderDef[] = [
     hp: 5000,
     basedOnType: 'mage',
     leadershipBonus: { auraRadius: 15, type: 'attack', multiplier: 1.25 },
+    heroModelPath:   '/assets/characters/heroes/wizard.fbx',
+    heroTexturePath: '/assets/characters/heroes/wizard_tex.png',
+    heroModelScale:  0.01,
   },
 ];
 
@@ -128,6 +143,8 @@ const ELF: CommanderDef[] = [
     hp: 6500,
     basedOnType: 'swordsmen',
     leadershipBonus: { auraRadius: 12, type: 'speed', multiplier: 1.30 },
+    heroModelPath:  '/assets/characters/heroes/hero_franco.glb',
+    heroModelScale: 0.012,
   },
   {
     id: 'elf_warlord',
@@ -141,6 +158,8 @@ const ELF: CommanderDef[] = [
     hp: 7000,
     basedOnType: 'spearmen',
     leadershipBonus: { auraRadius: 18, type: 'defense', multiplier: 1.22 },
+    heroModelPath:  '/assets/characters/heroes/hero_karina.glb',
+    heroModelScale: 0.012,
   },
   {
     id: 'elf_archmage',
@@ -256,6 +275,8 @@ const UD: CommanderDef[] = [
     hp: 9000,
     basedOnType: 'shieldwall',
     leadershipBonus: { auraRadius: 12, type: 'attack', multiplier: 1.22 },
+    heroModelPath:  '/assets/characters/heroes/ore_hero.glb',
+    heroModelScale: 0.012,
   },
   {
     id: 'ud_warlord',
