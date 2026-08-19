@@ -117,6 +117,36 @@ function CommanderCard({
         <StatPill label="Radius" value={`${def.leadershipBonus.auraRadius}m`} color="#b39ddb" />
       </div>
 
+      {/* Passive ability row */}
+      <div style={{
+        marginTop: 5, padding: '5px 7px',
+        background: 'rgba(180,120,255,0.08)',
+        border: '1px solid rgba(180,120,255,0.18)',
+        borderRadius: 5,
+        fontSize: 8, color: '#c9a0ff',
+        lineHeight: 1.4,
+      }}>
+        <span style={{ fontWeight: 700, letterSpacing: '0.06em' }}>PASSIVE · </span>
+        {def.heroPassive ?? `${def.leadershipBonus.type === 'attack' ? '⚔' : def.leadershipBonus.type === 'defense' ? '🛡' : '💨'} Leadership: +${Math.round((def.leadershipBonus.multiplier - 1) * 100)}% ${def.leadershipBonus.type} to allies within ${def.leadershipBonus.auraRadius}m`}
+      </div>
+
+      {/* Hero abilities */}
+      {def.heroAbilities && (
+        <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
+          {def.heroAbilities.map((ab, i) => (
+            <div key={i} style={{
+              flex: 1, padding: '3px 5px',
+              background: 'rgba(255,215,0,0.07)',
+              border: '1px solid rgba(255,215,0,0.2)',
+              borderRadius: 4,
+              fontSize: 7, color: '#ffd700', textAlign: 'center',
+            }}>
+              {ab}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Scale note */}
       <div style={{ fontSize: 8, color: '#666', marginTop: 4 }}>
         ★ 1.5× Scale · Solo Hero Unit

@@ -21,7 +21,7 @@ export type UnitType =
   | 'meshyWarrior';   // Elite baked-GLB warrior (Meshy AI character)
 
 export type UnitState = 'idle' | 'move' | 'attack' | 'dead';
-export type AbilityType = 'fire' | 'ice' | 'lightning' | 'meteor' | 'wind' | 'poison' | 'thunder';
+export type AbilityType = 'fire' | 'ice' | 'lightning' | 'meteor' | 'wind' | 'poison' | 'thunder' | 'flame_blast';
 export type GamePhase = 'menu' | 'setup' | 'battle' | 'victory';
 export type Difficulty = 'easy' | 'normal' | 'hard';
 

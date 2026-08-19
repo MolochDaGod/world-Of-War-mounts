@@ -30,5 +30,10 @@ R3F `state.clock` is a THREE.Clock — deprecated in r185. No direct fix availab
 ## Rapier "deprecated parameters" warning
 Comes from `@react-three/rapier` initializing the WASM module internally. Non-breaking; no user fix needed.
 
+## Vite OOM / exit 137 from large GLB preloads
+Large GLBs preloaded at module-init level (e.g. 34 MB flame, 155 MB PirateKing set) push Node.js heap over the limit, killing Vite with exit 137.
+**Fix:** Remove all `useGLTF.preload()` calls at module level for GLBs ≥ 10 MB; let them load lazily on first mount. Add `NODE_OPTIONS=--max-old-space-size=2048` to the dev script.
+**Rule:** Never add `useGLTF.preload()` at module level for large assets.
+
 ## WebGL error in agent screenshots
 The agent sandbox has no GPU. `THREE.WebGLRenderer: Error creating WebGL context` in screenshots is expected and does NOT indicate a code bug. The app works correctly in real browsers.

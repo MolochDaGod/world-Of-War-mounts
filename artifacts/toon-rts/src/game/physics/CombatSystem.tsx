@@ -347,8 +347,6 @@ export function CombatSystem() {
 
         const speedMult = (unit.speedBoostUntil && elapsed < unit.speedBoostUntil ? 1.8 : 1.0)
           * commanderMult(unit, 'speed');
-        // Shield bash passive: shieldwall is slow but gets a slight debuff reduction
-        // Skirmisher wraith passive: −15 % incoming damage (handled via DR above)
 
         const pTarget = unit.targetPosition;
         if (pTarget) {
@@ -376,19 +374,72 @@ export function CombatSystem() {
             });
           }
         } else {
-          // Auto-march toward nearest enemy
+          // ── AI BEHAVIOUR — unit-type tactics ──────────────────────────
           const dx = nearest.position[0] - unit.position[0];
           const dz = nearest.position[2] - unit.position[2];
           const dist = Math.sqrt(dx*dx + dz*dz);
+
+          let moveX = dx / dist;
+          let moveZ = dz / dist;
+
+          if (RANGED_TYPES.has(unit.type) && !SIEGE_TYPES.has(unit.type)) {
+            // ── RANGED KITE: maintain a comfortable stand-off distance ──
+            // Ideal range = 70 % of max attack range — close enough to shoot
+            // but far enough to avoid melee.
+            const idealRange = cfg.attackRange * 0.70;
+            if (dist < idealRange) {
+              // Too close — back away from the enemy
+              moveX = -dx / dist;
+              moveZ = -dz / dist;
+            }
+            // If already beyond attackRange we march forward (default behaviour)
+          } else if (unit.type === 'cavalry' || unit.type === 'heavyCavalry') {
+            // ── CAVALRY FLANK: offset attack angle by ≈ 60° ───────────
+            // Cavalry charges from the side — harder to stop with a wall.
+            const flankAngle = (unit.teamId === 1 ? 1 : -1) * Math.PI * 0.35;
+            const cos = Math.cos(flankAngle);
+            const sin = Math.sin(flankAngle);
+            moveX = cos * (dx / dist) - sin * (dz / dist);
+            moveZ = sin * (dx / dist) + cos * (dz / dist);
+          }
+          // Infantry / shieldwall / skirmishers: straight charge (default)
+
           const step = cfg.speed * speedMult * TICK;
-          const facing = Math.atan2(dx, dz);
+          const facing = Math.atan2(moveX, moveZ);
           patches.set(unit.id, { ...patches.get(unit.id), state: 'move', formationFacing: facing,
             position: [
-              unit.position[0] + (dx / dist) * step,
+              unit.position[0] + moveX * step,
               unit.position[1],
-              unit.position[2] + (dz / dist) * step,
+              unit.position[2] + moveZ * step,
             ],
           });
+        }
+      }
+
+      // ── MAGE AUTO-CAST ─────────────────────────────────────────────────────
+      // If the mage has an ability with charges and an enemy is in range,
+      // consume the charge automatically (player still controls commander spells).
+      if (unit.type === 'mage' && unit.abilityCharges && nearest && minDist <= cfg.attackRange * 1.4) {
+        for (const [abilityId, cs] of Object.entries(unit.abilityCharges)) {
+          if (!cs || cs.charges < 1) continue;
+          const def = ABILITY_DEFS[abilityId];
+          if (!def || def.targeting === 'toggle') continue;
+          // Auto-cast on a cadence: every 2× normal cooldown so it doesn't spam
+          const autoCastKey = `autocast_${unit.id}_${abilityId}`;
+          const lastCast = chargeRegenTimers[autoCastKey] ?? 0;
+          if (elapsed - lastCast < def.cooldownPerCharge * 1.8) continue;
+          chargeRegenTimers[autoCastKey] = elapsed;
+          // Consume 1 charge and apply the effect
+          const newCs = { charges: cs.charges - 1, nextChargeAt: elapsed + def.cooldownPerCharge };
+          patches.set(unit.id, {
+            ...patches.get(unit.id),
+            abilityCharges: { ...unit.abilityCharges, [abilityId]: newCs },
+            // Trigger combat-relevant flags
+            ...(abilityId === 'holy_totem'     ? {} : {}),
+            ...(abilityId === 'natures_bounty' ? {} : {}),
+            ...(abilityId === 'life_drain'     ? { lifedrainAura: !unit.lifedrainAura } : {}),
+          });
+          break; // only one ability per tick
         }
       }
     }

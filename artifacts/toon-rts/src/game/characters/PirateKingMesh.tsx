@@ -172,5 +172,5 @@ export function PirateKingMesh({
   );
 }
 
-// Preload everything so the first battle doesn't stutter
-Object.values(PIRATE_KING_PATHS).forEach(p => useGLTF.preload(p));
+// Lazy load — 155 MB of GLBs must not preload at module init.
+// They load on first battle when PirateKingMesh is mounted inside a Suspense boundary.

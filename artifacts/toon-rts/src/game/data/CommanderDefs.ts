@@ -38,6 +38,13 @@ export interface CommanderDef {
    * Supported values: 'pirate_king'
    */
   heroComponentId?:  string;
+  /**
+   * Two active ability names shown on the commander card.
+   * These are displayed in the UI; full combat integration is a follow-up.
+   */
+  heroAbilities?: [string, string];
+  /** Passive bonus description shown under the commander card. */
+  heroPassive?: string;
 }
 
 // ── Western Kingdoms ─────────────────────────────────────────────────────────
@@ -57,6 +64,8 @@ const WK: CommanderDef[] = [
     heroModelPath:   '/assets/characters/heroes/samurai.fbx',
     heroTexturePath: '/assets/characters/heroes/samurai_tex.png',
     heroModelScale:  0.01,
+    heroAbilities: ['Rallying Cry', 'Hammer Smash'],
+    heroPassive: 'Iron Discipline — all nearby allies take 15% less damage',
   },
   {
     id: 'wk_warlord',
@@ -73,6 +82,8 @@ const WK: CommanderDef[] = [
     heroModelPath:   '/assets/characters/heroes/golem.fbx',
     heroTexturePath: '/assets/characters/heroes/golem_tex.png',
     heroModelScale:  0.01,
+    heroAbilities: ['Shield Wall', 'Formation Lock'],
+    heroPassive: 'Bulwark — shieldwall regiments in aura gain +25% HP',
   },
   {
     id: 'wk_archmage',
@@ -89,6 +100,8 @@ const WK: CommanderDef[] = [
     heroModelPath:   '/assets/characters/heroes/wizard.fbx',
     heroTexturePath: '/assets/characters/heroes/wizard_tex.png',
     heroModelScale:  0.01,
+    heroAbilities: ['Holy Flame', 'Arcane Barrier'],
+    heroPassive: 'Holy Aura — mage regiments in aura deal +25% spell damage',
   },
 ];
 

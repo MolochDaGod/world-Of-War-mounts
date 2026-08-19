@@ -9,11 +9,11 @@ import { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
-const PAN_SPEED   = 28;
-const ZOOM_MIN    = 14;
-const ZOOM_MAX    = 55;
-const BOUND       = 48;
-const EDGE_MARGIN = 40; // px from screen edge
+const PAN_SPEED   = 32;   // snappier panning
+const ZOOM_MIN    = 12;   // can zoom closer
+const ZOOM_MAX    = 65;   // can pull back further for large battles
+const BOUND       = 58;   // wider bounds to follow units that march far
+const EDGE_MARGIN = 50;   // px from screen edge
 
 export function RTSCamera() {
   const { camera, size, gl } = useThree();
@@ -111,11 +111,14 @@ export function RTSCamera() {
     target.current.x = THREE.MathUtils.clamp(target.current.x, -BOUND, BOUND);
     target.current.z = THREE.MathUtils.clamp(target.current.z, -BOUND, BOUND);
 
-    // Smooth lerp camera to target
+    // Smooth lerp camera to target — tighter lerp for crisp response
     const h = height.current;
-    const ideal = new THREE.Vector3(target.current.x, h, target.current.z + h * 0.9);
-    camera.position.lerp(ideal, 8 * dt);
-    camera.lookAt(target.current);
+    // Tilt angle: slight forward tilt (×0.75 instead of ×0.9) improves battlefield overview
+    const ideal = new THREE.Vector3(target.current.x, h, target.current.z + h * 0.75);
+    camera.position.lerp(ideal, 12 * dt);
+    // Look slightly ahead of target centre so units marching forward stay visible
+    const lookAt = new THREE.Vector3(target.current.x, 0, target.current.z - h * 0.05);
+    camera.lookAt(lookAt);
   });
 
   return null;

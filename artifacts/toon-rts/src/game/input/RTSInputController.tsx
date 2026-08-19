@@ -76,8 +76,9 @@ export function RTSInputController() {
         case 'KeyE': useGameStore.getState().setActiveAbility('lightning');  e.preventDefault(); break;
         case 'KeyR': useGameStore.getState().setActiveAbility('meteor');    e.preventDefault(); break;
         case 'KeyT': useGameStore.getState().setActiveAbility('wind');      e.preventDefault(); break;
-        case 'KeyG': useGameStore.getState().setActiveAbility('poison');    e.preventDefault(); break;
-        case 'KeyH': useGameStore.getState().setActiveAbility('thunder');   e.preventDefault(); break;
+        case 'KeyG': useGameStore.getState().setActiveAbility('poison');      e.preventDefault(); break;
+        case 'KeyH': useGameStore.getState().setActiveAbility('thunder');    e.preventDefault(); break;
+        case 'KeyY': useGameStore.getState().setActiveAbility('flame_blast'); e.preventDefault(); break;
         case 'Escape': {
           useGameStore.getState().setPendingAbility(null);
           useGameStore.getState().setActiveAbility(null);

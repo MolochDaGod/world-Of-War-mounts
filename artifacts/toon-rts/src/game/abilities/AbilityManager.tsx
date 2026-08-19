@@ -6,6 +6,7 @@ import { FireAbility }         from './FireAbility';
 import { WindAbility }         from './WindAbility';
 import { PoisonCloudAbility }  from './PoisonCloudAbility';
 import { ThunderStrikeAbility } from './ThunderStrikeAbility';
+import { FlameBlastAbility }    from './FlameBlastAbility';
 
 export function AbilityManager() {
   const activeCasts = useGameStore(state => state.activeCasts);
@@ -19,8 +20,9 @@ export function AbilityManager() {
           case 'lightning': return <LightningAbility   key={cast.id} cast={cast} />;
           case 'fire':    return <FireAbility          key={cast.id} cast={cast} />;
           case 'wind':    return <WindAbility          key={cast.id} cast={cast} />;
-          case 'poison':  return <PoisonCloudAbility   key={cast.id} cast={cast} />;
-          case 'thunder': return <ThunderStrikeAbility key={cast.id} cast={cast} />;
+          case 'poison':      return <PoisonCloudAbility   key={cast.id} cast={cast} />;
+          case 'thunder':     return <ThunderStrikeAbility key={cast.id} cast={cast} />;
+          case 'flame_blast': return <FlameBlastAbility    key={cast.id} cast={cast} />;
           default: return null;
         }
       })}
