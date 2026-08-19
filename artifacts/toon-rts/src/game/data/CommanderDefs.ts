@@ -32,6 +32,12 @@ export interface CommanderDef {
   heroTexturePath?:  string;
   /** World-space scale for the hero model (default: 0.012 GLB / 0.01 FBX) */
   heroModelScale?:   number;
+  /**
+   * When set, the slot-0 interceptor renders a dedicated animated component
+   * instead of the generic HeroCommanderMesh loader.
+   * Supported values: 'pirate_king'
+   */
+  heroComponentId?:  string;
 }
 
 // ── Western Kingdoms ─────────────────────────────────────────────────────────
@@ -92,14 +98,15 @@ const BRB: CommanderDef[] = [
     id: 'brb_champion',
     race: 'Barbarians',
     archetype: 'champion',
-    name: 'Berserker Overlord',
-    title: 'The Unbroken',
-    lore: 'No sword, no shield, no mercy. The Berserker Overlord charges first and bleeds last.',
+    name: 'Pirate King Racalvin',
+    title: 'Terror of the Iron Seas',
+    lore: 'Racalvin sacked seven port cities before breakfast. His fleet answers to no crown, his blade to no law — only to battle.',
     meshShow: ['BRB_body_H','BRB_arms_C','BRB_head_J','BRB_legs_C',
                'BRB_Shield_D','BRB_weapon_axe_C','BRB_shoulderpads_C'],
     hp: 9000,
     basedOnType: 'swordsmen',
     leadershipBonus: { auraRadius: 10, type: 'attack', multiplier: 1.25 },
+    heroComponentId: 'pirate_king',
   },
   {
     id: 'brb_warlord',

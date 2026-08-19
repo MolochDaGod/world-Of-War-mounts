@@ -27,6 +27,7 @@ import { GrieeGleeRegiment }      from './GrieeGleeRegiment';
 import { SkeletonWarriorRegiment } from './SkeletonWarriorRegiment';
 import { MeshyWarriorRegiment }    from './MeshyWarriorRegiment';
 import { HeroCommanderMesh }       from './HeroCommanderMesh';
+import { PirateKingMesh }          from './PirateKingMesh';
 
 // ── Formation helpers ─────────────────────────────────────────────────────────
 
@@ -408,6 +409,19 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
         // Slot 0 of a commander regiment: render the unique hero model if defined
         if (i === 0 && isCommander && commanderArchetype) {
           const cmdDef = COMMANDER_BY_ID[commanderArchetype];
+          // ── Dedicated animated-component heroes ──────────────────────────
+          if (cmdDef?.heroComponentId === 'pirate_king') {
+            return (
+              <Suspense key={`hero-${unit.id}`} fallback={null}>
+                <PirateKingMesh
+                  position={pos}
+                  facing={unit.formationFacing}
+                  unitState={unit.state}
+                />
+              </Suspense>
+            );
+          }
+          // ── Generic GLB / FBX hero (heroModelPath) ───────────────────────
           if (cmdDef?.heroModelPath) {
             return (
               <Suspense key={`hero-${unit.id}`} fallback={null}>
