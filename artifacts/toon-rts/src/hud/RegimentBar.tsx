@@ -19,6 +19,9 @@ const TYPE_ICON: Record<UnitType, string> = {
   mage:         '🔮',
   boltThrower:  '🎯',
   catapult:     '💣',
+  grieeGlee:    '🪨',
+  skeletonWarrior: '💀',
+  meshyWarrior: '⚔️',
 };
 
 function RegimentCard({

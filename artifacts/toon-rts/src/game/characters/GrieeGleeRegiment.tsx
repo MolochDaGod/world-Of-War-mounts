@@ -51,7 +51,7 @@ interface Props {
 }
 
 export function GrieeGleeRegiment({ unit, isSelected }: Props) {
-  const setSelectedUnitIds = useGameStore(s => s.setSelectedUnitIds);
+  const setSelectedUnitIds = useGameStore(s => s.selectUnits);
   const selectedUnitIds    = useGameStore(useShallow(s => s.selectedUnitIds));
 
   const alivePairs = unit.state === 'dead'

@@ -79,6 +79,8 @@ export interface AbilityTarget {
 /** Army builder regiment selection — maxSoldiers/hp override from faction data */
 export interface RegimentSlot {
   unitType:    UnitType;
+  /** Optional race override for a mixed allied faction roster. */
+  race?:        Race;
   maxSoldiers?: number;  // faction-specific soldier count (overrides REGIMENT_DEFS)
   hpOverride?:  number;  // faction-specific HP pool
 }
@@ -252,7 +254,7 @@ function buildUnits(army: RegimentSlot[], race: Race, teamId: 1 | 2, diffMult: n
     const hp   = Math.round((slot.hpOverride ?? def.hp) * diffMult);
     return {
       id: uid(),
-      race,
+      race: slot.race ?? race,
       type: slot.unitType,
       position: positions[i] ?? [0, 0, teamId === 1 ? 20 : -20],
       health: hp,
@@ -312,6 +314,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   setPhase: (phase) => set({ phase }),
   setSelectedRace: (selectedRace) => set({ selectedRace }),
   setEnemyRace: (enemyRace) => set({ enemyRace }),
+  setMapType: (mapType) => set({ mapType }),
   setActiveAbility: (activeAbility) => set({ activeAbility }),
   setAbilityTarget: (abilityTarget) => set({ abilityTarget }),
 

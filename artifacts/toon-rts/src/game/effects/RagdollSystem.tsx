@@ -67,7 +67,7 @@ function RagdollLimb({ position, impulse, shape, args, color }: LimbProps) {
   }, [impulse]);
 
   return (
-    <RigidBody ref={rbRef} position={position} colliders={shape === 'sphere' ? 'ball' : 'capsule'}>
+    <RigidBody ref={rbRef} position={position} colliders={shape === 'sphere' ? 'ball' : 'hull'}>
       {shape === 'sphere' ? (
         <mesh material={color === 'bone' ? BONE_MAT : DARK_MAT} castShadow>
           <sphereGeometry args={[(args as [number])[0], 6, 6]} />

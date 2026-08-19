@@ -1,0 +1,207 @@
+v2/:4 Refused to set unsafe header "Origin"
+h @ v2/:4
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/me/play-settings:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters:1  Failed to load resource: the server responded with a status of 401 ()
+/api/characters?era=warlords:1  Failed to load resource: the server responded with a status of 401 ()
+/api/account:1  Failed to load resource: the server responded with a status of 401 ()
+/api/island/current:1  Failed to load resource: the server responded with a status of 404 ()
+installHook.js:1 [Tutorial] Connection failed: TypeError: Cannot read properties of undefined (reading 'name')
+    at c.<anonymous> (island3d-CvEhgrpJ.js:573:242)
+    at Generator.next (<anonymous>)
+    at ui-vendor-CrWO210X.js:1:181378
+    at new Promise (<anonymous>)
+    at Object.kl (ui-vendor-CrWO210X.js:1:181175)
+    at c.consumeSeatReservation (island3d-CvEhgrpJ.js:573:170)
+    at c.<anonymous> (island3d-CvEhgrpJ.js:573:1697)
+    at Generator.next (<anonymous>)
+    at c (ui-vendor-CrWO210X.js:1:181231)
+overrideMethod @ installHook.js:1
+/api/polyhaven/files/brown_mud_rocks_01:1  Failed to load resource: the server responded with a status of 404 ()
+/api/polyhaven/files/coral_ground_02:1  Failed to load resource: the server responded with a status of 404 ()
+/api/polyhaven/files/forest_ground_04:1  Failed to load resource: the server responded with a status of 404 ()
+/api/polyhaven/files/brown_mud_leaves_01:1  Failed to load resource: the server responded with a status of 404 ()
+/api/polyhaven/files/defense_wall:1  Failed to load resource: the server responded with a status of 404 ()
+/api/polyhaven/files/dirt_floor:1  Failed to load resource: the server responded with a status of 404 ()
+/api/polyhaven/files/coast_sand_rocks_02:1  Failed to load resource: the server responded with a status of 404 ()
+installHook.js:1 THREE.GLTFLoader: Couldn't load texture Textures/colormap.png
+overrideMethod @ installHook.js:1
+installHook.js:1 [Tutorial] Engine init failed: TypeError: Cannot set properties of undefined (setting 'value')
+    at t8 (island3d-CvEhgrpJ.js:191:1356)
+    at k2.setupOceanPolish (island3d-CvEhgrpJ.js:548:435143)
+    at k2.initLobby (island3d-CvEhgrpJ.js:548:406225)
+    at async k2.init (island3d-CvEhgrpJ.js:548:401555)
+overrideMethod @ installHook.js:1
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters?era=warlords 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/account 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters?era=warlords 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/account 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters?era=warlords 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/account 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/account 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters?era=warlords 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters?era=warlords 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/account 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters?era=warlords 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/account 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters?era=warlords 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/account 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/account 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421
+island3d-CvEhgrpJ.js:23  GET https://client.grudge-studio.com/api/characters?era=warlords 401 (Unauthorized)
+Ok @ island3d-CvEhgrpJ.js:23
+(anonymous) @ island3d-CvEhgrpJ.js:23
+vP @ island3d-CvEhgrpJ.js:23
+c @ index-gK2EKOc-.js:421

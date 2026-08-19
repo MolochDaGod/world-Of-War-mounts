@@ -19,7 +19,7 @@ interface Props {
 }
 
 export function MeshyWarriorRegiment({ unit, isSelected }: Props) {
-  const setSelectedUnitIds = useGameStore(s => s.setSelectedUnitIds);
+  const setSelectedUnitIds = useGameStore(s => s.selectUnits);
   const isCommander = !!(unit as any).isCommander;
 
   const aliveCount = unit.state === 'dead'

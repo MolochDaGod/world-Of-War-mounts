@@ -8,9 +8,10 @@ import { useState } from 'react';
 import { useGameStore } from '../game/store/gameStore';
 import {
   Faction, FACTION_META, FACTION_DISPLAY, FACTION_TO_RACE,
+  FACTION_ALLY_DISPLAY, PLAYABLE_FACTIONS,
 } from '../game/data/FactionData';
 
-const FACTIONS: Faction[] = ['Crusade', 'Fabled', 'Legion', 'Barbarians', 'Dwarves', 'Orcs'];
+const FACTIONS: Faction[] = PLAYABLE_FACTIONS;
 
 // ── Single faction card ───────────────────────────────────────────────────────
 function FactionCard({
@@ -80,6 +81,16 @@ function FactionCard({
         transition: 'color 0.2s',
       }}>
         {FACTION_DISPLAY[faction].toUpperCase()}
+      </div>
+
+      <div style={{
+        textAlign: 'center',
+        fontSize: 10,
+        color: selected ? '#d8c58c' : '#555',
+        marginBottom: 8,
+        letterSpacing: '0.05em',
+      }}>
+        {FACTION_ALLY_DISPLAY[faction as 'Crusade' | 'Fabled' | 'Legion']}
       </div>
 
       {/* Lore */}

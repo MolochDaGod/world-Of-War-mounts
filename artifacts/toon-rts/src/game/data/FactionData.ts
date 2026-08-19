@@ -1,5 +1,5 @@
 /**
- * FactionData — three playable factions mapping to Toon_RTS races.
+ * FactionData — three playable factions, each made from two allied races.
  *
  * Faction → Race:
  *   Crusade → WesternKingdoms  (WK_Catapult siege, WK_Cavalry)
@@ -11,11 +11,27 @@ import { ModelCategory, ProjectileKind } from '@/game/data/UnitRoster';
 
 export type Faction = 'Crusade' | 'Fabled' | 'Legion' | 'Barbarians' | 'Dwarves' | 'Orcs';
 
+/** Only these three faction identities are shown to players. */
+export const PLAYABLE_FACTIONS: Faction[] = ['Crusade', 'Fabled', 'Legion'];
+
+/** The second race that fights under each playable faction banner. */
+export const FACTION_ALLIES: Record<'Crusade' | 'Fabled' | 'Legion', Faction> = {
+  Crusade: 'Barbarians',
+  Fabled: 'Dwarves',
+  Legion: 'Orcs',
+};
+
+export const FACTION_ALLY_DISPLAY: Record<'Crusade' | 'Fabled' | 'Legion', string> = {
+  Crusade: 'Humans + Barbarians',
+  Fabled: 'Elves + Dwarves',
+  Legion: 'Orcs + Undead',
+};
+
 /** Faction display name for UI */
 export const FACTION_DISPLAY: Record<Faction, string> = {
-  Crusade:    'The Crusade',
-  Fabled:     'The Fabled',
-  Legion:     'The Legion',
+  Crusade:    'The Human Alliance',
+  Fabled:     'The Elf-Dwarf Alliance',
+  Legion:     'The Orc-Undead Warhost',
   Barbarians: 'The Horde',
   Dwarves:    'The Iron Hold',
   Orcs:       'The Warband',
@@ -36,9 +52,9 @@ export const RACE_TO_FACTION: Partial<Record<Race, Faction>> = {
   WesternKingdoms: 'Crusade',
   Elves:           'Fabled',
   Undead:          'Legion',
-  Barbarians:      'Barbarians',
-  Dwarves:         'Dwarves',
-  Orcs:            'Orcs',
+  Barbarians:      'Crusade',
+  Dwarves:         'Fabled',
+  Orcs:            'Legion',
 };
 
 // ── Faction visual identity ───────────────────────────────────────────────────
@@ -112,6 +128,8 @@ export const FACTION_META: Record<Faction, FactionMeta> = {
 // ── Faction unit definitions ──────────────────────────────────────────────────
 export interface FactionUnit {
   type:         UnitType;
+  /** The race that supplies this regiment's meshes in a mixed alliance. */
+  race?:         Race;
   name:         string;
   lore:         string;
   icon:         string;         // /assets/unit-icons/... path

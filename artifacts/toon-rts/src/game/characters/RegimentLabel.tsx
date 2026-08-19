@@ -25,6 +25,9 @@ const TYPE_LABEL: Record<UnitData['type'], string> = {
   mage:         'Mage',
   boltThrower:  'Bolt Thrower',
   catapult:     'Catapult',
+  grieeGlee:    'Griee & Glee',
+  skeletonWarrior: 'Summoned Skeletons',
+  meshyWarrior: 'Elite Champion',
 };
 
 const TEAM_HUD: Record<1 | 2, { border: string; bg: string; glow: string }> = {

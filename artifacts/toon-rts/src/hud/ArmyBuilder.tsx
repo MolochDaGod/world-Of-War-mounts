@@ -53,7 +53,8 @@ function MapSelector() {
 }
 import {
   Faction, FACTION_META, FACTION_DISPLAY, FACTION_UNITS, FACTION_TO_RACE,
-  RACE_TO_FACTION, FactionUnit,
+  RACE_TO_FACTION, FactionUnit, FACTION_ALLIES, FACTION_ALLY_DISPLAY,
+  PLAYABLE_FACTIONS,
 } from '@/game/data/FactionData';
 import type { UnitType } from '@/game/store/gameStore';
 
@@ -171,7 +172,7 @@ const FACTION_PRESETS: Record<Faction, ArmyPreset[]> = {
   ],
 };
 
-const FACTIONS: Faction[] = ['Crusade', 'Fabled', 'Legion', 'Barbarians', 'Dwarves', 'Orcs'];
+const FACTIONS: Faction[] = PLAYABLE_FACTIONS;
 
 // ── Stat bar ──────────────────────────────────────────────────────────────────
 function StatBar({ label, value }: { label: string; value: number }) {
@@ -379,23 +380,37 @@ export function ArmyBuilder() {
   const enemyFaction:  Faction = RACE_TO_FACTION[enemyRace]    ?? 'Legion';
 
   const factionMeta  = FACTION_META[playerFaction];
-  const factionUnits = FACTION_UNITS[playerFaction];
+  const allyFaction  = FACTION_ALLIES[playerFaction as 'Crusade' | 'Fabled' | 'Legion'];
+  const factionUnits = [
+    ...FACTION_UNITS[playerFaction].map(unit => ({
+      ...unit,
+      race: FACTION_TO_RACE[playerFaction],
+    })),
+    ...FACTION_UNITS[allyFaction].map(unit => ({
+      ...unit,
+      race: FACTION_TO_RACE[allyFaction],
+    })),
+  ];
 
   // Count how many of each unit type are already in the army
   const typeCounts = playerArmy.reduce<Record<string, number>>((acc, s) => {
-    acc[s.unitType] = (acc[s.unitType] ?? 0) + 1;
+    const key = `${s.race ?? selectedRace}:${s.unitType}`;
+    acc[key] = (acc[key] ?? 0) + 1;
     return acc;
   }, {});
 
   // Map army slots back to FactionUnit objects for display
   const armyUnits: (FactionUnit | null)[] = playerArmy.map(slot => {
-    return factionUnits.find(u => u.type === slot.unitType) ?? null;
+    return factionUnits.find(u =>
+      u.type === slot.unitType && (slot.race ?? selectedRace) === u.race,
+    ) ?? null;
   });
 
   const handleAdd = (unit: FactionUnit) => {
     const regDef = REGIMENT_DEFS[unit.type] ?? REGIMENT_DEFS.swordsmen;
     addToPlayerArmy({
       unitType:    unit.type,
+      race:        unit.race,
       maxSoldiers: unit.maxSoldiers,
       hpOverride:  Math.round(regDef.hp * (unit.maxSoldiers / regDef.maxSoldiers)),
     });
@@ -409,6 +424,7 @@ export function ArmyBuilder() {
       const regDef = REGIMENT_DEFS[unitType] ?? REGIMENT_DEFS.swordsmen;
       addToPlayerArmy({
         unitType,
+        race:        fu.race,
         maxSoldiers: fu.maxSoldiers,
         hpOverride:  Math.round(regDef.hp * (fu.maxSoldiers / regDef.maxSoldiers)),
       });
@@ -587,10 +603,10 @@ export function ArmyBuilder() {
         }}>
           {infantry.map(unit => (
             <UnitCard
-              key={unit.type}
+              key={`${unit.race}-${unit.type}`}
               unit={unit}
               gold={gold}
-              alreadyInArmy={typeCounts[unit.type] ?? 0}
+              alreadyInArmy={typeCounts[`${unit.race}:${unit.type}`] ?? 0}
               onAdd={() => handleAdd(unit)}
             />
           ))}
@@ -604,10 +620,10 @@ export function ArmyBuilder() {
         }}>
           {mounted.map(unit => (
             <UnitCard
-              key={unit.type}
+              key={`${unit.race}-${unit.type}`}
               unit={unit}
               gold={gold}
-              alreadyInArmy={typeCounts[unit.type] ?? 0}
+              alreadyInArmy={typeCounts[`${unit.race}:${unit.type}`] ?? 0}
               onAdd={() => handleAdd(unit)}
             />
           ))}
@@ -621,10 +637,10 @@ export function ArmyBuilder() {
         }}>
           {siege.map(unit => (
             <UnitCard
-              key={unit.type}
+              key={`${unit.race}-${unit.type}`}
               unit={unit}
               gold={gold}
-              alreadyInArmy={typeCounts[unit.type] ?? 0}
+              alreadyInArmy={typeCounts[`${unit.race}:${unit.type}`] ?? 0}
               onAdd={() => handleAdd(unit)}
             />
           ))}
