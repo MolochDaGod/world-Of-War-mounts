@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { AbilityId, ABILITY_DEFS, TotemData } from '../data/AbilityDefs';
 import { COMMANDER_BY_ID, getCommandersForRace } from '../data/CommanderDefs';
+import { removeExpiredCasts } from '../diagnostics/battleMemoryDiagnostics';
 
 export type Race = 'Barbarians' | 'Dwarves' | 'Elves' | 'Orcs' | 'Undead' | 'WesternKingdoms';
 
@@ -113,6 +114,7 @@ interface GameState {
   setAbilityTarget: (target: AbilityTarget | null) => void;
   castAbility: (type: AbilityType, target: AbilityTarget) => void;
   removeCast: (id: string) => void;
+  pruneExpiredCasts: (now: number) => void;
   setCastingPath: (path: [number, number, number][]) => void;
   selectUnits: (ids: string[]) => void;
   addUnit: (unit: UnitData) => void;
@@ -327,6 +329,14 @@ export const useGameStore = create<GameState>((set, get) => ({
   removeCast: (id) => set((state) => ({
     activeCasts: state.activeCasts.filter(c => c.id !== id),
   })),
+  pruneExpiredCasts: (now) => {
+    const { activeCasts } = get();
+    const nextActiveCasts = removeExpiredCasts(activeCasts, now);
+    // AbilityManager invokes this from the render loop. Avoid a Zustand update
+    // when no VFX has crossed its expiration boundary.
+    if (nextActiveCasts.length === activeCasts.length) return;
+    set({ activeCasts: nextActiveCasts });
+  },
   setCastingPath: (castingPath) => set({ castingPath }),
   selectUnits: (selectedUnitIds) => set({ selectedUnitIds }),
   addUnit: (unit) => set((state) => ({ units: [...state.units, unit] })),
@@ -459,7 +469,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   })),
 
   expireBountyBursts: (now) => set(s => ({
-    bountyBursts: s.bountyBursts.filter(b => (now - b.createdAt / 1000) < 2.5),
+    bountyBursts: s.bountyBursts.filter(b => now - b.createdAt < 2_500),
   })),
 
   tickCombatElapsed: (delta) => set(s => ({ combatElapsed: s.combatElapsed + delta })),
@@ -806,9 +816,20 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   resetGame: () => set({
     units: [], phase: 'menu',
+    activeAbility: null,
+    abilityTarget: null,
+    activeCasts: [],
+    selectedUnitIds: [],
     teamScores: { team1: 0, team2: 0 },
+    castingPath: [],
     playerArmy: [], gold: 2000,
+    enemyArmy: [],
     playerCommander: null,
     mapType: 'battlefield',
+    commandTarget: null,
+    totems: [],
+    bountyBursts: [],
+    combatElapsed: 0,
+    pendingAbility: null,
   }),
 }));

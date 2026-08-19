@@ -30,7 +30,7 @@ export function UnitAbilityVFX() {
     const t = clock.getElapsedTime();
     if (t - lastClean.current > 1) {
       lastClean.current = t;
-      useGameStore.getState().expireBountyBursts(t);
+      useGameStore.getState().expireBountyBursts(Date.now());
     }
   });
 

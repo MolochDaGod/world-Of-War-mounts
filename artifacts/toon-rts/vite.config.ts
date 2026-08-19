@@ -56,7 +56,17 @@ export default defineConfig({
     // server before a battle begins; the browser can load those ESM modules
     // only when the battle runtime is requested.
     noDiscovery: true,
-    include: ['react', 'react-dom/client', 'zustand'],
+    include: [
+      'react',
+      'react-dom/client',
+      '@react-three/fiber > scheduler',
+      'zustand',
+      'zustand/traditional',
+      // Zustand's shallow selector hook is used by lazy battle modules. With
+      // noDiscovery enabled, the traditional store's CJS selector shim must
+      // be included through its parent entry point too.
+      'zustand/react/shallow',
+    ],
 
     // Keep jsm helpers out of the pre-bundle so they resolve through the alias
     // above and share the same Three.js instance as the main bundle.

@@ -1,6 +1,11 @@
 import { lazy, Suspense } from 'react';
 import { useGameStore }     from './game/store/gameStore';
 
+const BattleMemoryStress = lazy(async () => {
+  const module = await import('./game/diagnostics/BattleMemoryStress');
+  return { default: module.BattleMemoryStress };
+});
+
 const RaceSelector = lazy(async () => {
   const module = await import('./hud/RaceSelector');
   return { default: module.RaceSelector };
@@ -24,6 +29,8 @@ const GameRuntime = lazy(async () => {
 export default function App() {
   const phase = useGameStore(s => s.phase);
   const isBattleActive = phase === 'battle' || phase === 'victory';
+  const isMemoryStress = import.meta.env.DEV
+    && new URLSearchParams(window.location.search).get('stress') === 'memory';
 
   return (
     <div className="w-full h-screen overflow-hidden text-foreground font-sans selection:bg-amber-500/30 relative">
@@ -40,6 +47,12 @@ export default function App() {
         {phase === 'setup'                             && <ArmyBuilder />}
         {(phase === 'battle' || phase === 'victory')   && <OpenWorldHUD />}
       </Suspense>
+
+      {isMemoryStress && (
+        <Suspense fallback={null}>
+          <BattleMemoryStress />
+        </Suspense>
+      )}
     </div>
   );
 }

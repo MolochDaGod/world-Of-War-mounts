@@ -5,6 +5,7 @@ import { GameUI } from '@/game/assets/CraftpixManifest';
 export function WinLoseScreen() {
   const phase      = useGameStore(s => s.phase);
   const teamScores = useGameStore(s => s.teamScores);
+  const resetGame  = useGameStore(s => s.resetGame);
 
   // Derived booleans — return a primitive so Zustand's reference equality
   // prevents re-renders on every combat tick that doesn't flip the outcome.
@@ -31,12 +32,12 @@ export function WinLoseScreen() {
   if (!isActive) return null;
 
   const handleRestart = () => {
-    useGameStore.setState({ units: [], phase: 'menu' });
+    resetGame();
     setVisible(false);
   };
 
   const handleMenu = () => {
-    useGameStore.setState({ units: [], phase: 'menu' });
+    resetGame();
     setVisible(false);
   };
 

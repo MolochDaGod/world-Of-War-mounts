@@ -1,7 +1,12 @@
 import * as THREE from 'three';
+import { useEffect } from 'react';
 import { TGALoader } from 'three/examples/jsm/loaders/TGALoader.js';
 import { GameScene } from './GameScene';
 import { GameLoadingScreen } from './assets/GameLoadingScreen';
+import {
+  markGameRuntimeMounted,
+  markGameRuntimeUnmounted,
+} from './diagnostics/runtimeLifecycleDiagnostics';
 
 // Register the FBX texture loader only when the battle runtime is requested.
 THREE.DefaultLoadingManager.addHandler(/\.tga$/i, new TGALoader());
@@ -17,6 +22,13 @@ if (import.meta.env.DEV) {
  * battle starts instead of loading models while the player picks an army.
  */
 export function GameRuntime() {
+  useEffect(() => {
+    markGameRuntimeMounted();
+    return () => {
+      markGameRuntimeUnmounted();
+    };
+  }, []);
+
   return (
     <>
       <GameLoadingScreen minDisplayMs={800} />
