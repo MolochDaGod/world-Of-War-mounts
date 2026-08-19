@@ -26,6 +26,11 @@ export type AbilityId =
   | 'life_drain'       // Necromancer  — toggle vampiric aura
   | 'death_strike'     // Death Knights — 3× damage + bleed
   | 'phase_shift'      // Wraiths      — invulnerable 3 s
+  // Commander heroes
+  | 'shield_wall'      // Warlords     — nearby allies gain damage reduction
+  | 'formation_lock'   // Warlords     — nearby allies hold their formation
+  | 'holy_flame'       // Archmages    — burn nearby enemies
+  | 'arcane_barrier'   // Archmages    — nearby allies gain a damage shield
   ;
 
 export type AbilityTargeting = 'ground' | 'self' | 'toggle';
@@ -40,7 +45,7 @@ export interface AbilityDef {
   maxCharges: number;
   cooldownPerCharge: number; // seconds per charge recharge
   targeting: AbilityTargeting;
-  faction: Race;         // which faction can use it
+  faction: Race | 'all'; // which faction can use it
 }
 
 export const ABILITY_DEFS: Record<AbilityId, AbilityDef> = {
@@ -111,6 +116,36 @@ export const ABILITY_DEFS: Record<AbilityId, AbilityDef> = {
     shortcut: 'Z', icon: '👻', color: '#8866ff',
     maxCharges: 2, cooldownPerCharge: 18, targeting: 'self',
     faction: 'Undead',
+  },
+
+  // ── Commander heroes ───────────────────────────────────────────────────────
+  shield_wall: {
+    id: 'shield_wall', name: 'Shield Wall',
+    description: 'Nearby allies take 45 % less damage for 6 s',
+    shortcut: '1', icon: '🛡', color: '#5da9ff',
+    maxCharges: 2, cooldownPerCharge: 30, targeting: 'self',
+    faction: 'all',
+  },
+  formation_lock: {
+    id: 'formation_lock', name: 'Formation Lock',
+    description: 'Nearby allies hold position and cannot be displaced for 8 s',
+    shortcut: '2', icon: '⚔', color: '#c49a6c',
+    maxCharges: 2, cooldownPerCharge: 34, targeting: 'self',
+    faction: 'all',
+  },
+  holy_flame: {
+    id: 'holy_flame', name: 'Holy Flame',
+    description: 'Burns nearby enemies for 320 damage',
+    shortcut: '1', icon: '🔥', color: '#ffb347',
+    maxCharges: 2, cooldownPerCharge: 26, targeting: 'self',
+    faction: 'all',
+  },
+  arcane_barrier: {
+    id: 'arcane_barrier', name: 'Arcane Barrier',
+    description: 'Nearby allies gain a 650 HP barrier for 8 s',
+    shortcut: '2', icon: '🔮', color: '#b388ff',
+    maxCharges: 2, cooldownPerCharge: 32, targeting: 'self',
+    faction: 'all',
   },
 };
 

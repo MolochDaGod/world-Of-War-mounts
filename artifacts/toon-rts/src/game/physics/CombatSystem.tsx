@@ -18,7 +18,7 @@ import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGameStore, UnitData } from '../store/gameStore';
 import { emitProjectile, ProjectileKind } from '../effects/ProjectileSystem';
-import { ABILITY_DEFS } from '../data/AbilityDefs';
+import { ABILITY_DEFS, AbilityId } from '../data/AbilityDefs';
 import { COMMANDER_BY_ID } from '../data/CommanderDefs';
 
 const TICK = 0.05; // seconds per combat frame (≈ 20 Hz) — cinematic pace
@@ -68,6 +68,7 @@ let lastStoreSync = 0;
 
 export function CombatSystem() {
   const lastUpdate = useRef(0);
+  const battleActive = useRef(false);
 
   useFrame((state) => {
     const now = state.clock.elapsedTime;
@@ -78,7 +79,20 @@ export function CombatSystem() {
     const { phase, units, totems, batchCombatTick, batchRemoveUnits,
             tickCombatElapsed, expireTotems, setPhase } = store;
 
-    if (phase !== 'battle') return;
+    if (phase !== 'battle') {
+      battleActive.current = false;
+      return;
+    }
+
+    // Timers are module scoped for frame-speed performance, so they must be
+    // cleared before every fresh battle rather than carrying cooldowns forward.
+    if (!battleActive.current) {
+      battleActive.current = true;
+      localElapsed = 0;
+      lastStoreSync = 0;
+      for (const key of Object.keys(attackTimers)) delete attackTimers[key];
+      for (const key of Object.keys(chargeRegenTimers)) delete chargeRegenTimers[key];
+    }
 
     // ── Commander leadership aura — pre-compute per team ─────────────────
     type AuraData = { x: number; z: number; radius: number; mult: number; type: string };
@@ -122,6 +136,7 @@ export function CombatSystem() {
     const living = units.filter(u => u.state !== 'dead');
     const patches   = new Map<string, Partial<UnitData>>();
     const kills: string[] = [];
+    const autoHeroCasts: { unitId: string; abilityId: AbilityId }[] = [];
     let scoreDelta1 = 0;
     let scoreDelta2 = 0;
 
@@ -295,9 +310,23 @@ export function CombatSystem() {
           if (patches.get(nearest.id)?.standGround || nearest.standGround) drMult *= 0.75;
           // Defense aura: reduce incoming damage by 1/mult for buffed defenders
           drMult *= 1 / commanderMult(nearest, 'defense');
+          if ((patches.get(nearest.id)?.shieldWallUntil ?? nearest.shieldWallUntil ?? 0) > elapsed) {
+            drMult *= 0.55;
+          }
 
           const rawDmg = cfg.damage * dmgMult * drMult * commanderMult(unit, 'attack');
-          const hp     = Math.max(0, curHp(nearest) - rawDmg);
+          let effectiveDmg = rawDmg;
+          const barrierUntil = patches.get(nearest.id)?.arcaneBarrierUntil ?? nearest.arcaneBarrierUntil ?? 0;
+          const barrierHp = patches.get(nearest.id)?.arcaneBarrierHp ?? nearest.arcaneBarrierHp ?? 0;
+          if (barrierUntil > elapsed && barrierHp > 0) {
+            const absorbed = Math.min(barrierHp, effectiveDmg);
+            effectiveDmg -= absorbed;
+            patches.set(nearest.id, {
+              ...patches.get(nearest.id),
+              arcaneBarrierHp: barrierHp - absorbed,
+            });
+          }
+          const hp     = Math.max(0, curHp(nearest) - effectiveDmg);
 
           // ── Charge boost: consume flag ───────────────────────────────
           if (unit.chargeBoost) {
@@ -323,7 +352,7 @@ export function CombatSystem() {
 
             // ── Life Drain: heal nearby allies ───────────────────────
             if (unit.lifedrainAura && unit.type === 'mage') {
-              const healAmt = rawDmg * 0.45;
+              const healAmt = effectiveDmg * 0.45;
               const drainRange = 12;
               for (const ally of living) {
                 if (ally.teamId !== unit.teamId || isDead(ally)) continue;
@@ -340,7 +369,8 @@ export function CombatSystem() {
       } else {
         // ── MOVEMENT ─────────────────────────────────────────────────────
         // Stand ground: never move
-        if (patches.get(unit.id)?.standGround || unit.standGround) {
+        const formationLockedUntil = patches.get(unit.id)?.formationLockUntil ?? unit.formationLockUntil ?? 0;
+        if (formationLockedUntil > elapsed || patches.get(unit.id)?.standGround || unit.standGround) {
           if (cur(unit, 'state') !== 'idle') patches.set(unit.id, { ...patches.get(unit.id), state: 'idle' });
           continue;
         }
@@ -422,7 +452,7 @@ export function CombatSystem() {
       if (unit.type === 'mage' && unit.abilityCharges && nearest && minDist <= cfg.attackRange * 1.4) {
         for (const [abilityId, cs] of Object.entries(unit.abilityCharges)) {
           if (!cs || cs.charges < 1) continue;
-          const def = ABILITY_DEFS[abilityId];
+          const def = ABILITY_DEFS[abilityId as AbilityId];
           if (!def || def.targeting === 'toggle') continue;
           // Auto-cast on a cadence: every 2× normal cooldown so it doesn't spam
           const autoCastKey = `autocast_${unit.id}_${abilityId}`;
@@ -442,6 +472,30 @@ export function CombatSystem() {
           break; // only one ability per tick
         }
       }
+
+      // Enemy commanders use their hero kit automatically. Player commanders
+      // remain under direct control through the Hero Ability Bar.
+      if (unit.isCommander && unit.teamId === 2 && unit.abilityCharges && nearest && !isDead(unit)) {
+        const commander = COMMANDER_BY_ID[unit.commanderArchetype ?? ''];
+        if (commander) {
+          for (const abilityId of commander.heroAbilities) {
+            const cs = unit.abilityCharges[abilityId];
+            const ability = ABILITY_DEFS[abilityId];
+            if (!cs || cs.charges < 1 || !ability) continue;
+            const autoCastKey = `hero_autocast_${unit.id}_${abilityId}`;
+            const lastCast = chargeRegenTimers[autoCastKey] ?? 0;
+            if (elapsed - lastCast < Math.max(2, ability.cooldownPerCharge * 0.8)) continue;
+            const canCast =
+              (abilityId === 'cavalry_charge' || abilityId === 'shield_bash' || abilityId === 'holy_flame')
+                ? minDist <= (abilityId === 'holy_flame' ? 12 : cfg.attackRange + 4)
+                : minDist <= 24;
+            if (!canCast) continue;
+            chargeRegenTimers[autoCastKey] = elapsed;
+            autoHeroCasts.push({ unitId: unit.id, abilityId });
+            break;
+          }
+        }
+      }
     }
 
     // ── 3. Ability charge regen (1 Hz) ─────────────────────────────────────
@@ -456,7 +510,7 @@ export function CombatSystem() {
       const newCharges = { ...unit.abilityCharges };
       for (const [abilityId, cs] of Object.entries(newCharges)) {
         if (!cs) continue;
-        const def = ABILITY_DEFS[abilityId];
+        const def = ABILITY_DEFS[abilityId as AbilityId];
         if (!def || def.targeting === 'toggle') continue;
         if (cs.charges < def.maxCharges && elapsed >= cs.nextChargeAt) {
           newCharges[abilityId] = { charges: cs.charges + 1, nextChargeAt: elapsed + def.cooldownPerCharge };
@@ -488,6 +542,10 @@ export function CombatSystem() {
     // ── 5. Apply patches ───────────────────────────────────────────────────
     if (patches.size > 0 || scoreDelta1 > 0 || scoreDelta2 > 0) {
       batchCombatTick(patches, scoreDelta1, scoreDelta2);
+    }
+
+    for (const cast of autoHeroCasts) {
+      useGameStore.getState().triggerAbility([cast.unitId], cast.abilityId);
     }
 
     if (kills.length > 0) {

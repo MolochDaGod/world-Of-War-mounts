@@ -58,6 +58,10 @@ export interface UnitData {
   lifedrainAura?: boolean;                     // Legion mage toggle — heals allies on hit
   shieldBashing?: boolean;                     // one-tick AOE shield bash (consumed in CombatSystem)
   multiShotReady?: boolean;                    // one-tick multi-shot flag
+  shieldWallUntil?: number;                    // commander Shield Wall expiry
+  formationLockUntil?: number;                 // commander Formation Lock expiry
+  arcaneBarrierUntil?: number;                 // commander Arcane Barrier expiry
+  arcaneBarrierHp?: number;                    // remaining commander barrier points
   // Per-ability charge tracker: abilityId → { charges, nextChargeAt (combatElapsed s) }
   abilityCharges?: Partial<Record<string, { charges: number; nextChargeAt: number }>>;
   // Commander hero fields
@@ -161,6 +165,15 @@ interface GameState {
 
 let uidCounter = 0;
 function uid() { return `u_${++uidCounter}`; }
+
+function initialAbilityCharges(abilityIds: AbilityId[]) {
+  return Object.fromEntries(
+    abilityIds.map(id => [
+      id,
+      { charges: ABILITY_DEFS[id].maxCharges, nextChargeAt: 0 },
+    ]),
+  ) as UnitData['abilityCharges'];
+}
 
 // ── Regiment definitions — stats per type ──────────────────────────────────────
 export const REGIMENT_DEFS: Record<UnitType, {
@@ -499,6 +512,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       let units = state.units;
       let newBursts = state.bountyBursts;
+      let scoreDelta1 = 0;
+      let scoreDelta2 = 0;
 
       switch (abilityId) {
         case 'cavalry_charge':
@@ -569,12 +584,102 @@ export const useGameStore = create<GameState>((set, get) => ({
           break;
         }
 
+        case 'shield_wall':
+          units = units.map(u => {
+            const nearby = casters.some(c =>
+              u.teamId === c.teamId &&
+              Math.hypot(u.position[0] - c.position[0], u.position[2] - c.position[2]) <= 12,
+            );
+            return {
+              ...u,
+              shieldWallUntil: nearby ? now + 6 : u.shieldWallUntil,
+              abilityCharges: idSet.has(u.id) ? consumeCharge(u) : u.abilityCharges,
+            };
+          });
+          break;
+
+        case 'formation_lock':
+          units = units.map(u => {
+            const nearby = casters.some(c =>
+              u.teamId === c.teamId &&
+              Math.hypot(u.position[0] - c.position[0], u.position[2] - c.position[2]) <= 14,
+            );
+            return {
+              ...u,
+              formationLockUntil: nearby ? now + 8 : u.formationLockUntil,
+              abilityCharges: idSet.has(u.id) ? consumeCharge(u) : u.abilityCharges,
+            };
+          });
+          break;
+
+        case 'holy_flame': {
+          const targets = new Set<string>();
+          for (const caster of casters) {
+            for (const enemy of units) {
+              if (enemy.state === 'dead' || enemy.teamId === caster.teamId) continue;
+              if (Math.hypot(enemy.position[0] - caster.position[0], enemy.position[2] - caster.position[2]) <= 12) {
+                targets.add(enemy.id);
+              }
+            }
+          }
+          units = units.map(u => {
+            if (targets.has(u.id)) {
+              // Holy Flame follows the same defensive rules as regular combat.
+              if (u.phaseShift) return u;
+              let damage = (u.shieldWallUntil ?? 0) > now ? 320 * 0.55 : 320;
+              const barrierActive = (u.arcaneBarrierUntil ?? 0) > now && (u.arcaneBarrierHp ?? 0) > 0;
+              const absorbed = barrierActive ? Math.min(u.arcaneBarrierHp ?? 0, damage) : 0;
+              damage -= absorbed;
+              const health = Math.max(0, u.health - damage);
+              if (health <= 0) {
+                if (u.teamId === 1) scoreDelta2++; else scoreDelta1++;
+                return {
+                  ...u,
+                  health: 0,
+                  state: 'dead' as UnitState,
+                  arcaneBarrierHp: barrierActive ? (u.arcaneBarrierHp ?? 0) - absorbed : u.arcaneBarrierHp,
+                };
+              }
+              return {
+                ...u,
+                health,
+                arcaneBarrierHp: barrierActive ? (u.arcaneBarrierHp ?? 0) - absorbed : u.arcaneBarrierHp,
+              };
+            }
+            return idSet.has(u.id) ? { ...u, abilityCharges: consumeCharge(u) } : u;
+          });
+          break;
+        }
+
+        case 'arcane_barrier':
+          units = units.map(u => {
+            const nearby = casters.some(c =>
+              u.teamId === c.teamId &&
+              Math.hypot(u.position[0] - c.position[0], u.position[2] - c.position[2]) <= 12,
+            );
+            return {
+              ...u,
+              arcaneBarrierUntil: nearby ? now + 8 : u.arcaneBarrierUntil,
+              arcaneBarrierHp: nearby ? 650 : u.arcaneBarrierHp,
+              abilityCharges: idSet.has(u.id) ? consumeCharge(u) : u.abilityCharges,
+            };
+          });
+          break;
+
         case 'holy_totem':
           // ground-targeting: handled by placeTotem after pendingAbility ground click
           break;
       }
 
-      return { units, bountyBursts: newBursts, pendingAbility: null };
+      return {
+        units,
+        bountyBursts: newBursts,
+        teamScores: {
+          team1: state.teamScores.team1 + scoreDelta1,
+          team2: state.teamScores.team2 + scoreDelta2,
+        },
+        pendingAbility: null,
+      };
     });
   },
 
@@ -634,6 +739,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       formationCols: 1,
       formationFacing: Math.PI,
       spacing: 1.0,
+      abilityCharges: initialAbilityCharges(cmdDef.heroAbilities),
       isCommander: true,
       commanderArchetype: cmdDef.id,
       commanderName: cmdDef.name,
@@ -656,6 +762,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       formationCols: 1,
       formationFacing: 0,
       spacing: 1.0,
+      abilityCharges: initialAbilityCharges(enemyCmdDef.heroAbilities),
       isCommander: true,
       commanderArchetype: enemyCmdDef.id,
       commanderName: enemyCmdDef.name,

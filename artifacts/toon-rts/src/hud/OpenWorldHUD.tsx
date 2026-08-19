@@ -15,6 +15,7 @@ import { SelectionBoxOverlay }   from '@/game/input/RTSInputController';
 import { CommandBar }            from './CommandBar';
 import { CombatTimer }           from './CombatTimer';
 import { UnitAbilityBar }        from './UnitAbilityBar';
+import { HeroAbilityBar }        from './HeroAbilityBar';
 import { useBuildStore }          from '@/game/store/buildStore';
 
 // ── Time of day display ────────────────────────────────────────────────────────
@@ -275,6 +276,7 @@ export function OpenWorldHUD() {
           >
             <UnitAbilityBar />
             <RegimentBar />
+            <HeroAbilityBar />
             <AbilityHotbar />
           </div>
 

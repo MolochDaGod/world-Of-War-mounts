@@ -13,6 +13,7 @@ import {
   COMMANDER_BY_ID,
 } from '@/game/data/CommanderDefs';
 import { FACTION_TO_RACE } from '@/game/data/FactionData';
+import { ABILITY_DEFS } from '@/game/data/AbilityDefs';
 
 const ARCHETYPE_ICON: Record<string, string> = {
   champion: '⚔️',
@@ -131,8 +132,7 @@ function CommanderCard({
       </div>
 
       {/* Hero abilities */}
-      {def.heroAbilities && (
-        <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
+      <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
           {def.heroAbilities.map((ab, i) => (
             <div key={i} style={{
               flex: 1, padding: '3px 5px',
@@ -141,11 +141,10 @@ function CommanderCard({
               borderRadius: 4,
               fontSize: 7, color: '#ffd700', textAlign: 'center',
             }}>
-              {ab}
+              {ABILITY_DEFS[ab].name}
             </div>
           ))}
         </div>
-      )}
 
       {/* Scale note */}
       <div style={{ fontSize: 8, color: '#666', marginTop: 4 }}>

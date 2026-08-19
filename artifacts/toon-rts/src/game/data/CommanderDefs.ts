@@ -6,6 +6,7 @@
  * nearby allies each combat tick.
  */
 import { Race, UnitType } from '@/game/store/gameStore';
+import { AbilityId } from './AbilityDefs';
 
 export type CommanderArchetype = 'champion' | 'warlord' | 'archmage';
 
@@ -38,11 +39,8 @@ export interface CommanderDef {
    * Supported values: 'pirate_king'
    */
   heroComponentId?:  string;
-  /**
-   * Two active ability names shown on the commander card.
-   * These are displayed in the UI; full combat integration is a follow-up.
-   */
-  heroAbilities?: [string, string];
+  /** Two active abilities available to this commander in battle. */
+  heroAbilities: [AbilityId, AbilityId];
   /** Passive bonus description shown under the commander card. */
   heroPassive?: string;
 }
@@ -64,7 +62,7 @@ const WK: CommanderDef[] = [
     heroModelPath:   '/assets/characters/heroes/samurai.fbx',
     heroTexturePath: '/assets/characters/heroes/samurai_tex.png',
     heroModelScale:  0.01,
-    heroAbilities: ['Rallying Cry', 'Hammer Smash'],
+    heroAbilities: ['cavalry_charge', 'shield_bash'],
     heroPassive: 'Iron Discipline — all nearby allies take 15% less damage',
   },
   {
@@ -82,7 +80,7 @@ const WK: CommanderDef[] = [
     heroModelPath:   '/assets/characters/heroes/golem.fbx',
     heroTexturePath: '/assets/characters/heroes/golem_tex.png',
     heroModelScale:  0.01,
-    heroAbilities: ['Shield Wall', 'Formation Lock'],
+    heroAbilities: ['shield_wall', 'formation_lock'],
     heroPassive: 'Bulwark — shieldwall regiments in aura gain +25% HP',
   },
   {
@@ -100,7 +98,7 @@ const WK: CommanderDef[] = [
     heroModelPath:   '/assets/characters/heroes/wizard.fbx',
     heroTexturePath: '/assets/characters/heroes/wizard_tex.png',
     heroModelScale:  0.01,
-    heroAbilities: ['Holy Flame', 'Arcane Barrier'],
+    heroAbilities: ['holy_flame', 'arcane_barrier'],
     heroPassive: 'Holy Aura — mage regiments in aura deal +25% spell damage',
   },
 ];
@@ -120,6 +118,7 @@ const BRB: CommanderDef[] = [
     basedOnType: 'swordsmen',
     leadershipBonus: { auraRadius: 10, type: 'attack', multiplier: 1.25 },
     heroComponentId: 'pirate_king',
+    heroAbilities: ['cavalry_charge', 'shield_bash'],
   },
   {
     id: 'brb_warlord',
@@ -133,6 +132,7 @@ const BRB: CommanderDef[] = [
     hp: 7500,
     basedOnType: 'infantry',
     leadershipBonus: { auraRadius: 16, type: 'speed', multiplier: 1.22 },
+    heroAbilities: ['shield_wall', 'formation_lock'],
   },
   {
     id: 'brb_archmage',
@@ -146,6 +146,7 @@ const BRB: CommanderDef[] = [
     hp: 5500,
     basedOnType: 'mage',
     leadershipBonus: { auraRadius: 14, type: 'attack', multiplier: 1.28 },
+    heroAbilities: ['holy_flame', 'arcane_barrier'],
   },
 ];
 
@@ -165,6 +166,7 @@ const ELF: CommanderDef[] = [
     leadershipBonus: { auraRadius: 12, type: 'speed', multiplier: 1.30 },
     heroModelPath:  '/assets/characters/heroes/hero_franco.glb',
     heroModelScale: 0.012,
+    heroAbilities: ['cavalry_charge', 'shield_bash'],
   },
   {
     id: 'elf_warlord',
@@ -180,6 +182,7 @@ const ELF: CommanderDef[] = [
     leadershipBonus: { auraRadius: 18, type: 'defense', multiplier: 1.22 },
     heroModelPath:  '/assets/characters/heroes/hero_karina.glb',
     heroModelScale: 0.012,
+    heroAbilities: ['shield_wall', 'formation_lock'],
   },
   {
     id: 'elf_archmage',
@@ -193,6 +196,7 @@ const ELF: CommanderDef[] = [
     hp: 5000,
     basedOnType: 'mage',
     leadershipBonus: { auraRadius: 16, type: 'attack', multiplier: 1.30 },
+    heroAbilities: ['holy_flame', 'arcane_barrier'],
   },
 ];
 
@@ -210,6 +214,7 @@ const DWF: CommanderDef[] = [
     hp: 9500,
     basedOnType: 'shieldwall',
     leadershipBonus: { auraRadius: 10, type: 'defense', multiplier: 1.25 },
+    heroAbilities: ['cavalry_charge', 'shield_bash'],
   },
   {
     id: 'dwf_warlord',
@@ -223,6 +228,7 @@ const DWF: CommanderDef[] = [
     hp: 8000,
     basedOnType: 'swordsmen',
     leadershipBonus: { auraRadius: 14, type: 'attack', multiplier: 1.18 },
+    heroAbilities: ['shield_wall', 'formation_lock'],
   },
   {
     id: 'dwf_archmage',
@@ -236,6 +242,7 @@ const DWF: CommanderDef[] = [
     hp: 5500,
     basedOnType: 'mage',
     leadershipBonus: { auraRadius: 14, type: 'attack', multiplier: 1.28 },
+    heroAbilities: ['holy_flame', 'arcane_barrier'],
   },
 ];
 
@@ -253,6 +260,7 @@ const ORC: CommanderDef[] = [
     hp: 10000,
     basedOnType: 'swordsmen',
     leadershipBonus: { auraRadius: 10, type: 'attack', multiplier: 1.28 },
+    heroAbilities: ['cavalry_charge', 'shield_bash'],
   },
   {
     id: 'orc_warlord',
@@ -266,6 +274,7 @@ const ORC: CommanderDef[] = [
     hp: 7500,
     basedOnType: 'cavalry',
     leadershipBonus: { auraRadius: 15, type: 'speed', multiplier: 1.25 },
+    heroAbilities: ['shield_wall', 'formation_lock'],
   },
   {
     id: 'orc_archmage',
@@ -279,6 +288,7 @@ const ORC: CommanderDef[] = [
     hp: 5500,
     basedOnType: 'mage',
     leadershipBonus: { auraRadius: 14, type: 'attack', multiplier: 1.30 },
+    heroAbilities: ['holy_flame', 'arcane_barrier'],
   },
 ];
 
@@ -297,6 +307,7 @@ const UD: CommanderDef[] = [
     leadershipBonus: { auraRadius: 12, type: 'attack', multiplier: 1.22 },
     heroModelPath:  '/assets/characters/heroes/ore_hero.glb',
     heroModelScale: 0.012,
+    heroAbilities: ['cavalry_charge', 'shield_bash'],
   },
   {
     id: 'ud_warlord',
@@ -309,6 +320,7 @@ const UD: CommanderDef[] = [
     hp: 7000,
     basedOnType: 'swordsmen',
     leadershipBonus: { auraRadius: 18, type: 'defense', multiplier: 1.20 },
+    heroAbilities: ['shield_wall', 'formation_lock'],
   },
   {
     id: 'ud_archmage',
@@ -321,6 +333,7 @@ const UD: CommanderDef[] = [
     hp: 5000,
     basedOnType: 'mage',
     leadershipBonus: { auraRadius: 15, type: 'attack', multiplier: 1.35 },
+    heroAbilities: ['holy_flame', 'arcane_barrier'],
   },
 ];
 
