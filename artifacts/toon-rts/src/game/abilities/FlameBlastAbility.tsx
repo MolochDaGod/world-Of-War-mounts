@@ -44,12 +44,21 @@ export function FlameBlastAbility({
       const mesh = obj as THREE.Mesh;
       if (!mesh.isMesh) return;
       mesh.castShadow = false;
+      // SkeletonUtils intentionally shares geometry with the cached GLTF source.
+      // This cast owns its copy so it can be released without invalidating the
+      // source model used by the next cast.
+      mesh.geometry = mesh.geometry.clone();
       // Ensure emissive orange glow on all meshes
-      const mat = (mesh.material as THREE.MeshStandardMaterial).clone();
-      mat.emissive     = new THREE.Color('#ff4400');
-      mat.emissiveIntensity = 0.6;
-      mat.transparent  = true;
-      mesh.material    = mat;
+      const tintMaterial = (material: THREE.Material) => {
+        const mat = (material as THREE.MeshStandardMaterial).clone();
+        mat.emissive = new THREE.Color('#ff4400');
+        mat.emissiveIntensity = 0.6;
+        mat.transparent = true;
+        return mat;
+      };
+      mesh.material = Array.isArray(mesh.material)
+        ? mesh.material.map(tintMaterial)
+        : tintMaterial(mesh.material);
     });
     return c;
   }, [scene]);
@@ -78,6 +87,24 @@ export function FlameBlastAbility({
     blending: THREE.AdditiveBlending,
   }), []);
 
+  useEffect(() => () => {
+    Object.values(actions).forEach(action => action?.stop());
+  }, [actions]);
+
+  useEffect(() => () => {
+    cloned.traverse(obj => {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.geometry.dispose();
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      materials.forEach(material => material.dispose());
+    });
+  }, [cloned]);
+
+  useEffect(() => () => {
+    emberMat.dispose();
+  }, [emberMat]);
+
   useFrame(() => {
     const elapsed = (Date.now() - cast.startTime) / 1000;
     if (elapsed > TOTAL_DURATION) { removeCast(cast.id); return; }
@@ -103,7 +130,10 @@ export function FlameBlastAbility({
       cloned.traverse(obj => {
         const mesh = obj as THREE.Mesh;
         if (!mesh.isMesh) return;
-        (mesh.material as THREE.MeshStandardMaterial).opacity = Math.max(0, opacity);
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        materials.forEach(material => {
+          (material as THREE.MeshStandardMaterial).opacity = Math.max(0, opacity);
+        });
       });
     }
 

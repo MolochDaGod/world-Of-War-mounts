@@ -30,8 +30,6 @@ const SKL_ANIMS: Partial<Record<UnitState, string>> = {
 const SKL_COLOR   = '#d4cfc8';
 const SKL_EMISSIVE = '#2a2520';
 
-useGLTF.preload(SKL_GLB);
-
 interface Props {
   unit: UnitData;
   isSelected: boolean;

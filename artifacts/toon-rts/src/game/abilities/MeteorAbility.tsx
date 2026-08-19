@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { AbilityTarget, useGameStore } from '../store/gameStore';
@@ -64,6 +64,12 @@ export function MeteorAbility({ cast }: { cast: { id: string; target: AbilityTar
     opacity: 0.0,
     depthWrite: false,
   }), []);
+
+  useEffect(() => () => {
+    meteorMat.dispose();
+    debrisMat.dispose();
+    craterMat.dispose();
+  }, [meteorMat, debrisMat, craterMat]);
 
   useFrame((state) => {
     const elapsed = (Date.now() - cast.startTime) / 1000;

@@ -157,6 +157,3 @@ export function MeshySoldier({
     </group>
   );
 }
-
-// Preload everything so the first battle doesn't stutter
-Object.values(MESHY_PATHS).forEach(p => useGLTF.preload(p));

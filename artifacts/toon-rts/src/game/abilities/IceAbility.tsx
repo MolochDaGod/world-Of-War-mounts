@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { AbilityTarget, useGameStore } from '../store/gameStore';
@@ -50,6 +50,12 @@ export function IceAbility({ cast }: { cast: { id: string; target: AbilityTarget
     side: THREE.DoubleSide,
     depthWrite: false,
   }), []);
+
+  useEffect(() => () => {
+    crystalMat.dispose();
+    rimMat.dispose();
+    frostMat.dispose();
+  }, [crystalMat, rimMat, frostMat]);
 
   useFrame(() => {
     const elapsed = (Date.now() - cast.startTime) / 1000;

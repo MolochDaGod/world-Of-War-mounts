@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { AbilityTarget, useGameStore } from '../store/gameStore';
@@ -73,6 +73,11 @@ export function WindAbility({ cast }: { cast: { id: string; target: AbilityTarge
     opacity: 0.35,
     depthWrite: false,
   }), []);
+
+  useEffect(() => () => {
+    tornadoMat.dispose();
+    dustMat.dispose();
+  }, [tornadoMat, dustMat]);
 
   useFrame((state) => {
     const elapsed = (Date.now() - cast.startTime) / 1000;

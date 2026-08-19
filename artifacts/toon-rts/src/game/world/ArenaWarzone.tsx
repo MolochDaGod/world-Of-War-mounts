@@ -11,7 +11,6 @@ import * as THREE from 'three';
 import { useMemo } from 'react';
 
 const ARENA_GLB = '/assets/environments/arena_warzone.glb';
-useGLTF.preload(ARENA_GLB);
 
 // Tweak scale / position after seeing it in-game (FBX-origin models vary)
 const ARENA_SCALE = 0.18;   // most Sketchfab FBX exports are in cm — this brings to metres

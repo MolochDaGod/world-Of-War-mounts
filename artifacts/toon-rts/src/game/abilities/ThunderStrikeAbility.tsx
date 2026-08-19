@@ -7,7 +7,7 @@
  *
  * Duration: ~1.8 s (flash 0.15 s → pillar 0.6 s → shockwave + sparks 1.0 s)
  */
-import { useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { AbilityTarget, useGameStore } from '../store/gameStore';
@@ -119,6 +119,13 @@ export function ThunderStrikeAbility({
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   }), []);
+
+  useEffect(() => () => {
+    pillarMat.dispose();
+    shockMat.dispose();
+    flashMat.dispose();
+    sparkMat.dispose();
+  }, [pillarMat, shockMat, flashMat, sparkMat]);
 
   useFrame((state) => {
     const elapsed = (Date.now() - cast.startTime) / 1000;

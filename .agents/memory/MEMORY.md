@@ -4,3 +4,4 @@
 - [Zustand v5 + R3F subscription cascade](zustand-v5-react-cascade.md) — How useSyncExternalStore causes "Maximum update depth exceeded"; fix patterns for getState() in useFrame, stable selectors, per-entity subscriptions, interval polling.
 - [Equipment GLB attachment](equipment-glb-attachment.md) — GLB weapons attach to FBX container bones; GLB metres vs FBX inches ⇒ ×39.37 scale; Node loader stubs for headless checks.
 - [Kenney building system](kenney-building-system.md) — Modular placement system: asset paths, scale factors, texture-override pattern, ghost preview, buildStore separation, GLB filenames.
+- [Toon RTS dev memory budget](toon-rts-dev-memory.md) — Keep binary assets out of Tailwind/Vite startup scans; defer battle rendering behind the phase boundary.

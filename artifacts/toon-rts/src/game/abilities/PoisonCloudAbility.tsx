@@ -5,7 +5,7 @@
  *
  * Duration: ~3.5 s total (rise 0.6 s, linger 2.0 s, fade 0.9 s)
  */
-import { useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { AbilityTarget, useGameStore } from '../store/gameStore';
@@ -97,6 +97,11 @@ export function PoisonCloudAbility({
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   }), []);
+
+  useEffect(() => () => {
+    puffMats.forEach(material => material.dispose());
+    groundMat.dispose();
+  }, [puffMats, groundMat]);
 
   useFrame((state) => {
     const elapsed = (Date.now() - cast.startTime) / 1000;

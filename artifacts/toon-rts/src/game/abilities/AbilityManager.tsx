@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { MeteorAbility }       from './MeteorAbility';
 import { IceAbility }          from './IceAbility';
@@ -22,7 +23,11 @@ export function AbilityManager() {
           case 'wind':    return <WindAbility          key={cast.id} cast={cast} />;
           case 'poison':      return <PoisonCloudAbility   key={cast.id} cast={cast} />;
           case 'thunder':     return <ThunderStrikeAbility key={cast.id} cast={cast} />;
-          case 'flame_blast': return <FlameBlastAbility    key={cast.id} cast={cast} />;
+          case 'flame_blast': return (
+            <Suspense key={cast.id} fallback={null}>
+              <FlameBlastAbility cast={cast} />
+            </Suspense>
+          );
           default: return null;
         }
       })}

@@ -412,7 +412,14 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
           // ── Dedicated animated-component heroes ──────────────────────────
           if (cmdDef?.heroComponentId === 'pirate_king') {
             return (
-              <Suspense key={`hero-${unit.id}`} fallback={null}>
+              <Suspense
+                key={`hero-${unit.id}`}
+                fallback={
+                  <group position={pos}>
+                    <BaseFallback color={COMMANDER_COLOR} />
+                  </group>
+                }
+              >
                 <PirateKingMesh
                   position={pos}
                   facing={unit.formationFacing}
@@ -424,7 +431,14 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
           // ── Generic GLB / FBX hero (heroModelPath) ───────────────────────
           if (cmdDef?.heroModelPath) {
             return (
-              <Suspense key={`hero-${unit.id}`} fallback={null}>
+              <Suspense
+                key={`hero-${unit.id}`}
+                fallback={
+                  <group position={pos}>
+                    <BaseFallback color={COMMANDER_COLOR} />
+                  </group>
+                }
+              >
                 <HeroCommanderMesh
                   modelPath={cmdDef.heroModelPath}
                   texturePath={cmdDef.heroTexturePath}

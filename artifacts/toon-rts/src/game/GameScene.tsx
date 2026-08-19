@@ -14,7 +14,6 @@ import { Suspense } from 'react';
 import {
   AdaptiveDpr,
   AdaptiveEvents,
-  Preload,
   PerformanceMonitor,
 } from '@react-three/drei';
 import { RTSCamera }       from './camera/RTSCamera';
@@ -217,7 +216,6 @@ export function GameScene() {
           <UnitAbilityVFX />
           <AbilityManager />
           <AimController />
-          <Preload all />
 
           {/* ── Post-processing ── */}
           <EffectComposer multisampling={0}>

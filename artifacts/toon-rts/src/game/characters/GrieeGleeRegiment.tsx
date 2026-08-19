@@ -43,10 +43,7 @@ const GOBLIN_OFFSETS: [number, number][] = [
   [ 0.9,  0.3],
 ];
 
-// Preload once
 import { useGLTF } from '@react-three/drei';
-useGLTF.preload(ORC_GLB);
-useGLTF.preload(GOBLIN_GLB);
 
 interface Props {
   unit: UnitData;
