@@ -118,9 +118,60 @@ const FACTION_PRESETS: Record<Faction, ArmyPreset[]> = {
       units: ['shieldwall','shieldwall','spearmen','spearmen','mage','cavalry','swordsmen','swordsmen'],
     },
   ],
+  Barbarians: [
+    {
+      label: 'Berserker Rush', icon: '🔥',
+      desc:  'Swarm of berserkers and marauders crash the line before the enemy can form up',
+      units: ['swordsmen','swordsmen','swordsmen','skirmishers','skirmishers','cavalry','archers','mage'],
+    },
+    {
+      label: 'Storm Horde',    icon: '⚡',
+      desc:  'Chaos riders and horse warriors hammer the flanks while shamans rain fire',
+      units: ['cavalry','cavalry','heavyCavalry','skirmishers','skirmishers','mage','swordsmen','archers'],
+    },
+    {
+      label: 'Iron Tribe',     icon: '🪓',
+      desc:  'Balanced tribal host — shield bearers hold, berserkers push, shamans support',
+      units: ['shieldwall','shieldwall','swordsmen','swordsmen','spearmen','mage','archers','catapult'],
+    },
+  ],
+  Dwarves: [
+    {
+      label: 'Grudge Wall',    icon: '⚒️',
+      desc:  'Ironbreakers anchor the centre while the grudge thrower decides the battle',
+      units: ['shieldwall','shieldwall','swordsmen','swordsmen','catapult','archers','archers','mage'],
+    },
+    {
+      label: 'Gunline',        icon: '💨',
+      desc:  'Thunderers and organ guns shred everything before it reaches your lines',
+      units: ['archers','archers','archers','boltThrower','shieldwall','spearmen','swordsmen','mage'],
+    },
+    {
+      label: 'Iron Host',      icon: '🛡',
+      desc:  'Full battle line — ironclad cavalry protects the flanks while hammerers grind forward',
+      units: ['swordsmen','swordsmen','shieldwall','spearmen','cavalry','heavyCavalry','mage','catapult'],
+    },
+  ],
+  Orcs: [
+    {
+      label: 'Wolf Blitz',     icon: '🐺',
+      desc:  'Wolf riders and armored raiders crash the flanks before the enemy can breathe',
+      units: ['cavalry','cavalry','heavyCavalry','skirmishers','skirmishers','swordsmen','mage','grieeGlee'],
+    },
+    {
+      label: 'Warlock Storm',  icon: '☠️',
+      desc:  'Warlocks and bolt hurlers devastate from range while orc warriors soak damage',
+      units: ['mage','mage','boltThrower','swordsmen','swordsmen','shieldwall','skirmishers','cavalry'],
+    },
+    {
+      label: 'Green Tide',     icon: '💚',
+      desc:  'Sheer numbers — orc warriors, runners, and troll peons overwhelm any defence',
+      units: ['swordsmen','swordsmen','swordsmen','skirmishers','skirmishers','spearmen','cavalry','grieeGlee'],
+    },
+  ],
 };
 
-const FACTIONS: Faction[] = ['Crusade', 'Fabled', 'Legion'];
+const FACTIONS: Faction[] = ['Crusade', 'Fabled', 'Legion', 'Barbarians', 'Dwarves', 'Orcs'];
 
 // ── Stat bar ──────────────────────────────────────────────────────────────────
 function StatBar({ label, value }: { label: string; value: number }) {

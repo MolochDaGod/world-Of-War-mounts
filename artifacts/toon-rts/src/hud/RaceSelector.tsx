@@ -10,7 +10,7 @@ import {
   Faction, FACTION_META, FACTION_DISPLAY, FACTION_TO_RACE,
 } from '../game/data/FactionData';
 
-const FACTIONS: Faction[] = ['Crusade', 'Fabled', 'Legion'];
+const FACTIONS: Faction[] = ['Crusade', 'Fabled', 'Legion', 'Barbarians', 'Dwarves', 'Orcs'];
 
 // ── Single faction card ───────────────────────────────────────────────────────
 function FactionCard({
@@ -172,7 +172,7 @@ export function RaceSelector() {
       </div>
 
       {/* ── Player faction pick ──────────────────────────────────────────── */}
-      <div style={{ width: '100%', maxWidth: 860, marginBottom: 24 }}>
+      <div style={{ width: '100%', maxWidth: 1100, marginBottom: 24 }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12,
         }}>
@@ -190,7 +190,11 @@ export function RaceSelector() {
           }} />
         </div>
 
-        <div style={{ display: 'flex', gap: 14 }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 12,
+        }}>
           {FACTIONS.map(f => (
             <FactionCard
               key={f}
@@ -215,7 +219,7 @@ export function RaceSelector() {
       </div>
 
       {/* ── Enemy faction pick ───────────────────────────────────────────── */}
-      <div style={{ width: '100%', maxWidth: 860, marginBottom: 32 }}>
+      <div style={{ width: '100%', maxWidth: 1100, marginBottom: 32 }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12,
         }}>
@@ -233,7 +237,11 @@ export function RaceSelector() {
           }} />
         </div>
 
-        <div style={{ display: 'flex', gap: 14 }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 12,
+        }}>
           {FACTIONS.map(f => (
             <FactionCard
               key={f}
