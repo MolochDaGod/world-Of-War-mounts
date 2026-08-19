@@ -71,8 +71,16 @@ export function RTSInputController() {
           if (selectedUnitIds.length > 0) { toggleStandGround(selectedUnitIds); e.preventDefault(); }
           break;
         }
+        // ── Commander ability hotkeys ──────────────────────────────────────
+        case 'KeyQ': useGameStore.getState().setActiveAbility('ice');       e.preventDefault(); break;
+        case 'KeyE': useGameStore.getState().setActiveAbility('lightning');  e.preventDefault(); break;
+        case 'KeyR': useGameStore.getState().setActiveAbility('meteor');    e.preventDefault(); break;
+        case 'KeyT': useGameStore.getState().setActiveAbility('wind');      e.preventDefault(); break;
+        case 'KeyG': useGameStore.getState().setActiveAbility('poison');    e.preventDefault(); break;
+        case 'KeyH': useGameStore.getState().setActiveAbility('thunder');   e.preventDefault(); break;
         case 'Escape': {
           useGameStore.getState().setPendingAbility(null);
+          useGameStore.getState().setActiveAbility(null);
           setCommandMode('default');
           break;
         }

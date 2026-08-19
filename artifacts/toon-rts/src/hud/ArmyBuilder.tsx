@@ -5,7 +5,7 @@
  * Portrait icons come from /assets/unit-icons/ (generated AI images + reference images).
  * Faction meta from FactionData.ts; game engine uses Race internally.
  */
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useGameStore, REGIMENT_DEFS } from '@/game/store/gameStore';
 import { useShallow } from 'zustand/react/shallow';
 import { CommanderSelectPanel } from './CommanderSelectPanel';
@@ -55,6 +55,70 @@ import {
   Faction, FACTION_META, FACTION_DISPLAY, FACTION_UNITS, FACTION_TO_RACE,
   RACE_TO_FACTION, FactionUnit,
 } from '@/game/data/FactionData';
+import type { UnitType } from '@/game/store/gameStore';
+
+// ── Army presets ──────────────────────────────────────────────────────────────
+interface ArmyPreset {
+  label: string;
+  icon:  string;
+  desc:  string;
+  units: UnitType[];
+}
+
+/** Faction-specific quick-start army presets (max 8 slots, ~2000 gold). */
+const FACTION_PRESETS: Record<Faction, ArmyPreset[]> = {
+  Crusade: [
+    {
+      label: 'Iron Rush',  icon: '⚡',
+      desc:  'Twin cavalry + skirmishers flood the flanks before the enemy forms up',
+      units: ['cavalry','cavalry','skirmishers','skirmishers','skirmishers','archers','swordsmen','swordsmen'],
+    },
+    {
+      label: 'Fortress',   icon: '🏰',
+      desc:  'Shield wall anchor + pikes + mage support — nothing gets through',
+      units: ['shieldwall','shieldwall','spearmen','spearmen','mage','swordsmen','archers','archers'],
+    },
+    {
+      label: 'Holy Host',  icon: '✚',
+      desc:  'Balanced crusader formation with wizard healing and heavy lancers',
+      units: ['swordsmen','swordsmen','archers','spearmen','cavalry','heavyCavalry','mage','skirmishers'],
+    },
+  ],
+  Fabled: [
+    {
+      label: 'Wind Blitz', icon: '💨',
+      desc:  'Windrunners + forest riders exploit every gap at blinding speed',
+      units: ['skirmishers','skirmishers','skirmishers','cavalry','cavalry','heavyCavalry','archers','archers'],
+    },
+    {
+      label: 'Arcane Rain',icon: '🌿',
+      desc:  'Mage + double archers rain death from maximum range',
+      units: ['mage','mage','archers','archers','archers','spearmen','shieldwall','swordsmen'],
+    },
+    {
+      label: 'Elven Host', icon: '🌟',
+      desc:  'Classic all-comers elven line — swift, versatile, lethal',
+      units: ['swordsmen','swordsmen','archers','spearmen','cavalry','mage','skirmishers','heavyCavalry'],
+    },
+  ],
+  Legion: [
+    {
+      label: 'Death Wave', icon: '💀',
+      desc:  'Skirmisher wraiths + death knights surge as one unstoppable horde',
+      units: ['skirmishers','skirmishers','skirmishers','heavyCavalry','heavyCavalry','swordsmen','swordsmen','mage'],
+    },
+    {
+      label: 'Dark Arts',  icon: '🩸',
+      desc:  'Twin necromancers drain life while cavalry cleans up the wounded',
+      units: ['mage','mage','heavyCavalry','cavalry','swordsmen','swordsmen','spearmen','skirmishers'],
+    },
+    {
+      label: 'Undead Wall',icon: '🛡',
+      desc:  'Shields soak, mage drains, cavalry punishes anyone who breaks',
+      units: ['shieldwall','shieldwall','spearmen','spearmen','mage','cavalry','swordsmen','swordsmen'],
+    },
+  ],
+};
 
 const FACTIONS: Faction[] = ['Crusade', 'Fabled', 'Legion'];
 
@@ -286,6 +350,20 @@ export function ArmyBuilder() {
     });
   };
 
+  const handlePreset = useCallback((preset: ArmyPreset) => {
+    clearPlayerArmy();
+    for (const unitType of preset.units) {
+      const fu = factionUnits.find(u => u.type === unitType);
+      if (!fu) continue;
+      const regDef = REGIMENT_DEFS[unitType] ?? REGIMENT_DEFS.swordsmen;
+      addToPlayerArmy({
+        unitType,
+        maxSoldiers: fu.maxSoldiers,
+        hpOverride:  Math.round(regDef.hp * (fu.maxSoldiers / regDef.maxSoldiers)),
+      });
+    }
+  }, [factionUnits, clearPlayerArmy, addToPlayerArmy]);
+
   const infantry = factionUnits.filter(u => u.category === 'infantry');
   const mounted  = factionUnits.filter(u => u.category === 'mounted');
   const siege    = factionUnits.filter(u => u.category === 'siege');
@@ -398,6 +476,57 @@ export function ArmyBuilder() {
         flex: 1, display: 'flex', flexDirection: 'column',
         overflow: 'hidden', padding: '12px 20px 0',
       }}>
+
+        {/* ── QUICK DEPLOY presets ─────────────────────────────────────── */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{
+            fontSize: 8, color: '#555', letterSpacing: '0.15em',
+            marginBottom: 7, textTransform: 'uppercase',
+          }}>
+            ⚡ Quick Deploy
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {FACTION_PRESETS[playerFaction]?.map(preset => (
+              <button
+                key={preset.label}
+                onClick={() => handlePreset(preset)}
+                title={preset.desc}
+                style={{
+                  flex: 1,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                  padding: '8px 6px',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: `1px solid rgba(255,255,255,0.12)`,
+                  borderRadius: 9,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  color: '#ccc',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = `${factionMeta.primaryColor}18`;
+                  e.currentTarget.style.borderColor = `${factionMeta.primaryColor}55`;
+                  e.currentTarget.style.color = '#fff';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+                  e.currentTarget.style.color = '#ccc';
+                }}
+              >
+                <span style={{ fontSize: 18 }}>{preset.icon}</span>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                  fontFamily: "'Cinzel', serif",
+                }}>
+                  {preset.label}
+                </span>
+                <span style={{ fontSize: 7, color: '#666', textAlign: 'center', lineHeight: 1.3 }}>
+                  {preset.desc.slice(0, 52)}{preset.desc.length > 52 ? '…' : ''}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* INFANTRY */}
         <SectionHeader icon="⚔️" label="Infantry" color={factionMeta.primaryColor} />

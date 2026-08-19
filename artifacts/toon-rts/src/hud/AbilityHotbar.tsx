@@ -7,6 +7,8 @@ const ABILITIES: { id: AbilityType; key: string; name: string; icon: string; col
   { id: 'meteor',    key: 'R', name: 'Meteor Strike',   icon: '☄️',  color: '#ff8833' },
   { id: 'fire',      key: 'F', name: 'Inferno',         icon: '🔥',  color: '#ff4400' },
   { id: 'wind',      key: 'T', name: 'Tornado',         icon: '🌪️',  color: '#aaddcc' },
+  { id: 'poison',    key: 'G', name: 'Poison Cloud',    icon: '☠️',  color: '#66dd22' },
+  { id: 'thunder',   key: 'H', name: 'Thunder Strike',  icon: '🌩️',  color: '#99ccff' },
 ];
 
 export function AbilityHotbar() {
