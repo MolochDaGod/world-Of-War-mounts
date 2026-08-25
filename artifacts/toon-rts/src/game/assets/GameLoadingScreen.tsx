@@ -1,104 +1,21 @@
 /**
  * GameLoadingScreen
  *
- * Sits above the Canvas as a DOM overlay and hooks into THREE.DefaultLoadingManager
- * to show real loading progress.  The Canvas stays mounted behind it so FBX/texture
- * streaming begins immediately rather than waiting for the UI to appear.
- *
- * Lifecycle:
- *  1. Mount → loading=true, subscribe to DefaultLoadingManager callbacks.
- *  2. onProgress → update percentage and current asset name.
- *  3. onLoad → loading=false → 600ms CSS fade-out → unmounted via state.
- *  4. onError → log warning; non-critical assets (e.g. missing TGA) are skipped.
- *
- * The 1-second minimum display time prevents a jarring flash when the first
- * few assets load instantly from the browser cache.
+ * This is an explicit readiness gate, not a best-effort LoadingManager display.
+ * It remains up until the selected map's required files have been fetched, and
+ * reports a blocking error if a required asset cannot be loaded.
  */
-import { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
+import { useGameStore } from '@/game/store/gameStore';
 
-// Asset filename → human-readable category label
-function assetLabel(url: string): string {
-  if (/\.fbx$/i.test(url))    return 'Loading character model…';
-  if (/\.tga$/i.test(url))    return 'Loading texture…';
-  if (/\.png$/i.test(url))    return 'Loading texture…';
-  if (/\.jpg$/i.test(url))    return 'Loading image…';
-  if (/\.glb$/i.test(url))    return 'Loading 3-D asset…';
-  if (/\.gltf$/i.test(url))   return 'Loading scene…';
-  if (/\.wasm$/i.test(url))   return 'Initialising physics…';
-  return 'Loading…';
-}
+export function GameLoadingScreen() {
+  const phase = useGameStore(s => s.phase);
+  const pct = useGameStore(s => s.preparationAssetProgress);
+  const label = useGameStore(s => s.preparationAssetMessage);
+  const error = useGameStore(s => s.preparationAssetError);
+  const ready = useGameStore(s => s.preparationAssetsReady);
+  const retry = useGameStore(s => s.retryPreparationAssetLoad);
 
-interface Props {
-  /** Minimum time (ms) the screen stays visible — avoids a flash on cached loads. */
-  minDisplayMs?: number;
-}
-
-export function GameLoadingScreen({ minDisplayMs = 1000 }: Props) {
-  const [visible,  setVisible]  = useState(true);   // CSS opacity
-  const [mounted,  setMounted]  = useState(true);   // DOM presence
-  const [pct,      setPct]      = useState(0);       // 0–100
-  const [label,    setLabel]    = useState('Initialising engine…');
-
-  const mountTimeRef  = useRef(Date.now());
-  const doneRef       = useRef(false);
-
-  useEffect(() => {
-    const mgr = THREE.DefaultLoadingManager;
-
-    const onStart = (_url: string, _loaded: number, total: number) => {
-      if (total > 0) setPct(0);
-    };
-
-    const onProgress = (url: string, loaded: number, total: number) => {
-      if (total > 0) setPct(Math.round((loaded / total) * 100));
-      setLabel(assetLabel(url));
-    };
-
-    const onLoad = () => {
-      if (doneRef.current) return;
-      doneRef.current = true;
-
-      const elapsed = Date.now() - mountTimeRef.current;
-      const delay   = Math.max(0, minDisplayMs - elapsed);
-
-      setTimeout(() => {
-        setPct(100);
-        setLabel('Ready!');
-
-        // Fade out over 600 ms, then remove from DOM
-        setTimeout(() => setVisible(false),  60);
-        setTimeout(() => setMounted(false), 660);
-      }, delay);
-    };
-
-    const onError = (url: string) => {
-      console.warn('[GameLoader] Failed to load asset:', url);
-      // Don't block — non-critical assets can fail silently
-    };
-
-    mgr.onStart    = onStart;
-    mgr.onProgress = onProgress;
-    mgr.onLoad     = onLoad;
-    mgr.onError    = onError;
-
-    // Fallback: if DefaultLoadingManager never fires onLoad (e.g. all assets
-    // were already cached and no new items were queued), dismiss after 2s.
-    const quickCheck = setTimeout(() => {
-      if (!doneRef.current) onLoad();
-    }, 2000);
-
-    return () => {
-      clearTimeout(quickCheck);
-      // Restore no-op handlers so the manager doesn't call stale closures
-      mgr.onStart    = () => {};
-      mgr.onProgress = () => {};
-      mgr.onLoad     = () => {};
-      mgr.onError    = () => {};
-    };
-  }, [minDisplayMs]);
-
-  if (!mounted) return null;
+  if (phase !== 'preparation' || ready) return null;
 
   return (
     <div
@@ -107,12 +24,7 @@ export function GameLoadingScreen({ minDisplayMs = 1000 }: Props) {
       aria-valuenow={pct}
       aria-valuemin={0}
       aria-valuemax={100}
-      className="absolute inset-0 z-[9999] flex flex-col items-center justify-center bg-[#080c14]"
-      style={{
-        transition: 'opacity 0.6s ease-out',
-        opacity: visible ? 1 : 0,
-        pointerEvents: visible ? 'auto' : 'none',
-      }}
+       className="absolute inset-0 z-[9999] flex flex-col items-center justify-center bg-[#080c14]"
     >
       {/* ── Logo / title ── */}
       <div className="flex flex-col items-center gap-6 mb-12">
@@ -167,23 +79,35 @@ export function GameLoadingScreen({ minDisplayMs = 1000 }: Props) {
         </div>
       </div>
 
-      {/* ── Animated loading dots ── */}
-      <div className="flex gap-1.5 mt-8">
-        {[0, 1, 2].map(i => (
-          <div
-            key={i}
-            className="w-1.5 h-1.5 rounded-full bg-amber-600/60"
-            style={{
-              animation: 'pulse 1.2s ease-in-out infinite',
-              animationDelay: `${i * 0.2}s`,
-            }}
-          />
-        ))}
-      </div>
+      {error ? (
+        <div className="mt-7 w-96 max-w-[85vw] text-center">
+          <p className="text-red-300 text-xs font-mono leading-relaxed">{error}</p>
+          <button
+            type="button"
+            onClick={retry}
+            className="mt-4 rounded border border-amber-400/50 bg-amber-500/15 px-5 py-2 text-xs font-semibold tracking-wider text-amber-200 hover:bg-amber-500/25"
+          >
+            RETRY LOADING MAP
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-1.5 mt-8" aria-label="Loading">
+          {[0, 1, 2].map(i => (
+            <div
+              key={i}
+              className="w-1.5 h-1.5 rounded-full bg-amber-600/60"
+              style={{
+                animation: 'pulse 1.2s ease-in-out infinite',
+                animationDelay: `${i * 0.2}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* ── Tip ── */}
       <p className="absolute bottom-8 text-gray-600 text-xs font-mono tracking-wider">
-        Tip: Press Q / E / R / F / T to select abilities during battle
+        Loading the complete selected battlefield before deployment begins
       </p>
     </div>
   );

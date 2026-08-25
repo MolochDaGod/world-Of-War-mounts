@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
-import { Suspense } from 'react';
+import { Suspense, useRef } from 'react';
 import {
   AdaptiveDpr,
   AdaptiveEvents,
@@ -92,6 +92,26 @@ function ArenaLighting() {
   return null;
 }
 
+/** Keeps the deployment clock outside the combat loop and avoids 60 Hz HUD writes. */
+function PreparationClock() {
+  const elapsedSinceTick = useRef(0);
+
+  useFrame((_, delta) => {
+    const { phase, preparationAssetsReady, tickPreparation } = useGameStore.getState();
+    if (phase !== 'preparation' || !preparationAssetsReady) {
+      elapsedSinceTick.current = 0;
+      return;
+    }
+    elapsedSinceTick.current += Math.min(delta, 0.25);
+    if (elapsedSinceTick.current >= 0.1) {
+      tickPreparation(elapsedSinceTick.current);
+      elapsedSinceTick.current = 0;
+    }
+  });
+
+  return null;
+}
+
 /**
  * Conditionally renders the open-world terrain OR the arena GLB.
  * Also suppresses ambient NPCs / wildlife in arena mode.
@@ -122,6 +142,17 @@ function MapEnvironment() {
   );
 }
 
+function MapInteractives() {
+  const mapType = useGameStore(s => s.mapType);
+  if (mapType === 'arena') return null;
+  return (
+    <>
+      <ResourceNodes />
+      <WorldItems />
+    </>
+  );
+}
+
 export function GameScene() {
   return (
     <div className="w-full h-screen absolute inset-0 -z-10">
@@ -144,7 +175,7 @@ export function GameScene() {
         onPointerMissed={() => {
           // LMB click hit nothing → deselect all regiments
           const { phase, selectUnits } = useGameStore.getState();
-          if (phase === 'battle') selectUnits([]);
+          if (phase === 'preparation' || phase === 'battle') selectUnits([]);
         }}
       >
         <AdaptiveDpr pixelated />
@@ -177,6 +208,7 @@ export function GameScene() {
         {/* Sky/fog — battlefield blue; ArenaLighting overrides in arena mode */}
         <WorldTick />
         <ArenaLighting />
+        <PreparationClock />
         <RTSCamera />
 
         <Suspense fallback={null}>
@@ -184,9 +216,8 @@ export function GameScene() {
             {/* ── Ground & terrain (map-conditional) ── */}
             <MapEnvironment />
 
-            {/* ── Interactive world objects ── */}
-            <ResourceNodes />
-            <WorldItems />
+            {/* ── Interactive world objects (battlefield only) ── */}
+            <MapInteractives />
 
             {/* ── Armies (Toon_RTS FBX regiments in formation) ── */}
             <BattleArmy />

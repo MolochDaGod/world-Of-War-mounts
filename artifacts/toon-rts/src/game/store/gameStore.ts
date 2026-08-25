@@ -24,7 +24,7 @@ export type UnitType =
 
 export type UnitState = 'idle' | 'move' | 'attack' | 'dead';
 export type AbilityType = 'fire' | 'ice' | 'lightning' | 'meteor' | 'wind' | 'poison' | 'thunder' | 'flame_blast';
-export type GamePhase = 'menu' | 'setup' | 'battle' | 'victory';
+export type GamePhase = 'menu' | 'setup' | 'preparation' | 'battle' | 'victory';
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
 export interface UnitData {
@@ -145,6 +145,13 @@ interface GameState {
   bountyBursts: { id: string; position: [number,number,number]; radius: number; createdAt: number }[];
   combatElapsed: number;          // seconds since battle started (ticked by CombatSystem)
   pendingAbility: { abilityId: AbilityId; unitIds: string[] } | null;  // waiting for ground click
+  /** The two-minute deployment window only counts down after all required map assets are ready. */
+  preparationRemaining: number;
+  preparationAssetsReady: boolean;
+  preparationAssetProgress: number;
+  preparationAssetMessage: string;
+  preparationAssetError: string | null;
+  preparationAssetLoadKey: number;
 
   /** Spawn armies from builder selections and start battle */
   spawnArmies: () => void;
@@ -167,6 +174,11 @@ interface GameState {
   expireTotems:     (now: number) => void;
   expireBountyBursts:(now: number) => void;
   tickCombatElapsed:(delta: number) => void;
+  tickPreparation: (delta: number) => void;
+  setPreparationAssetProgress: (progress: number, message: string) => void;
+  markPreparationAssetsReady: () => void;
+  setPreparationAssetError: (message: string) => void;
+  retryPreparationAssetLoad: () => void;
   regenAbilityCharges:(unitId: string, now: number) => void;
 }
 
@@ -316,6 +328,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   bountyBursts: [],
   combatElapsed: 0,
   pendingAbility: null,
+  preparationRemaining: 120,
+  preparationAssetsReady: false,
+  preparationAssetProgress: 0,
+  preparationAssetMessage: 'Waiting to load battlefield…',
+  preparationAssetError: null,
+  preparationAssetLoadKey: 0,
 
   setPhase: (phase) => set({ phase }),
   setSelectedRace: (selectedRace) => set({ selectedRace }),
@@ -477,6 +495,41 @@ export const useGameStore = create<GameState>((set, get) => ({
   })),
 
   tickCombatElapsed: (delta) => set(s => ({ combatElapsed: s.combatElapsed + delta })),
+  tickPreparation: (delta) => set((state) => {
+    if (state.phase !== 'preparation' || !state.preparationAssetsReady) return {};
+    const preparationRemaining = Math.max(0, state.preparationRemaining - delta);
+    return preparationRemaining <= 0
+      ? { preparationRemaining: 0, phase: 'battle' as GamePhase, combatElapsed: 0 }
+      : { preparationRemaining };
+  }),
+  setPreparationAssetProgress: (progress, message) => set((state) => {
+    if (state.phase !== 'preparation') return {};
+    return {
+      preparationAssetProgress: Math.max(0, Math.min(100, progress)),
+      preparationAssetMessage: message,
+      preparationAssetError: null,
+    };
+  }),
+  markPreparationAssetsReady: () => set((state) => (
+    state.phase !== 'preparation'
+      ? {}
+      : {
+          preparationAssetsReady: true,
+          preparationAssetProgress: 100,
+          preparationAssetMessage: 'Battlefield ready — preparation begins',
+          preparationAssetError: null,
+        }
+  )),
+  setPreparationAssetError: (message) => set((state) => (
+    state.phase !== 'preparation' ? {} : { preparationAssetError: message }
+  )),
+  retryPreparationAssetLoad: () => set((state) => ({
+    preparationAssetsReady: false,
+    preparationAssetProgress: 0,
+    preparationAssetMessage: 'Retrying battlefield load…',
+    preparationAssetError: null,
+    preparationAssetLoadKey: state.preparationAssetLoadKey + 1,
+  })),
 
   regenAbilityCharges: (unitId, now) => set(s => {
     const unit = s.units.find(u => u.id === unitId);
@@ -791,10 +844,15 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set({
       units: [...team1, ...cmdUnit, ...team2, ...enemyCmdUnit],
-      phase: 'battle',
+      phase: 'preparation',
       teamScores: { team1: 0, team2: 0 },
       enemyArmy: eArmy,
       combatElapsed: 0,
+      preparationRemaining: 120,
+      preparationAssetsReady: false,
+      preparationAssetProgress: 0,
+      preparationAssetMessage: 'Preparing battlefield assets…',
+      preparationAssetError: null,
       totems: [],
       bountyBursts: [],
       pendingAbility: null,
@@ -817,8 +875,14 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set({
       units: [...team1, ...team2],
-      phase: 'battle',
+      phase: 'preparation',
       teamScores: { team1: 0, team2: 0 },
+      combatElapsed: 0,
+      preparationRemaining: 120,
+      preparationAssetsReady: false,
+      preparationAssetProgress: 0,
+      preparationAssetMessage: 'Preparing battlefield assets…',
+      preparationAssetError: null,
     });
   },
 
@@ -839,5 +903,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     bountyBursts: [],
     combatElapsed: 0,
     pendingAbility: null,
+    preparationRemaining: 120,
+    preparationAssetsReady: false,
+    preparationAssetProgress: 0,
+    preparationAssetMessage: 'Waiting to load battlefield…',
+    preparationAssetError: null,
   }),
 }));

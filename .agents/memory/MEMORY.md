@@ -8,3 +8,4 @@
 - [Toon RTS alliance factions](toon-rts-alliance-factions.md) — The game has three playable alliances, not six independent factions.
 - [Canonical heroes](canonical-heroes.md) — Preserve the user-defined hero names exactly across all UI, data, and lore.
 - [Army setup flow](army-setup-flow.md) — Commander choice is the first army-setup decision, then docks as a compact bottom-right card.
+- [Battlefield readiness gate](battlefield-readiness-gate.md) — Preparation starts only after the selected map’s required assets truly load.

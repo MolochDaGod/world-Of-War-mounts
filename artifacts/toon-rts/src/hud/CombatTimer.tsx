@@ -1,6 +1,6 @@
 /**
- * CombatTimer — top-centre countdown displayed during battle.
- * Polls combatElapsed from the store at 1 Hz to avoid 30 Hz React updates.
+ * CombatTimer — top-centre countdown for deployment and battle.
+ * Polls state once per second instead of subscribing to frame-level writes.
  */
 import { useEffect, useState } from 'react';
 import { useGameStore } from '@/game/store/gameStore';
@@ -15,21 +15,37 @@ function fmt(secs: number) {
 
 export function CombatTimer() {
   const phase = useGameStore(s => s.phase);
-  const [elapsed, setElapsed] = useState(0);
+  const [clock, setClock] = useState(() => ({
+    elapsed: useGameStore.getState().combatElapsed,
+    preparationRemaining: useGameStore.getState().preparationRemaining,
+    preparationAssetsReady: useGameStore.getState().preparationAssetsReady,
+  }));
 
   useEffect(() => {
-    if (phase !== 'battle') return;
+    if (phase !== 'preparation' && phase !== 'battle') return;
+    const updateClock = () => {
+      const state = useGameStore.getState();
+      setClock({
+        elapsed: state.combatElapsed,
+        preparationRemaining: state.preparationRemaining,
+        preparationAssetsReady: state.preparationAssetsReady,
+      });
+    };
+    updateClock();
     const id = setInterval(() => {
-      setElapsed(useGameStore.getState().combatElapsed);
+      updateClock();
     }, 1000);
     return () => clearInterval(id);
   }, [phase]);
 
-  if (phase !== 'battle') return null;
+  if (phase !== 'preparation' && phase !== 'battle') return null;
 
-  const remaining = Math.max(0, BATTLE_LIMIT - elapsed);
-  const urgent    = remaining < 60;
-  const warn      = remaining < 120;
+  const preparing = phase === 'preparation';
+  const remaining = preparing
+    ? Math.max(0, clock.preparationRemaining)
+    : Math.max(0, BATTLE_LIMIT - clock.elapsed);
+  const urgent = !preparing && remaining < 60;
+  const warn = !preparing && remaining < 120;
 
   return (
     <div style={{
@@ -67,7 +83,7 @@ export function CombatTimer() {
           color: urgent ? '#ffaaaa' : warn ? '#ffcc88' : 'rgba(255,255,255,0.5)',
           textTransform: 'uppercase',
         }}>
-          ⏱ Battle
+          {preparing ? (clock.preparationAssetsReady ? 'Deployment' : 'Map loading') : 'Battle'}
         </span>
         <span style={{
           fontSize: '22px',
@@ -78,15 +94,15 @@ export function CombatTimer() {
           textAlign: 'center',
           letterSpacing: '0.04em',
         }}>
-          {fmt(remaining)}
+          {clock.preparationAssetsReady || !preparing ? fmt(remaining) : '—:—'}
         </span>
-        {elapsed > 0 && (
+        {!preparing && clock.elapsed > 0 && (
           <span style={{
             fontSize: '9px',
             color: 'rgba(255,255,255,0.3)',
             letterSpacing: '0.08em',
           }}>
-            +{fmt(elapsed)}
+            +{fmt(clock.elapsed)}
           </span>
         )}
       </div>

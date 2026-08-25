@@ -176,6 +176,7 @@ function ShopButton({ onClick }: { onClick: () => void }) {
 // ── Main HUD ───────────────────────────────────────────────────────────────────
 export function OpenWorldHUD() {
   const phase = useGameStore(s => s.phase);
+  const isPreparation = phase === 'preparation';
 
   // Derived boolean — only re-renders when the battle ends, not on every 30Hz
   // position/health write. Zustand compares boolean with === so this is stable
@@ -237,12 +238,16 @@ export function OpenWorldHUD() {
               <TimeOfDay />
               <PauseButton paused={paused} onToggle={() => setPaused(p => !p)} />
             </div>
-            <div style={{ pointerEvents: 'auto' }}>
-              <ShopButton onClick={() => setShopOpen(o => !o)} />
-            </div>
-            <div style={{ pointerEvents: 'auto' }}>
-              <BuildButton onClick={() => setBuildOpen(o => !o)} active={buildOpen} />
-            </div>
+            {!isPreparation && (
+              <>
+                <div style={{ pointerEvents: 'auto' }}>
+                  <ShopButton onClick={() => setShopOpen(o => !o)} />
+                </div>
+                <div style={{ pointerEvents: 'auto' }}>
+                  <BuildButton onClick={() => setBuildOpen(o => !o)} active={buildOpen} />
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -285,7 +290,7 @@ export function OpenWorldHUD() {
           </div>
         </div>
 
-        {/* ── Ability dock ── */}
+        {/* ── Ability dock / preparation status ── */}
         <div style={{
           position: 'absolute',
           left: '50%',
@@ -312,7 +317,7 @@ export function OpenWorldHUD() {
             letterSpacing: '0.18em',
             textAlign: 'center',
           }}>
-            ABILITIES
+            {isPreparation ? 'PREPARATION — COMMANDS LOCKED' : 'ABILITIES'}
           </div>
           <div style={{
             display: 'flex',
@@ -323,9 +328,17 @@ export function OpenWorldHUD() {
             flexWrap: 'wrap',
             pointerEvents: 'auto',
           }}>
-            <UnitAbilityBar />
-            <HeroAbilityBar />
-            <AbilityHotbar />
+            {isPreparation ? (
+              <span style={{ color: 'rgba(255,255,255,0.68)', fontSize: 11, letterSpacing: '0.04em' }}>
+                Inspect your army and set your view. Combat orders unlock when deployment ends.
+              </span>
+            ) : (
+              <>
+                <UnitAbilityBar />
+                <HeroAbilityBar />
+                <AbilityHotbar />
+              </>
+            )}
           </div>
         </div>
 
@@ -377,12 +390,12 @@ export function OpenWorldHUD() {
         )}
 
         {/* ── Build panel (left side) ── */}
-        {buildOpen && (
+        {!isPreparation && buildOpen && (
           <BuildPanel open={buildOpen} onClose={() => { setBuildOpen(false); cancelBuild(); }} />
         )}
 
         {/* ── Shop panel (centered) ── */}
-        {shopOpen && (
+        {!isPreparation && shopOpen && (
           <div
             style={{
               position: 'absolute',

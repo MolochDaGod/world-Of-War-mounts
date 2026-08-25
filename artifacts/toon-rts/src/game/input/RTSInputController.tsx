@@ -128,6 +128,7 @@ export function RTSInputController() {
     // ── Execute the current command mode at a ground position ─────────────────
     const executeCommand = (hit: THREE.Vector3) => {
       const store = useGameStore.getState();
+      if (store.phase !== 'battle') return;
       const { selectedUnitIds, issueMove, issueAttackMove, issuePatrol, issueLob,
               pendingAbility, placeTotem, triggerAbility, setPendingAbility, combatElapsed } = store;
 
@@ -197,7 +198,8 @@ export function RTSInputController() {
 
     // ── Mouse event handlers ──────────────────────────────────────────────────
     const onMouseDown = (e: MouseEvent) => {
-      if (e.button === 0) {
+      const { phase } = useGameStore.getState();
+      if (e.button === 0 && (phase === 'preparation' || phase === 'battle')) {
         dragStart  = { x: e.clientX, y: e.clientY };
         isDragging = false;
       }
@@ -205,6 +207,11 @@ export function RTSInputController() {
 
     const onMouseMove = (e: MouseEvent) => {
       updateCursor();
+      const { phase } = useGameStore.getState();
+      if (phase !== 'preparation' && phase !== 'battle') {
+        dragStart = null;
+        return;
+      }
       if (!dragStart || !(e.buttons & 1)) { dragStart = null; return; }
       const dx = e.clientX - dragStart.x;
       const dy = e.clientY - dragStart.y;
@@ -227,7 +234,8 @@ export function RTSInputController() {
       if (e.button === 0) {
         if (isDragging && _box) {
           // Box-select player regiments whose screen centre falls inside the box
-          const { units, selectUnits } = useGameStore.getState();
+          const { phase, units, selectUnits } = useGameStore.getState();
+          if (phase !== 'preparation' && phase !== 'battle') return;
           const selected: string[] = [];
           for (const unit of units) {
             if (unit.teamId !== 1 || unit.state === 'dead') continue;
@@ -247,7 +255,7 @@ export function RTSInputController() {
         } else {
           // Single LMB in command mode → execute on ground
           const mode = getCommandMode();
-          if (mode !== 'default') {
+          if (useGameStore.getState().phase === 'battle' && mode !== 'default') {
             const hit = groundHit(e.clientX, e.clientY);
             if (hit) executeCommand(hit);
           }
@@ -261,6 +269,7 @@ export function RTSInputController() {
 
       // ── RMB — execute command (default = move) ────────────────────────────
       if (e.button === 2) {
+        if (useGameStore.getState().phase !== 'battle') return;
         const mode = getCommandMode();
         const { selectedUnitIds } = useGameStore.getState();
         if (selectedUnitIds.length === 0) return;

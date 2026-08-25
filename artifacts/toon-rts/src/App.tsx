@@ -28,7 +28,7 @@ const GameRuntime = lazy(async () => {
 
 export default function App() {
   const phase = useGameStore(s => s.phase);
-  const isBattleActive = phase === 'battle' || phase === 'victory';
+  const isBattleActive = phase === 'preparation' || phase === 'battle' || phase === 'victory';
   const isMemoryStress = import.meta.env.DEV
     && new URLSearchParams(window.location.search).get('stress') === 'memory';
 
@@ -45,7 +45,7 @@ export default function App() {
       <Suspense fallback={null}>
         {phase === 'menu'                              && <RaceSelector />}
         {phase === 'setup'                             && <ArmyBuilder />}
-        {(phase === 'battle' || phase === 'victory')   && <OpenWorldHUD />}
+        {(phase === 'preparation' || phase === 'battle' || phase === 'victory') && <OpenWorldHUD />}
       </Suspense>
 
       {isMemoryStress && (
