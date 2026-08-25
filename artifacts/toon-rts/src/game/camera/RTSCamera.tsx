@@ -12,8 +12,8 @@ import * as THREE from 'three';
 
 const PAN_SPEED = 32;
 const ZOOM_MIN = 12;
-const ZOOM_MAX = 65;
-const BOUND = 58;
+const ZOOM_MAX = 92;
+const BOUND = 155;
 const EDGE_MARGIN = 50;
 const MIN_PITCH = THREE.MathUtils.degToRad(34);
 const MAX_PITCH = THREE.MathUtils.degToRad(68);

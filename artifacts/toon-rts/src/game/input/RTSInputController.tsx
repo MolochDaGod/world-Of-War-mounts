@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from '@/game/store/gameStore';
+import { useWarZoneStore } from '@/game/store/warZoneStore';
 import { createUUID } from '@/game/utils/uuid';
 import { emitMoveMarker } from '@/game/effects/MoveMarker';
 import {
@@ -27,6 +28,7 @@ import {
   getPatrolAnchor, setPatrolAnchor, clearPatrolAnchor,
   MODE_CURSOR,
 } from '@/game/input/CommandMode';
+import { findWarZoneObstacleAtPoint } from '@/game/world/warZoneGeometry';
 
 // ── Module-level selection-box state (shared with SelectionBoxOverlay) ────────
 interface BoxRect { x1: number; y1: number; x2: number; y2: number }
@@ -129,7 +131,7 @@ export function RTSInputController() {
     const executeCommand = (hit: THREE.Vector3) => {
       const store = useGameStore.getState();
       if (store.phase !== 'battle') return;
-      const { selectedUnitIds, issueMove, issueAttackMove, issuePatrol, issueLob,
+      const { selectedUnitIds, issueMove, issueAttackMove, issuePatrol, issueLob, issueCoverAttack,
               pendingAbility, placeTotem, triggerAbility, setPendingAbility, combatElapsed } = store;
 
       // ── Pending ability ground click (e.g. holy totem placement) ────────────
@@ -157,6 +159,16 @@ export function RTSInputController() {
 
       const dest: [number, number, number] = [hit.x, 0, hit.z];
       const mode = getCommandMode();
+      const cover = store.mapType === 'arena'
+        ? findWarZoneObstacleAtPoint(dest, useWarZoneStore.getState().obstacles)
+        : undefined;
+
+      if (cover) {
+        issueCoverAttack(selectedUnitIds, cover.id);
+        emitMoveMarker(dest);
+        if (mode !== 'default') setCommandMode('default');
+        return;
+      }
 
       switch (mode) {
         case 'default':
@@ -277,8 +289,21 @@ export function RTSInputController() {
         if (!hit) return;
 
         if (mode === 'default' || mode === 'move') {
+          const store = useGameStore.getState();
+          const cover = store.mapType === 'arena'
+            ? findWarZoneObstacleAtPoint(
+                [hit.x, 0, hit.z],
+                useWarZoneStore.getState().obstacles,
+              )
+            : undefined;
+          if (cover) {
+            store.issueCoverAttack(selectedUnitIds, cover.id);
+            emitMoveMarker([hit.x, 0, hit.z]);
+            if (mode === 'move') setCommandMode('default');
+            return;
+          }
           // RMB always issues a move order in default / move mode
-          const { issueMove } = useGameStore.getState();
+          const { issueMove } = store;
           const dest: [number, number, number] = [hit.x, 0, hit.z];
           issueMove(selectedUnitIds, dest);
           emitMoveMarker(dest);

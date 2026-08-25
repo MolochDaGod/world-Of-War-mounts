@@ -20,6 +20,12 @@ import { useGameStore, UnitData } from '../store/gameStore';
 import { emitProjectile, ProjectileKind } from '../effects/ProjectileSystem';
 import { ABILITY_DEFS, AbilityId } from '../data/AbilityDefs';
 import { COMMANDER_BY_ID } from '../data/CommanderDefs';
+import { useWarZoneStore } from '../store/warZoneStore';
+import {
+  findBlockingWarZoneObstacle,
+  hasWarZoneLineOfSight,
+  resolveWarZoneMovement,
+} from '../world/warZoneGeometry';
 
 const TICK = 0.05; // seconds per combat frame (≈ 20 Hz) — cinematic pace
 const BATTLE_LIMIT = 480; // 8-minute timer
@@ -76,7 +82,7 @@ export function CombatSystem() {
     lastUpdate.current = now;
 
     const store = useGameStore.getState();
-    const { phase, units, totems, batchCombatTick, batchRemoveUnits,
+    const { phase, units, totems, mapType, batchCombatTick, batchRemoveUnits,
             tickCombatElapsed, expireTotems, setPhase } = store;
 
     if (phase !== 'battle') {
@@ -137,6 +143,10 @@ export function CombatSystem() {
     const patches   = new Map<string, Partial<UnitData>>();
     const kills: string[] = [];
     const autoHeroCasts: { unitId: string; abilityId: AbilityId }[] = [];
+    const obstacleDamage = new Map<string, number>();
+    const warZoneObstacles = mapType === 'arena'
+      ? useWarZoneStore.getState().obstacles
+      : [];
     let scoreDelta1 = 0;
     let scoreDelta2 = 0;
 
@@ -145,6 +155,41 @@ export function CombatSystem() {
       (patches.get(u.id)?.[key] ?? u[key]) as UnitData[K];
     const curHp = (u: UnitData) => (patches.get(u.id)?.health ?? u.health) as number;
     const isDead = (u: UnitData) => patches.get(u.id)?.state === 'dead' || u.state === 'dead';
+
+    function advanceWithCover(unit: UnitData, target: [number, number, number], step: number) {
+      if (mapType !== 'arena') {
+        const dx = target[0] - unit.position[0];
+        const dz = target[2] - unit.position[2];
+        const distance = Math.sqrt(dx * dx + dz * dz);
+        return [
+          unit.position[0] + (dx / distance) * step,
+          unit.position[1],
+          unit.position[2] + (dz / distance) * step,
+        ] as [number, number, number];
+      }
+
+      const dx = target[0] - unit.position[0];
+      const dz = target[2] - unit.position[2];
+      const distance = Math.sqrt(dx * dx + dz * dz);
+      if (distance < 0.0001) return unit.position;
+      const direct: [number, number, number] = [
+        unit.position[0] + (dx / distance) * step,
+        unit.position[1],
+        unit.position[2] + (dz / distance) * step,
+      ];
+      const blocker = findBlockingWarZoneObstacle(unit.position, direct, warZoneObstacles);
+      if (blocker) {
+        const damageMultiplier = SIEGE_TYPES.has(unit.type)
+          ? 0.95
+          : RANGED_TYPES.has(unit.type)
+            ? 0.12
+            : 0.45;
+        const damage = (UNIT_CONFIG[unit.type] ?? UNIT_CONFIG.swordsmen).damage
+          * damageMultiplier * TICK;
+        obstacleDamage.set(blocker.id, (obstacleDamage.get(blocker.id) ?? 0) + damage);
+      }
+      return resolveWarZoneMovement(unit.position, target, step, warZoneObstacles);
+    }
 
     // ── 2. Per-unit status effects + combat ─────────────────────────────────
     for (const unit of living) {
@@ -216,6 +261,51 @@ export function CombatSystem() {
       }
 
       // ── Find nearest living enemy (skip phased units) ───────────────────
+      if (unit.coverTargetId && SIEGE_TYPES.has(unit.type) && mapType === 'arena') {
+        const cover = warZoneObstacles.find(
+          (obstacle) => obstacle.id === unit.coverTargetId && !obstacle.destroyed,
+        );
+        if (!cover) {
+          patches.set(unit.id, {
+            ...patches.get(unit.id),
+            coverTargetId: undefined,
+            state: 'idle',
+          });
+          continue;
+        }
+
+        const dx = cover.position[0] - unit.position[0];
+        const dz = cover.position[2] - unit.position[2];
+        const distance = Math.sqrt(dx * dx + dz * dz);
+        if (distance <= cfg.attackRange) {
+          if (cur(unit, 'state') !== 'attack') {
+            patches.set(unit.id, { ...patches.get(unit.id), state: 'attack' });
+          }
+          const timer = attackTimers[unit.id] ?? 0;
+          if (elapsed - timer >= cfg.attackCooldown) {
+            attackTimers[unit.id] = elapsed;
+            emitProjectile(unit.position, [
+              cover.position[0] + (Math.random() - 0.5) * Math.min(cover.footprint[0], 2),
+              0,
+              cover.position[2] + (Math.random() - 0.5) * Math.min(cover.footprint[1], 2),
+            ], projectileKind(unit.type));
+            obstacleDamage.set(
+              cover.id,
+              (obstacleDamage.get(cover.id) ?? 0) + cfg.damage * commanderMult(unit, 'attack'),
+            );
+          }
+        } else {
+          const step = cfg.speed * commanderMult(unit, 'speed') * TICK;
+          patches.set(unit.id, {
+            ...patches.get(unit.id),
+            state: 'move',
+            formationFacing: Math.atan2(dx, dz),
+            position: advanceWithCover(unit, cover.position, step),
+          });
+        }
+        continue;
+      }
+
       let nearest: UnitData | null = null;
       let minDist = Infinity;
       for (const other of living) {
@@ -232,6 +322,9 @@ export function CombatSystem() {
         continue;
       }
 
+      const targetVisible = mapType !== 'arena'
+        || hasWarZoneLineOfSight(unit.position, nearest.position, warZoneObstacles);
+
       // ── LOB MODE: siege fires at forced position ─────────────────────────
       if (unit.lobTarget && SIEGE_TYPES.has(unit.type)) {
         if (cur(unit, 'state') !== 'attack') patches.set(unit.id, { ...patches.get(unit.id), state: 'attack' });
@@ -246,7 +339,7 @@ export function CombatSystem() {
         continue;
       }
 
-      const inRange = minDist <= cfg.attackRange;
+      const inRange = minDist <= cfg.attackRange && targetVisible;
 
       if (inRange) {
         // ── ATTACK ────────────────────────────────────────────────────────
@@ -266,7 +359,13 @@ export function CombatSystem() {
           if (unit.multiShotReady) {
             patches.set(unit.id, { ...patches.get(unit.id), multiShotReady: false });
             const enemies = living
-              .filter(e => e.teamId !== unit.teamId && !isDead(e) && !(patches.get(e.id)?.phaseShift || e.phaseShift))
+              .filter((e) =>
+                e.teamId !== unit.teamId
+                && !isDead(e)
+                && !(patches.get(e.id)?.phaseShift || e.phaseShift)
+                && (mapType !== 'arena'
+                  || hasWarZoneLineOfSight(unit.position, e.position, warZoneObstacles)),
+              )
               .map(e => {
                 const dx = e.position[0] - unit.position[0];
                 const dz = e.position[2] - unit.position[2];
@@ -395,12 +494,11 @@ export function CombatSystem() {
           } else {
             const step = cfg.speed * speedMult * TICK;
             const facing = Math.atan2(pdx, pdz);
-            patches.set(unit.id, { ...patches.get(unit.id), state: 'move', formationFacing: facing,
-              position: [
-                unit.position[0] + (pdx / pdist) * step,
-                unit.position[1],
-                unit.position[2] + (pdz / pdist) * step,
-              ],
+            patches.set(unit.id, {
+              ...patches.get(unit.id),
+              state: 'move',
+              formationFacing: facing,
+              position: advanceWithCover(unit, pTarget, step),
             });
           }
         } else {
@@ -436,12 +534,15 @@ export function CombatSystem() {
 
           const step = cfg.speed * speedMult * TICK;
           const facing = Math.atan2(moveX, moveZ);
-          patches.set(unit.id, { ...patches.get(unit.id), state: 'move', formationFacing: facing,
-            position: [
-              unit.position[0] + moveX * step,
+          patches.set(unit.id, {
+            ...patches.get(unit.id),
+            state: 'move',
+            formationFacing: facing,
+            position: advanceWithCover(unit, [
+              unit.position[0] + moveX * step * 4,
               unit.position[1],
-              unit.position[2] + moveZ * step,
-            ],
+              unit.position[2] + moveZ * step * 4,
+            ], step),
           });
         }
       }
@@ -542,6 +643,12 @@ export function CombatSystem() {
     // ── 5. Apply patches ───────────────────────────────────────────────────
     if (patches.size > 0 || scoreDelta1 > 0 || scoreDelta2 > 0) {
       batchCombatTick(patches, scoreDelta1, scoreDelta2);
+    }
+
+    if (obstacleDamage.size > 0) {
+      useWarZoneStore.getState().damageObstacles(
+        [...obstacleDamage].map(([id, amount]) => ({ id, amount })),
+      );
     }
 
     for (const cast of autoHeroCasts) {

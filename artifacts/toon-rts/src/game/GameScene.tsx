@@ -38,6 +38,7 @@ import { PlacedBuildings }   from './building/PlacedBuildings';
 import { RagdollSystem }     from './effects/RagdollSystem';
 import { BattleVFXOverlay }  from './effects/BattleVFXOverlay';
 import { ArenaWarzone }      from './world/ArenaWarzone';
+import { WarZoneMap }        from './world/WarZoneMap';
 import { useWorldStore }     from './store/worldStore';
 import { useGameStore }      from './store/gameStore';
 import { useFrame }        from '@react-three/fiber';
@@ -130,7 +131,12 @@ function MapAmbients() {
 function MapEnvironment() {
   const mapType = useGameStore(s => s.mapType);
   if (mapType === 'arena') {
-    return <ArenaWarzone />;
+    return (
+      <>
+        <ArenaWarzone />
+        <WarZoneMap />
+      </>
+    );
   }
   return (
     <>

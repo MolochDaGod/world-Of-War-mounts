@@ -16,6 +16,7 @@ import { MESHY_PATHS } from '@/game/characters/MeshySoldier';
 import { PIRATE_KING_PATHS } from '@/game/characters/PirateKingMesh';
 import { COMMANDER_BY_ID } from '@/game/data/CommanderDefs';
 import { EQUIPMENT_GLB } from '@/game/data/UnitMeshConfig';
+import { WAR_ZONE_REQUIRED_ASSETS } from '@/game/world/WarZoneManifest';
 
 export interface AssetLoadProgress {
   completed: number;
@@ -81,7 +82,10 @@ const BATTLEFIELD_URLS = [
   ...collectUrls(AnimalModels),
 ];
 
-const ARENA_URLS = ['/assets/environments/arena_warzone.glb'];
+const ARENA_URLS = [
+  '/assets/environments/arena_warzone.glb',
+  ...WAR_ZONE_REQUIRED_ASSETS,
+];
 
 export function getRequiredBattleAssetUrls(
   mapType: 'battlefield' | 'arena',

@@ -3,6 +3,7 @@ import { AbilityId, ABILITY_DEFS, TotemData } from '../data/AbilityDefs';
 import { COMMANDER_BY_ID, getCommandersForRace } from '../data/CommanderDefs';
 import { removeExpiredCasts } from '../diagnostics/battleMemoryDiagnostics';
 import { createUUID } from '../utils/uuid';
+import { useWarZoneStore } from './warZoneStore';
 
 export type Race = 'Barbarians' | 'Dwarves' | 'Elves' | 'Orcs' | 'Undead' | 'WesternKingdoms';
 
@@ -51,6 +52,8 @@ export interface UnitData {
   patrolB?: [number, number, number];
   patrolToB?: boolean;
   lobTarget?: [number, number, number];
+  /** A deliberate siege order against an intact War Zone blocker. */
+  coverTargetId?: string;
   // Status effects & ability state
   standGround?: boolean;
   phaseShift?: boolean;                        // untargetable by enemies
@@ -163,6 +166,7 @@ interface GameState {
   issueAttackMove:  (unitIds: string[], targetPosition: [number, number, number]) => void;
   issuePatrol:      (unitIds: string[], patrolA: [number,number,number], patrolB: [number,number,number]) => void;
   issueLob:         (unitIds: string[], target: [number, number, number]) => void;
+  issueCoverAttack: (unitIds: string[], obstacleId: string) => void;
   issueStop:        (unitIds: string[]) => void;
   toggleStandGround:(unitIds: string[]) => void;
   setCommandTarget: (pos: [number, number, number] | null) => void;
@@ -406,8 +410,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       commandTarget: targetPosition,
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead'
-          ? { ...u, targetPosition, attackMove: false,
-              patrolA: undefined, patrolB: undefined, lobTarget: undefined, state: 'move' }
+           ? { ...u, targetPosition, attackMove: false,
+               patrolA: undefined, patrolB: undefined, lobTarget: undefined,
+               coverTargetId: undefined, state: 'move' }
           : u,
       ),
     }));
@@ -419,8 +424,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       commandTarget: targetPosition,
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead'
-          ? { ...u, targetPosition, attackMove: true,
-              patrolA: undefined, patrolB: undefined, lobTarget: undefined, state: 'move' }
+           ? { ...u, targetPosition, attackMove: true,
+               patrolA: undefined, patrolB: undefined, lobTarget: undefined,
+               coverTargetId: undefined, state: 'move' }
           : u,
       ),
     }));
@@ -431,8 +437,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     set(state => ({
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead'
-          ? { ...u, patrolA, patrolB, patrolToB: true,
-              targetPosition: patrolA, attackMove: false, lobTarget: undefined, state: 'move' }
+           ? { ...u, patrolA, patrolB, patrolToB: true,
+               targetPosition: patrolA, attackMove: false, lobTarget: undefined,
+               coverTargetId: undefined, state: 'move' }
           : u,
       ),
     }));
@@ -444,7 +451,29 @@ export const useGameStore = create<GameState>((set, get) => ({
     set(state => ({
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead' && SIEGE.has(u.type)
-          ? { ...u, lobTarget: target, patrolA: undefined, patrolB: undefined, attackMove: false }
+           ? { ...u, lobTarget: target, patrolA: undefined, patrolB: undefined,
+               coverTargetId: undefined, attackMove: false }
+          : u,
+      ),
+    }));
+  },
+
+  issueCoverAttack: (unitIds, obstacleId) => {
+    const SIEGE = new Set(['catapult', 'boltThrower', 'grieeGlee']);
+    const idSet = new Set(unitIds);
+    set(state => ({
+      units: state.units.map(u =>
+        idSet.has(u.id) && u.state !== 'dead' && SIEGE.has(u.type)
+          ? {
+              ...u,
+              coverTargetId: obstacleId,
+              targetPosition: undefined,
+              patrolA: undefined,
+              patrolB: undefined,
+              lobTarget: undefined,
+              attackMove: false,
+              state: 'move',
+            }
           : u,
       ),
     }));
@@ -455,8 +484,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     set(state => ({
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead'
-          ? { ...u, targetPosition: undefined, attackMove: false,
-              patrolA: undefined, patrolB: undefined, lobTarget: undefined, state: 'idle' }
+           ? { ...u, targetPosition: undefined, attackMove: false,
+               patrolA: undefined, patrolB: undefined, lobTarget: undefined,
+               coverTargetId: undefined, state: 'idle' }
           : u,
       ),
     }));
@@ -474,6 +504,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             ? { ...u, standGround: newVal,
                 // if enabling stand ground, cancel any movement order
                 targetPosition: newVal ? undefined : u.targetPosition,
+                 coverTargetId: newVal ? undefined : u.coverTargetId,
                 state: newVal && u.state === 'move' ? 'idle' : u.state }
             : u,
         ),
@@ -775,6 +806,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   })),
 
   spawnArmies: () => {
+    useWarZoneStore.getState().resetObstacles();
     const { selectedRace, enemyRace, difficulty, playerArmy } = get();
     const diffMult = difficulty === 'easy' ? 0.7 : difficulty === 'hard' ? 1.4 : 1.0;
 
@@ -861,6 +893,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   /** Legacy default army spawn */
   spawnInitialArmies: () => {
+    useWarZoneStore.getState().resetObstacles();
     const { selectedRace, enemyRace, difficulty } = get();
     const diffMult = difficulty === 'easy' ? 0.7 : difficulty === 'hard' ? 1.4 : 1.0;
 
@@ -886,7 +919,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  resetGame: () => set({
+  resetGame: () => {
+    useWarZoneStore.getState().resetObstacles();
+    set({
     units: [], phase: 'menu',
     activeAbility: null,
     abilityTarget: null,
@@ -908,5 +943,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     preparationAssetProgress: 0,
     preparationAssetMessage: 'Waiting to load battlefield…',
     preparationAssetError: null,
-  }),
+    });
+  },
 }));

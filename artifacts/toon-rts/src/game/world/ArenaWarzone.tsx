@@ -2,7 +2,8 @@
  * ArenaWarzone — loads the arena_warzone.glb environment.
  *
  * The GLB contains baked mesh+texture for the full arena (ground, walls, towers).
- * A flat invisible Rapier plane provides physics ground for ragdolls.
+ * A large invisible Rapier plane provides physics ground for ragdolls across
+ * the expanded War Zone perimeter.
  * The arena is rotated to align FBX-style Y-up exports.
  */
 import { useGLTF } from '@react-three/drei';
@@ -35,7 +36,7 @@ export function ArenaWarzone() {
       {/* Physics ground */}
       <RigidBody type="fixed" colliders="cuboid">
         <mesh position={[0, -1, 0]} visible={false}>
-          <boxGeometry args={[200, 2, 200]} />
+          <boxGeometry args={[360, 2, 360]} />
           <meshBasicMaterial />
         </mesh>
       </RigidBody>
