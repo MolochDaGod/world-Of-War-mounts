@@ -113,7 +113,7 @@ function GLBHero({ modelPath, modelScale, position, facing, teamId }: GLBHeroPro
   });
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} position={position} rotation-y={facing}>
       <primitive object={cloned} />
     </group>
   );
@@ -152,7 +152,7 @@ function FBXHeroWithTexture({ modelPath, texturePath, modelScale, position, faci
   });
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} position={position} rotation-y={facing}>
       <primitive object={cloned} />
     </group>
   );
@@ -176,7 +176,7 @@ function FBXHeroNoTexture({ modelPath, modelScale, position, facing, teamId }: F
   });
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} position={position} rotation-y={facing}>
       <primitive object={cloned} />
     </group>
   );

@@ -21,6 +21,7 @@ type BattleSnapshot = {
   team1: ArmySummary;
   team2: ArmySummary;
   selected: UnitData | null;
+  commander: UnitData | null;
   combatElapsed: number;
 };
 
@@ -53,7 +54,10 @@ function takeSnapshot(): BattleSnapshot {
   const selected = state.units.find(unit => (
     state.selectedUnitIds.includes(unit.id) && unit.teamId === 1 && unit.state !== 'dead'
   )) ?? null;
-  return { phase: state.phase, team1, team2, selected, combatElapsed: state.combatElapsed };
+  const commander = state.units.find(unit => (
+    unit.teamId === 1 && unit.isCommander && unit.state !== 'dead'
+  )) ?? null;
+  return { phase: state.phase, team1, team2, selected, commander, combatElapsed: state.combatElapsed };
 }
 
 /**
@@ -180,6 +184,46 @@ function SelectedRegimentPanel({ unit, combatElapsed }: { unit: UnitData; combat
   );
 }
 
+function CommanderStatusPanel({ unit }: { unit: UnitData }) {
+  const commander = COMMANDER_BY_ID[unit.commanderArchetype ?? ''];
+  if (!commander) return null;
+  const hpPct = Math.max(0, Math.min(100, (unit.health / unit.maxHealth) * 100));
+
+  return (
+    <div style={{
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+      padding: '8px 10px',
+      background: 'linear-gradient(90deg, rgba(180,125,35,0.22), rgba(8,14,28,0.2))',
+      borderBottom: '1px solid rgba(255,215,0,0.22)',
+    }}>
+      <div style={{
+        width: 52, height: 52, borderRadius: 9, overflow: 'hidden', flex: '0 0 auto',
+        border: '1px solid rgba(255,215,0,0.65)', background: '#0b1020',
+        boxShadow: '0 0 14px rgba(255,194,80,0.2)',
+      }}>
+        {commander.avatarPath ? (
+          <img src={commander.avatarPath} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: '#ffd700' }}><GameIcon name="crown" size={24} /></div>
+        )}
+      </div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ color: '#f6d365', fontSize: 8, letterSpacing: '0.15em', fontWeight: 800 }}>FIELD COMMANDER</div>
+        <div style={{ color: '#fff2c4', fontFamily: "'Cinzel', serif", fontWeight: 800, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {commander.name}
+        </div>
+        <div style={{ height: 5, marginTop: 5, borderRadius: 4, background: 'rgba(0,0,0,0.45)', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${hpPct}%`, background: hpPct > 45 ? '#38d99f' : '#ff7b72' }} />
+        </div>
+        <div style={{ color: 'rgba(255,255,255,0.52)', fontSize: 8, marginTop: 3 }}>{Math.ceil(unit.health)} / {unit.maxHealth} HP · {commander.title}</div>
+      </div>
+    </div>
+  );
+}
+
 export function UnitInfoPanel() {
   const snapshot = useBattleSnapshot();
   const hasUnits = snapshot.team1.total + snapshot.team2.total > 0;
@@ -197,6 +241,7 @@ export function UnitInfoPanel() {
         </div>
       ) : (
         <>
+          {snapshot.commander && <CommanderStatusPanel unit={snapshot.commander} />}
           <ArmyColumn label="Player" color="#60a5fa" summary={snapshot.team1} />
           <div style={{ width: 1, background: 'rgba(255,215,0,0.2)', margin: '8px 0' }} />
           <ArmyColumn label="Enemy" color="#f87171" summary={snapshot.team2} />

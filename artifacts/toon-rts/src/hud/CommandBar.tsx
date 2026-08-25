@@ -1,16 +1,16 @@
 /**
- * CommandBar — slim HUD strip showing active command mode and keyboard shortcuts.
+ * CommandBar — right-side RTS order grid.
  *
- * Rendered at the bottom-left during battle phase. The user can click buttons
- * or press the corresponding key to switch modes.
+ * Clicking an order arms the next left-click in the battlefield. Move and
+ * Attack keep their M/F shortcuts; Guard and Hold are deliberately explicit
+ * buttons so they do not conflict with commander ability hotkeys.
  *
  * Shortcuts:  M = Move  |  F = Fight/Attack-Move  |  P = Patrol  |  L = Lob
  *             Escape = cancel mode (return to default)
  */
 import { useCommandMode, setCommandMode, CommandMode, MODE_LABEL } from '@/game/input/CommandMode';
 import { useGameStore } from '@/game/store/gameStore';
-import { useShallow } from 'zustand/react/shallow';
-import { GameIcon } from './GameIcon';
+import { GameIcon, type GameIconName } from './GameIcon';
 
 interface ModeBtnProps {
   label: string;
@@ -18,37 +18,43 @@ interface ModeBtnProps {
   mode: CommandMode;
   active: boolean;
   color: string;
+  icon: GameIconName;
+  disabled: boolean;
 }
 
-function ModeBtn({ label, shortcut, mode, active, color }: ModeBtnProps) {
+function ModeBtn({ label, shortcut, mode, active, color, icon, disabled }: ModeBtnProps) {
   return (
     <button
       onClick={() => setCommandMode(active ? 'default' : mode)}
-      title={`${label} [${shortcut}]`}
+      title={`${label}${shortcut ? ` [${shortcut}]` : ''} — next left-click issues this order`}
+      disabled={disabled}
       style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '1px',
-        padding: '5px 10px',
+        justifyContent: 'center',
+        gap: 3,
+        minHeight: 62,
+        padding: '6px 8px',
         border: `1.5px solid ${active ? color : 'rgba(255,255,255,0.2)'}`,
-        borderRadius: '5px',
+        borderRadius: 7,
         background: active
           ? `linear-gradient(135deg, ${color}33 0%, ${color}18 100%)`
           : 'rgba(0,0,0,0.45)',
-        color: active ? color : 'rgba(255,255,255,0.55)',
-        cursor: 'pointer',
+        color: active ? color : 'rgba(255,255,255,0.72)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
         transition: 'all 0.12s',
-        minWidth: '48px',
         boxShadow: active ? `0 0 10px ${color}55` : 'none',
         backdropFilter: 'blur(4px)',
+        opacity: disabled ? 0.42 : 1,
       }}
     >
-      <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', opacity: 0.7 }}>
-        [{shortcut}]
-      </span>
-      <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em' }}>
+      <GameIcon name={icon} size={19} />
+      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.08em' }}>
         {label}
+      </span>
+      <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.44)', minHeight: 10 }}>
+        {shortcut ? `[${shortcut}]` : 'NEXT LMB'}
       </span>
     </button>
   );
@@ -57,40 +63,25 @@ function ModeBtn({ label, shortcut, mode, active, color }: ModeBtnProps) {
 export function CommandBar() {
   const phase = useGameStore(s => s.phase);
   const mode  = useCommandMode();
-  const { selectedUnitIds, units, toggleStandGround } = useGameStore(useShallow(s => ({
-    selectedUnitIds:   s.selectedUnitIds,
-    units:             s.units,
-    toggleStandGround: s.toggleStandGround,
-  })));
+  const selectedUnitIds = useGameStore(s => s.selectedUnitIds);
 
   if (phase !== 'battle') return null;
 
   const activeLabel = MODE_LABEL[mode];
 
-  // Check if any selected unit has stand ground enabled
-  const anyStandGround = selectedUnitIds.some(id => {
-    const u = units.find(u => u.id === id);
-    return u?.standGround ?? false;
-  });
-
-  const handleStandGround = () => {
-    if (selectedUnitIds.length > 0) toggleStandGround(selectedUnitIds);
-  };
-
   return (
     <div style={{
       position: 'fixed',
-      top: '68px',
-      left: '50%',
-      transform: 'translateX(-50%)',
+      right: 18,
+      bottom: 238,
+      width: 174,
       display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center',
-      gap: '6px',
+      gap: 7,
       zIndex: 500,
       pointerEvents: 'none',
     }}>
-      {/* Active mode banner */}
+      {/* Armed-order banner */}
       {mode !== 'default' && (
         <div style={{
           background: 'rgba(0,0,0,0.75)',
@@ -103,69 +94,32 @@ export function CommandBar() {
           color: '#fff',
           backdropFilter: 'blur(6px)',
           animation: 'pulse 1.5s ease-in-out infinite',
+          textAlign: 'center',
         }}>
-           <GameIcon name="crosshair" size={12} /> {activeLabel}
-          {mode === 'patrol' ? ' — click point A, then point B' : ' — click target  [ESC to cancel]'}
+          <GameIcon name="crosshair" size={12} /> {activeLabel}
+          {mode === 'patrol' ? ' — LMB point A, then B' : ' — next LMB target'}
         </div>
       )}
 
-      {/* Shortcut buttons */}
-      <div style={{ display: 'flex', gap: '6px', pointerEvents: 'all' }}>
-        <ModeBtn label="MOVE"    shortcut="M" mode="move"   active={mode === 'move'}   color="#44aaff" />
-        <ModeBtn label="FIGHT"   shortcut="F" mode="fight"  active={mode === 'fight'}  color="#ff4444" />
-        <ModeBtn label="PATROL"  shortcut="P" mode="patrol" active={mode === 'patrol'} color="#ffaa22" />
-        <ModeBtn label="LOB"     shortcut="L" mode="lob"    active={mode === 'lob'}    color="#cc44ff" />
-
-        {/* Stand Ground toggle */}
-        <button
-          onClick={handleStandGround}
-          title="Stand Ground [S] — hold position, +25% defence"
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '1px',
-            padding: '5px 10px',
-            border: `1.5px solid ${anyStandGround ? '#66aaff' : 'rgba(255,255,255,0.2)'}`,
-            borderRadius: '5px',
-            background: anyStandGround
-              ? 'linear-gradient(135deg, #66aaff33 0%, #66aaff18 100%)'
-              : 'rgba(0,0,0,0.45)',
-            color: anyStandGround ? '#aaccff' : 'rgba(255,255,255,0.55)',
-            cursor: selectedUnitIds.length > 0 ? 'pointer' : 'default',
-            transition: 'all 0.12s',
-            minWidth: '48px',
-            boxShadow: anyStandGround ? '0 0 10px #66aaff55' : 'none',
-            backdropFilter: 'blur(4px)',
-            opacity: selectedUnitIds.length > 0 ? 1 : 0.4,
-          }}
-        >
-          <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', opacity: 0.7 }}>
-            [S]
-          </span>
-          <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em' }}>
-            <GameIcon name="shieldCheck" size={13} /> HOLD
-          </span>
-        </button>
-
-        {mode !== 'default' && (
-          <button
-            onClick={() => setCommandMode('default')}
-            style={{
-              padding: '5px 10px',
-              border: '1.5px solid rgba(255,255,255,0.25)',
-              borderRadius: '5px',
-              background: 'rgba(0,0,0,0.45)',
-              color: 'rgba(255,255,255,0.55)',
-              cursor: 'pointer',
-              fontSize: '11px',
-              fontWeight: 700,
-              backdropFilter: 'blur(4px)',
-            }}
-          >
-            [ESC] CANCEL
-          </button>
-        )}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+        gap: 6,
+        padding: 7,
+        pointerEvents: 'all',
+        background: 'linear-gradient(135deg, rgba(7,12,22,0.92), rgba(20,29,46,0.86))',
+        border: '1px solid rgba(255,215,0,0.22)',
+        borderRadius: 11,
+        boxShadow: '0 8px 24px rgba(0,0,0,0.34)',
+        backdropFilter: 'blur(9px)',
+      }}>
+        <ModeBtn label="MOVE" icon="move" shortcut="M" mode="move" active={mode === 'move'} color="#44aaff" disabled={selectedUnitIds.length === 0} />
+        <ModeBtn label="ATTACK" icon="target" shortcut="F" mode="fight" active={mode === 'fight'} color="#ff6464" disabled={selectedUnitIds.length === 0} />
+        <ModeBtn label="GUARD" icon="shield" shortcut="" mode="guard" active={mode === 'guard'} color="#d9a95f" disabled={selectedUnitIds.length === 0} />
+        <ModeBtn label="HOLD" icon="shieldCheck" shortcut="" mode="hold" active={mode === 'hold'} color="#7cbbff" disabled={selectedUnitIds.length === 0} />
+      </div>
+      <div style={{ color: 'rgba(255,255,255,0.46)', fontSize: 8, textAlign: 'center', letterSpacing: '0.04em' }}>
+        Guard / Hold: select location with next LMB
       </div>
     </div>
   );

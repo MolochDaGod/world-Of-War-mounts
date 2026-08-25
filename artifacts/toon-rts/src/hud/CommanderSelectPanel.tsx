@@ -10,7 +10,7 @@ import { useGameStore } from '@/game/store/gameStore';
 import { useShallow }   from 'zustand/react/shallow';
 import {
   CommanderDef, getCommandersForRace,
-  COMMANDER_BY_ID,
+  COMMANDER_ART, COMMANDER_BY_ID,
 } from '@/game/data/CommanderDefs';
 import { FACTION_TO_RACE } from '@/game/data/FactionData';
 import { FACTION_META, RACE_TO_FACTION } from '@/game/data/FactionData';
@@ -53,6 +53,8 @@ function CommanderCard({
   const [hover, setHover] = useState(false);
   const active = selected || hover;
   const bColor = BONUS_COLOR[def.leadershipBonus.type] ?? '#aaa';
+  const faction = RACE_TO_FACTION[def.race] ?? 'Crusade';
+  const avatar = def.avatarPath ?? FACTION_META[faction].emblem;
 
   return (
     <div
@@ -63,11 +65,15 @@ function CommanderCard({
         flex: 1,
         maxWidth: 200,
         minWidth: 150,
-        background: selected
-          ? 'rgba(255,215,0,0.12)'
-          : hover
-            ? 'rgba(255,255,255,0.06)'
-            : 'rgba(255,255,255,0.03)',
+        backgroundImage: `url(${COMMANDER_ART.containerFrame}), ${
+          selected
+            ? 'linear-gradient(135deg, rgba(255,215,0,0.16), rgba(15,18,34,0.82))'
+            : hover
+              ? 'linear-gradient(135deg, rgba(255,255,255,0.1), rgba(15,18,34,0.82))'
+              : 'linear-gradient(135deg, rgba(26,29,45,0.92), rgba(8,10,20,0.9))'
+        }`,
+        backgroundSize: '100% 100%, 100% 100%',
+        backgroundPosition: 'center',
         border: `1.5px solid ${selected ? 'rgba(255,215,0,0.7)' : active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)'}`,
         borderRadius: 10,
         padding: '14px 12px',
@@ -98,6 +104,29 @@ function CommanderCard({
         }}>
           {ARCHETYPE_LABEL[def.archetype]}
         </span>
+      </div>
+
+      <div style={{
+        height: 86,
+        borderRadius: 7,
+        overflow: 'hidden',
+        display: 'grid',
+        placeItems: 'center',
+        background: `radial-gradient(circle at 50% 35%, ${bColor}42, rgba(0,0,0,0.72) 72%)`,
+        border: `1px solid ${bColor}55`,
+        boxShadow: `inset 0 0 18px ${bColor}20`,
+      }}>
+        <img
+          src={avatar}
+          alt={`${def.name} avatar`}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            objectPosition: 'center bottom',
+            filter: 'drop-shadow(0 6px 7px rgba(0,0,0,0.55))',
+          }}
+        />
       </div>
 
       <div style={{ fontWeight: 800, fontSize: 14, color: selected ? '#ffd700' : '#fff', lineHeight: 1.2 }}>
@@ -222,9 +251,9 @@ export function CommanderSelectPanel({ faction: _, compact = false, onContinue, 
           border: `1px solid ${factionMeta.primaryColor}50`,
         }}>
           <img
-            src={factionMeta.emblem}
+            src={chosen?.avatarPath ?? COMMANDER_ART.emblem}
             alt=""
-            style={{ width: 38, height: 38, objectFit: 'contain', filter: `drop-shadow(0 0 7px ${factionMeta.primaryColor})` }}
+            style={{ width: 42, height: 42, objectFit: 'contain', filter: `drop-shadow(0 0 7px ${factionMeta.primaryColor})` }}
           />
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
@@ -256,19 +285,28 @@ export function CommanderSelectPanel({ faction: _, compact = false, onContinue, 
 
   return (
     <div style={{
-      background: 'rgba(0,0,0,0.55)',
+      backgroundImage: `url(${COMMANDER_ART.containerFrame}), linear-gradient(135deg, rgba(5,7,15,0.9), rgba(14,16,31,0.96))`,
+      backgroundSize: '100% 100%, 100% 100%',
+      backgroundPosition: 'center',
       border: '1px solid rgba(255,255,255,0.08)',
       borderRadius: 12,
       padding: '14px 14px',
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <img
+            src={COMMANDER_ART.emblem}
+            alt=""
+            style={{ width: 28, height: 28, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.45))' }}
+          />
+          <div>
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', color: '#ffd700' }}>
             FIELD COMMANDER
           </div>
           <div style={{ fontSize: 9, color: '#888', marginTop: 1 }}>
             Choose one hero to lead your army — or march without one.
+          </div>
           </div>
         </div>
         {chosen && (

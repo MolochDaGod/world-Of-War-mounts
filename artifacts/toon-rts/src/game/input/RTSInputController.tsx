@@ -4,6 +4,7 @@
  * Mouse:
  *   LMB single click on ground   → place an armed commander/ground ability
  *   LMB drag on ground           → rubber-band box select (player team 1 only)
+ *   Armed Move / Attack / Guard / Hold → next LMB issues that command
  *   RMB click                    → execute current command mode at target location
  *   MMB drag                     → camera pan (handled in RTSCamera)
  *
@@ -143,7 +144,7 @@ export function RTSInputController() {
     const executeCommand = (hit: THREE.Vector3) => {
       const store = useGameStore.getState();
       if (store.phase !== 'battle') return;
-      const { selectedUnitIds, units, issueMove, issueAttackMove, issuePatrol, issueLob, issueCoverAttack,
+      const { selectedUnitIds, units, issueMove, issueAttackMove, issueGuard, issueHold, issuePatrol, issueLob, issueCoverAttack,
                 pendingAbility, triggerAbility, setPendingAbility, setAbilityTarget,
                 activeAbility, castAbility, setActiveAbility } = store;
 
@@ -201,6 +202,18 @@ export function RTSInputController() {
 
         case 'fight':
           issueAttackMove(selectedUnitIds, dest);
+          emitMoveMarker(dest);
+          setCommandMode('default');
+          break;
+
+        case 'guard':
+          issueGuard(selectedUnitIds, dest);
+          emitMoveMarker(dest);
+          setCommandMode('default');
+          break;
+
+        case 'hold':
+          issueHold(selectedUnitIds, dest);
           emitMoveMarker(dest);
           setCommandMode('default');
           break;

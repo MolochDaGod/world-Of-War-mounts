@@ -27,7 +27,9 @@ import { GrieeGleeRegiment }      from './GrieeGleeRegiment';
 import { SkeletonWarriorRegiment } from './SkeletonWarriorRegiment';
 import { MeshyWarriorRegiment }    from './MeshyWarriorRegiment';
 import { HeroCommanderMesh }       from './HeroCommanderMesh';
+import { CaptainJohnWayneMesh }    from './CaptainJohnWayneMesh';
 import { PirateKingMesh }          from './PirateKingMesh';
+import { ScourgeFaithBearerMesh }  from './ScourgeFaithBearerMesh';
 import { getCommandMode, setCommandMode } from '@/game/input/CommandMode';
 import { reportModelDiagnostic } from '@/game/diagnostics/modelDiagnostics';
 
@@ -479,6 +481,24 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
         if (i === 0 && isCommander && commanderArchetype) {
           const cmdDef = COMMANDER_BY_ID[commanderArchetype];
           // ── Dedicated animated-component heroes ──────────────────────────
+          if (cmdDef?.heroComponentId === 'captain_john_wayne') {
+            return (
+              <Suspense
+                key={`hero-${unit.id}`}
+                fallback={
+                  <group position={pos}>
+                    <BaseFallback color={COMMANDER_COLOR} />
+                  </group>
+                }
+              >
+                <CaptainJohnWayneMesh
+                  position={pos}
+                  facing={unit.formationFacing}
+                  unitState={unit.state}
+                />
+              </Suspense>
+            );
+          }
           if (cmdDef?.heroComponentId === 'pirate_king') {
             return (
               <Suspense
@@ -490,6 +510,24 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
                 }
               >
                 <PirateKingMesh
+                  position={pos}
+                  facing={unit.formationFacing}
+                  unitState={unit.state}
+                />
+              </Suspense>
+            );
+          }
+          if (cmdDef?.heroComponentId === 'scourge_faith_bearer') {
+            return (
+              <Suspense
+                key={`hero-${unit.id}`}
+                fallback={
+                  <group position={pos}>
+                    <BaseFallback color={COMMANDER_COLOR} />
+                  </group>
+                }
+              >
+                <ScourgeFaithBearerMesh
                   position={pos}
                   facing={unit.formationFacing}
                   unitState={unit.state}

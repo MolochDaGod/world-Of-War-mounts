@@ -5,13 +5,15 @@
  *   default — RMB issues move order (normal behaviour)
  *   move    — [M] Click ground → move selected units
  *   fight   — [F] Click ground → attack-move; click enemy → focus attack
+ *   guard   — Click a friendly unit or map location → defend that location
+ *   hold    — Click a map location → march there and hold it
  *   patrol  — [P] Two clicks define patrol A→B route
  *   lob     — [L] Click ground → artillery fires at that position
  *
  * React components subscribe via useCommandMode().
  */
 
-export type CommandMode = 'default' | 'move' | 'fight' | 'patrol' | 'lob';
+export type CommandMode = 'default' | 'move' | 'fight' | 'guard' | 'hold' | 'patrol' | 'lob';
 
 // ── Module-level state ────────────────────────────────────────────────────────
 let _mode: CommandMode = 'default';
@@ -53,6 +55,8 @@ export const MODE_LABEL: Record<CommandMode, string> = {
   default: '',
   move:    'MOVE',
   fight:   'ATTACK MOVE',
+  guard:   'GUARD LOCATION',
+  hold:    'HOLD LOCATION',
   patrol:  'PATROL',
   lob:     'LOB TARGET',
 };
@@ -62,6 +66,8 @@ export const MODE_CURSOR: Record<CommandMode, string> = {
   default: 'default',
   move:    'crosshair',
   fight:   'cell',
+  guard:   'copy',
+  hold:    'not-allowed',
   patrol:  'copy',
   lob:     'zoom-in',
 };

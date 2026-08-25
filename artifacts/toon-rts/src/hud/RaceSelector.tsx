@@ -309,7 +309,7 @@ export function RaceSelector() {
         fontSize: 10, color: '#333', letterSpacing: '0.25em',
         textTransform: 'uppercase',
       }}>
-        WASD · Scroll Zoom · MMB Pan · LMB Select · RMB Move · RMB+Units = Attack-Move
+        WASD · Scroll Zoom · MMB Pan · LMB Select · M / F arm your next LMB command
       </p>
     </div>
   );

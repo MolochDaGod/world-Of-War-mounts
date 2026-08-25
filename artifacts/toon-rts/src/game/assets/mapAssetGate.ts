@@ -13,7 +13,9 @@ import {
 } from './CraftpixManifest';
 import { getMageAssets, getSoldierAssets } from './ToonRTSManifest';
 import { MESHY_PATHS } from '@/game/characters/MeshySoldier';
+import { CAPTAIN_JOHN_WAYNE_PATHS } from '@/game/characters/CaptainJohnWayneMesh';
 import { PIRATE_KING_PATHS } from '@/game/characters/PirateKingMesh';
+import { SCOURGE_FAITH_BEARER_PATHS } from '@/game/characters/ScourgeFaithBearerMesh';
 import { COMMANDER_BY_ID } from '@/game/data/CommanderDefs';
 import { EQUIPMENT_GLB } from '@/game/data/UnitMeshConfig';
 import { WAR_ZONE_REQUIRED_ASSETS } from '@/game/world/WarZoneManifest';
@@ -46,7 +48,11 @@ function unitAssetUrls(unit: UnitData): string[] {
   // These branches mirror BattleArmy's slot-zero commander renderer. A custom
   // hero replaces the normal FBX soldier entirely, so only its own files belong
   // in the readiness set.
+  if (commander?.heroComponentId === 'captain_john_wayne') return collectUrls(CAPTAIN_JOHN_WAYNE_PATHS);
   if (commander?.heroComponentId === 'pirate_king') return collectUrls(PIRATE_KING_PATHS);
+  if (commander?.heroComponentId === 'scourge_faith_bearer') {
+    return collectUrls(SCOURGE_FAITH_BEARER_PATHS);
+  }
   if (commander?.heroModelPath) {
     return [commander.heroModelPath, commander.heroTexturePath].filter(
       (path): path is string => Boolean(path),

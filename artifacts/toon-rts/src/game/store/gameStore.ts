@@ -43,6 +43,8 @@ export interface UnitData {
   type: UnitType;
   position: [number, number, number];
   targetPosition?: [number, number, number];
+  /** Once the regiment reaches this order point it stands and defends there. */
+  holdPosition?: [number, number, number];
   /** Explicit enemy target from a Fight-mode click. Takes priority over nearest-enemy scanning. */
   targetUnitId?: string;
   health: number;
@@ -189,6 +191,10 @@ interface GameState {
   issueMove:        (unitIds: string[], targetPosition: [number, number, number]) => void;
   issueAttackMove:  (unitIds: string[], targetPosition: [number, number, number]) => void;
   issueFocusAttack: (unitIds: string[], targetUnitId: string) => void;
+  /** Attack-move to a point, then stand and defend the assigned location. */
+  issueGuard:       (unitIds: string[], targetPosition: [number, number, number]) => void;
+  /** Move directly to a point, then hold it without chasing enemies. */
+  issueHold:        (unitIds: string[], targetPosition: [number, number, number]) => void;
   issuePatrol:      (unitIds: string[], patrolA: [number,number,number], patrolB: [number,number,number]) => void;
   issueLob:         (unitIds: string[], target: [number, number, number]) => void;
   issueCoverAttack: (unitIds: string[], obstacleId: string) => void;
@@ -393,7 +399,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       commandTarget: targetPosition,
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead'
-           ? { ...u, targetPosition, targetUnitId: undefined, attackMove: false,
+           ? { ...u, targetPosition, targetUnitId: undefined, holdPosition: undefined, standGround: false, attackMove: false,
                patrolA: undefined, patrolB: undefined, lobTarget: undefined,
                coverTargetId: undefined, state: 'move' }
           : u,
@@ -407,7 +413,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       commandTarget: targetPosition,
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead'
-           ? { ...u, targetPosition, targetUnitId: undefined, attackMove: true,
+           ? { ...u, targetPosition, targetUnitId: undefined, holdPosition: undefined, standGround: false, attackMove: true,
                patrolA: undefined, patrolB: undefined, lobTarget: undefined,
                coverTargetId: undefined, state: 'move' }
           : u,
@@ -427,6 +433,8 @@ export const useGameStore = create<GameState>((set, get) => ({
                 ...unit,
                 targetUnitId,
                 targetPosition: target.position,
+                holdPosition: undefined,
+                standGround: false,
                 attackMove: true,
                 patrolA: undefined,
                 patrolB: undefined,
@@ -440,12 +448,60 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
+  issueGuard: (unitIds, targetPosition) => {
+    const idSet = new Set(unitIds);
+    set(state => ({
+      commandTarget: targetPosition,
+      units: state.units.map(unit => (
+        idSet.has(unit.id) && unit.state !== 'dead'
+          ? {
+              ...unit,
+              targetPosition,
+              targetUnitId: undefined,
+              holdPosition: targetPosition,
+              standGround: false,
+              attackMove: true,
+              patrolA: undefined,
+              patrolB: undefined,
+              lobTarget: undefined,
+              coverTargetId: undefined,
+              state: 'move',
+            }
+          : unit
+      )),
+    }));
+  },
+
+  issueHold: (unitIds, targetPosition) => {
+    const idSet = new Set(unitIds);
+    set(state => ({
+      commandTarget: targetPosition,
+      units: state.units.map(unit => (
+        idSet.has(unit.id) && unit.state !== 'dead'
+          ? {
+              ...unit,
+              targetPosition,
+              targetUnitId: undefined,
+              holdPosition: targetPosition,
+              standGround: false,
+              attackMove: false,
+              patrolA: undefined,
+              patrolB: undefined,
+              lobTarget: undefined,
+              coverTargetId: undefined,
+              state: 'move',
+            }
+          : unit
+      )),
+    }));
+  },
+
   issuePatrol: (unitIds, patrolA, patrolB) => {
     const idSet = new Set(unitIds);
     set(state => ({
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead'
-            ? { ...u, targetUnitId: undefined, patrolA, patrolB, patrolToB: true,
+            ? { ...u, targetUnitId: undefined, holdPosition: undefined, standGround: false, patrolA, patrolB, patrolToB: true,
                targetPosition: patrolA, attackMove: false, lobTarget: undefined,
                coverTargetId: undefined, state: 'move' }
           : u,
@@ -459,7 +515,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set(state => ({
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead' && SIEGE.has(u.type)
-            ? { ...u, targetUnitId: undefined, lobTarget: target, patrolA: undefined, patrolB: undefined,
+            ? { ...u, targetUnitId: undefined, holdPosition: undefined, standGround: false, lobTarget: target, patrolA: undefined, patrolB: undefined,
                coverTargetId: undefined, attackMove: false }
           : u,
       ),
@@ -477,6 +533,7 @@ export const useGameStore = create<GameState>((set, get) => ({
               targetUnitId: undefined,
               coverTargetId: obstacleId,
               targetPosition: undefined,
+               holdPosition: undefined,
               patrolA: undefined,
               patrolB: undefined,
               lobTarget: undefined,
@@ -493,7 +550,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set(state => ({
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead'
-           ? { ...u, targetUnitId: undefined, targetPosition: undefined, attackMove: false,
+           ? { ...u, targetUnitId: undefined, targetPosition: undefined, holdPosition: undefined, attackMove: false,
                patrolA: undefined, patrolB: undefined, lobTarget: undefined,
                coverTargetId: undefined, state: 'idle' }
           : u,

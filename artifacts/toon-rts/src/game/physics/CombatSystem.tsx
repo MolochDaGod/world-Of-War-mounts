@@ -714,6 +714,18 @@ export function CombatSystem() {
               const nextWp = unit.patrolToB ? unit.patrolB : unit.patrolA;
               patches.set(unit.id, { ...patches.get(unit.id),
                 targetPosition: nextWp, patrolToB: !unit.patrolToB, state: 'idle' });
+            } else if (cur(unit, 'holdPosition')) {
+              // Guard and Hold finish their march by locking the regiment to
+              // the assigned location. The combat branch above still lets it
+              // fight enemies that enter its normal attack range.
+              patches.set(unit.id, {
+                ...patches.get(unit.id),
+                targetPosition: undefined,
+                holdPosition: undefined,
+                standGround: true,
+                attackMove: false,
+                state: 'idle',
+              });
             } else {
               patches.set(unit.id, { ...patches.get(unit.id), targetPosition: undefined, state: 'idle' });
             }

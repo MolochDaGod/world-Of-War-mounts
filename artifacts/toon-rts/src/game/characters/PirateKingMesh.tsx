@@ -166,7 +166,7 @@ export function PirateKingMesh({
   });
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} position={position} rotation-y={facing}>
       <primitive object={cloned} />
     </group>
   );

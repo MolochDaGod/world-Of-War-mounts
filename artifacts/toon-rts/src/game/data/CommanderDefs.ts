@@ -10,6 +10,11 @@ import type { AbilityId } from './AbilityDefs.ts';
 
 export type CommanderArchetype = 'champion' | 'warlord' | 'archmage';
 
+export const COMMANDER_ART = {
+  emblem: '/assets/generated/commanders/field-commander-emblem.png',
+  containerFrame: '/assets/generated/commanders/field-commander-container-frame.png',
+} as const;
+
 export interface LeadershipBonus {
   auraRadius:  number;
   type:        'attack' | 'defense' | 'speed';
@@ -36,9 +41,11 @@ export interface CommanderDef {
   /**
    * When set, the slot-0 interceptor renders a dedicated animated component
    * instead of the generic HeroCommanderMesh loader.
-   * Supported values: 'pirate_king'
+     * Supported values: 'captain_john_wayne', 'pirate_king', 'scourge_faith_bearer'
    */
   heroComponentId?:  string;
+  /** Generated portrait used by the commander chooser and dock. */
+  avatarPath?:       string;
   /** Two active abilities available to this commander in battle. */
   heroAbilities: [AbilityId, AbilityId];
   /** Passive bonus description shown under the commander card. */
@@ -51,17 +58,16 @@ const WK: CommanderDef[] = [
     id: 'wk_champion',
     race: 'WesternKingdoms',
     archetype: 'champion',
-    name: 'Grand Marshal',
-    title: 'Hammer of the Realm',
-    lore: 'The Grand Marshal fought at the Siege of Thornwall, holding the gate for three days. No enemy blade has yet found his throat.',
+    name: 'Captain John Wayne',
+    title: 'Captain of the Frontline',
+    lore: 'Captain John Wayne leads from the breach, turning disciplined human steel into a moving wall that never gives the enemy a clean flank.',
     meshShow: ['WK_Units_Body_E','WK_Units_Arms_D','WK_Units_head_I','WK_Units_Legs_C',
                'WK_Shield_D','WK_weapon_sword_B','WK_Units_shoulderpads_B'],
     hp: 8000,
     basedOnType: 'shieldwall',
     leadershipBonus: { auraRadius: 12, type: 'attack', multiplier: 1.20 },
-    heroModelPath:   '/assets/characters/heroes/samurai.fbx',
-    heroTexturePath: '/assets/characters/heroes/samurai_tex.png',
-    heroModelScale:  0.01,
+    heroComponentId: 'captain_john_wayne',
+    avatarPath:      '/assets/generated/commanders/commander-john-wayne-avatar.png',
     heroAbilities: ['cavalry_charge', 'shield_bash'],
     heroPassive: 'Iron Discipline — all nearby allies take 15% less damage',
   },
@@ -118,6 +124,7 @@ const BRB: CommanderDef[] = [
     basedOnType: 'swordsmen',
     leadershipBonus: { auraRadius: 10, type: 'attack', multiplier: 1.25 },
     heroComponentId: 'pirate_king',
+    avatarPath: '/assets/generated/commanders/commander-racalvin-avatar.png',
     heroAbilities: ['cavalry_charge', 'shield_bash'],
   },
   {
@@ -298,15 +305,15 @@ const UD: CommanderDef[] = [
     id: 'ud_champion',
     race: 'Undead',
     archetype: 'champion',
-    name: 'Death Knight Commander',
-    title: 'Lord of the Final March',
-    lore: 'Once a paladin of light. Now armoured in darkness, bound to an oath that outlived his life — and his mercy.',
+    name: 'Scourge Faith Bearer',
+    title: 'Bearer of the Last Oath',
+    lore: 'The Scourge Faith Bearer carries a dead faith into every battle, raising the fallen standard until the living line finally breaks.',
     meshShow: ['UD_Units_body_H','UD_Units_arms_D','UD_Units_head_H','UD_Shield_B','UD_weapon_Sword_B'],
     hp: 9000,
     basedOnType: 'shieldwall',
     leadershipBonus: { auraRadius: 12, type: 'attack', multiplier: 1.22 },
-    heroModelPath:  '/assets/characters/heroes/ore_hero.glb',
-    heroModelScale: 0.012,
+    heroComponentId: 'scourge_faith_bearer',
+    avatarPath: '/assets/generated/commanders/commander-scourge-faith-bearer-avatar.png',
     heroAbilities: ['cavalry_charge', 'shield_bash'],
   },
   {
