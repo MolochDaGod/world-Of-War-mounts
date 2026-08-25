@@ -41,6 +41,8 @@ export interface ScourgeFaithBearerMeshProps {
   position: [number, number, number];
   facing: number;
   unitState: UnitState;
+  /** Optional director-take override; avoids reducing attack and slam to one state. */
+  previewClip?: 'idle' | 'run' | 'attack' | 'slam' | 'dead';
   scale?: number;
 }
 
@@ -48,6 +50,7 @@ export function ScourgeFaithBearerMesh({
   position,
   facing,
   unitState,
+  previewClip,
   scale = 0.013,
 }: ScourgeFaithBearerMeshProps) {
   const { scene } = useGLTF(SCOURGE_FAITH_BEARER_PATHS.char);
@@ -89,21 +92,24 @@ export function ScourgeFaithBearerMesh({
   const currentAnim = useRef<string | null>(null);
 
   useEffect(() => {
-    const target = STATE_TO_CLIP[unitState] ?? 'idle';
+    const target = previewClip ?? STATE_TO_CLIP[unitState] ?? 'idle';
     if (currentAnim.current === target) return;
     const next = actions[target];
     if (!next) return;
     const previous = currentAnim.current ? actions[currentAnim.current] : null;
     previous?.fadeOut(0.22);
+    const oneShot = previewClip
+      ? target === 'attack' || target === 'slam' || target === 'dead'
+      : unitState === 'dead';
     next.reset()
-      .setLoop(unitState === 'dead' ? THREE.LoopOnce : THREE.LoopRepeat, Infinity)
+      .setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat, oneShot ? 1 : Infinity)
       .setEffectiveTimeScale(0.76)
       .setEffectiveWeight(1)
       .fadeIn(0.22)
       .play();
-    next.clampWhenFinished = unitState === 'dead';
+    next.clampWhenFinished = oneShot;
     currentAnim.current = target;
-  }, [unitState, actions]);
+  }, [unitState, actions, previewClip]);
 
   const groupRef = useRef<THREE.Group>(null);
   useFrame(() => {

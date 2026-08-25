@@ -48,10 +48,11 @@ import { useGLTF } from '@react-three/drei';
 interface Props {
   unit: UnitData;
   isSelected: boolean;
+  preserveOnDeath?: boolean;
 }
 
-export function GrieeGleeRegiment({ unit, isSelected }: Props) {
-  const alivePairs = unit.state === 'dead'
+export function GrieeGleeRegiment({ unit, isSelected, preserveOnDeath = false }: Props) {
+  const alivePairs = unit.state === 'dead' && !preserveOnDeath
     ? 0
     : Math.max(1, Math.ceil((unit.health / unit.maxHealth) * unit.maxSoldiers));
 

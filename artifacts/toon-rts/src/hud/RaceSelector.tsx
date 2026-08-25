@@ -138,7 +138,7 @@ function FactionCard({
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export function RaceSelector() {
+export function RaceSelector({ onOpenShowcase }: { onOpenShowcase?: () => void }) {
   const setSelectedRace = useGameStore(s => s.setSelectedRace);
   const setEnemyRace    = useGameStore(s => s.setEnemyRace);
   const setPhase        = useGameStore(s => s.setPhase);
@@ -181,6 +181,36 @@ export function RaceSelector() {
         }}>
           Choose Your Factions · Marshal Your Forces · Conquer
         </p>
+        {onOpenShowcase && (
+          <button
+            type="button"
+            onClick={onOpenShowcase}
+            style={{
+              marginTop: 16,
+              padding: '8px 14px',
+              border: '1px solid rgba(232,192,96,0.42)',
+              background: 'rgba(9,14,28,0.72)',
+              color: '#e8c060',
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              borderRadius: 4,
+              transition: 'transform 0.2s ease, background 0.2s ease',
+            }}
+            onMouseEnter={event => {
+              event.currentTarget.style.background = 'rgba(232,192,96,0.15)';
+              event.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={event => {
+              event.currentTarget.style.background = 'rgba(9,14,28,0.72)';
+              event.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            Enter Unit Showcase
+          </button>
+        )}
       </div>
 
       {/* ── Player faction pick ──────────────────────────────────────────── */}

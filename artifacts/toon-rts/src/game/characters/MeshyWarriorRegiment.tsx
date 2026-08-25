@@ -16,12 +16,13 @@ import { getCommandMode, setCommandMode } from '@/game/input/CommandMode';
 interface Props {
   unit: UnitData;
   isSelected: boolean;
+  preserveOnDeath?: boolean;
 }
 
-export function MeshyWarriorRegiment({ unit, isSelected }: Props) {
+export function MeshyWarriorRegiment({ unit, isSelected, preserveOnDeath = false }: Props) {
   const isCommander = !!(unit as any).isCommander;
 
-  const aliveCount = unit.state === 'dead'
+  const aliveCount = unit.state === 'dead' && !preserveOnDeath
     ? 0
     : isCommander
       ? 1

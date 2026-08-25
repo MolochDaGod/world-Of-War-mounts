@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useGameStore }     from './game/store/gameStore';
 
 const BattleMemoryStress = lazy(async () => {
@@ -31,13 +31,29 @@ const GameRuntime = lazy(async () => {
   return { default: module.GameRuntime };
 });
 
+const UnitShowcase = lazy(async () => {
+  const module = await import('./showcase/UnitShowcase');
+  return { default: module.UnitShowcase };
+});
+
 export default function App() {
   const phase = useGameStore(s => s.phase);
+  const [showcaseOpen, setShowcaseOpen] = useState(false);
   const isBattleActive = phase === 'preparation' || phase === 'battle' || phase === 'victory';
   const isMemoryStress = import.meta.env.DEV
     && new URLSearchParams(window.location.search).get('stress') === 'memory';
   const isWarZonePerformance = import.meta.env.DEV
     && new URLSearchParams(window.location.search).get('perf') === 'warzone';
+
+  if (showcaseOpen) {
+    return (
+      <div className="w-full h-screen overflow-hidden text-foreground font-sans selection:bg-amber-500/30 relative">
+        <Suspense fallback={null}>
+          <UnitShowcase onReturn={() => setShowcaseOpen(false)} />
+        </Suspense>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-screen overflow-hidden text-foreground font-sans selection:bg-amber-500/30 relative">
@@ -50,7 +66,7 @@ export default function App() {
 
       {/* 2-D overlay layers */}
       <Suspense fallback={null}>
-        {phase === 'menu'                              && <RaceSelector />}
+        {phase === 'menu'                              && <RaceSelector onOpenShowcase={() => setShowcaseOpen(true)} />}
         {phase === 'setup'                             && <ArmyBuilder />}
         {(phase === 'preparation' || phase === 'battle' || phase === 'victory') && <OpenWorldHUD />}
       </Suspense>

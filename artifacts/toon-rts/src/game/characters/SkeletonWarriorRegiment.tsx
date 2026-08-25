@@ -33,10 +33,11 @@ const SKL_EMISSIVE = '#2a2520';
 interface Props {
   unit: UnitData;
   isSelected: boolean;
+  preserveOnDeath?: boolean;
 }
 
-export function SkeletonWarriorRegiment({ unit, isSelected }: Props) {
-  const aliveCount = unit.state === 'dead'
+export function SkeletonWarriorRegiment({ unit, isSelected, preserveOnDeath = false }: Props) {
+  const aliveCount = unit.state === 'dead' && !preserveOnDeath
     ? 0
     : Math.max(1, Math.ceil((unit.health / unit.maxHealth) * unit.maxSoldiers));
 

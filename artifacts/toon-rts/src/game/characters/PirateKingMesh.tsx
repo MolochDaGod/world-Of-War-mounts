@@ -59,11 +59,13 @@ export interface PirateKingMeshProps {
   position: [number, number, number];
   facing:   number;
   unitState: UnitState;
+  /** Optional director-take override; names match the authored hero clips. */
+  previewClip?: string;
   scale?:   number;
 }
 
 export function PirateKingMesh({
-  position, facing, unitState, scale = 0.013,
+  position, facing, unitState, previewClip, scale = 0.013,
 }: PirateKingMeshProps) {
   // ── Load all GLBs (cached after first load) ──────────────────────────────
   const { scene }  = useGLTF(PIRATE_KING_PATHS.char);
@@ -138,7 +140,7 @@ export function PirateKingMesh({
 
   // ── Drive animation from unitState ───────────────────────────────────────
   useEffect(() => {
-    const target = STATE_TO_CLIP[unitState] ?? 'idle';
+    const target = previewClip ?? STATE_TO_CLIP[unitState] ?? 'idle';
     if (currentAnim.current === target) return;
 
     const next = actions[target];
@@ -147,15 +149,18 @@ export function PirateKingMesh({
     const old = currentAnim.current ? actions[currentAnim.current] : null;
     old?.fadeOut(0.3);
 
+    const oneShot = previewClip
+      ? !['idle', 'walk', 'run', 'jump_run', 'swim', 'swim_idle'].includes(target)
+      : unitState === 'dead';
     next.reset()
-      .setLoop(unitState === 'dead' ? THREE.LoopOnce : THREE.LoopRepeat, Infinity)
+      .setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat, oneShot ? 1 : Infinity)
       .setEffectiveTimeScale(ANIM_TS)
       .setEffectiveWeight(1)
       .fadeIn(0.3)
       .play();
-    next.clampWhenFinished = unitState === 'dead';
+    next.clampWhenFinished = oneShot;
     currentAnim.current = target;
-  }, [unitState, actions]);
+  }, [unitState, actions, previewClip]);
 
   // ── Sync position & rotation every frame ─────────────────────────────────
   const groupRef = useRef<THREE.Group>(null);

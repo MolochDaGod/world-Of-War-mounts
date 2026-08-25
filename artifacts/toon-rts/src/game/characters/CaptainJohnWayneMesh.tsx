@@ -40,11 +40,14 @@ export function CaptainJohnWayneMesh({
   position,
   facing,
   unitState,
+  previewClip,
   scale = 0.013,
 }: {
   position: [number, number, number];
   facing: number;
   unitState: UnitState;
+  /** Optional director-take override; avoids reducing cinematic shots to RTS state. */
+  previewClip?: 'idle' | 'run' | 'attack' | 'charge' | 'dead';
   scale?: number;
 }) {
   const { scene } = useGLTF(CAPTAIN_JOHN_WAYNE_PATHS.char);
@@ -85,20 +88,23 @@ export function CaptainJohnWayneMesh({
   const currentAnim = useRef<string | null>(null);
 
   useEffect(() => {
-    const target = STATE_TO_CLIP[unitState] ?? 'idle';
+    const target = previewClip ?? STATE_TO_CLIP[unitState] ?? 'idle';
     if (currentAnim.current === target) return;
     const next = actions[target];
     if (!next) return;
     actions[currentAnim.current ?? '']?.fadeOut(0.22);
+    const oneShot = previewClip
+      ? target === 'attack' || target === 'charge' || target === 'dead'
+      : unitState === 'dead';
     next.reset()
-      .setLoop(unitState === 'dead' ? THREE.LoopOnce : THREE.LoopRepeat, Infinity)
+      .setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat, oneShot ? 1 : Infinity)
       .setEffectiveTimeScale(0.78)
       .setEffectiveWeight(1)
       .fadeIn(0.22)
       .play();
-    next.clampWhenFinished = unitState === 'dead';
+    next.clampWhenFinished = oneShot;
     currentAnim.current = target;
-  }, [actions, unitState]);
+  }, [actions, unitState, previewClip]);
 
   const groupRef = useRef<THREE.Group>(null);
   useFrame(() => {

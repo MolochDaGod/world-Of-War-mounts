@@ -10,3 +10,4 @@
 - [Army setup flow](army-setup-flow.md) — Commander choice is the first army-setup decision, then docks as a compact bottom-right card.
 - [Battlefield readiness gate](battlefield-readiness-gate.md) — Preparation starts only after the selected map’s required assets truly load.
 - [Binary asset patch workflow](binary-asset-patch-workflow.md) — Text patch operations can remove newly copied binary assets; restore and verify them after final source edits.
+- [Showcase renderer](showcase-renderer.md) — Use the native R3F path until a Threepipe release is registry-available and compatible with the game’s Three.js version.

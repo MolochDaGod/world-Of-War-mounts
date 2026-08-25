@@ -2,6 +2,7 @@ import { useEffect, useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { AbilityTarget, useGameStore } from '../store/gameStore';
+import { ElementalParticleBurst } from '../effects/ElementalParticles';
 
 // Pre-calc ember offsets — stable, never in render
 const EMBER_COUNT = 20;
@@ -99,6 +100,12 @@ export function FireAbility({ cast }: { cast: { id: string; target: AbilityTarge
 
   return (
     <group position={[cx, 0, cz]}>
+      <ElementalParticleBurst
+        theme="fire"
+        startedAt={cast.startTime}
+        duration={2}
+        intensity={1.25}
+      />
       {/* Fire cone */}
       <group ref={groupRef}>
         <mesh material={fireMat} castShadow>

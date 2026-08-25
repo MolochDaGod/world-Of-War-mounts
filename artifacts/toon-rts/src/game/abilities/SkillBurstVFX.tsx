@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { SkillBurst } from '../store/gameStore';
+import { ElementalParticleBurst } from '../effects/ElementalParticles';
 
 export function SkillBurstVFX({ burst }: { burst: SkillBurst }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -29,6 +30,14 @@ export function SkillBurstVFX({ burst }: { burst: SkillBurst }) {
 
   return (
     <group ref={groupRef} position={[burst.position[0], 0.09, burst.position[2]]}>
+      {(burst.kind === 'flame' || burst.kind === 'impact') && (
+        <ElementalParticleBurst
+          theme={burst.kind === 'flame' ? 'fire' : 'smoke'}
+          startedAt={burst.createdAt}
+          duration={burst.duration / 1000}
+          intensity={burst.kind === 'flame' ? 1.15 : 0.95}
+        />
+      )}
       <mesh rotation={[-Math.PI / 2, 0, 0]} material={fillMat}>
         <circleGeometry args={[burst.radius, 48]} />
       </mesh>

@@ -72,6 +72,20 @@ function getAssets(unit: UnitData): SoldierAssets {
   return getSoldierAssets(unit.race, modelCat(unit.type));
 }
 
+function captainPreviewClip(clip?: string): 'idle' | 'run' | 'attack' | 'charge' | 'dead' | undefined {
+  if (clip === 'attack1' || clip === 'attack2') return 'attack';
+  if (clip === 'idle' || clip === 'run' || clip === 'attack' || clip === 'charge' || clip === 'dead') return clip;
+  if (clip === 'die') return 'dead';
+  return undefined;
+}
+
+function scourgePreviewClip(clip?: string): 'idle' | 'run' | 'attack' | 'slam' | 'dead' | undefined {
+  if (clip === 'attack1' || clip === 'attack2') return 'attack';
+  if (clip === 'idle' || clip === 'run' || clip === 'attack' || clip === 'slam' || clip === 'dead') return clip;
+  if (clip === 'die') return 'dead';
+  return undefined;
+}
+
 // ── Team toon colours ─────────────────────────────────────────────────────────
 const TEAM_COLOR: Record<1 | 2, string> = {
   1: '#4488ff',
@@ -159,6 +173,12 @@ const COMMANDER_EMISSIVE = '#cc8800';
 interface SoldierProps {
   assets: SoldierAssets;
   unitState: UnitData['state'];
+  /** Director-mode clip override; battle remains driven by UnitState. */
+  previewClip?: 'idle' | 'run' | 'attack1' | 'attack2' | 'die';
+  /** Play a single take and retain its final pose. */
+  previewOneShot?: boolean;
+  /** Keep a death take visible rather than fading the actor out. */
+  preserveOnDeath?: boolean;
   position: [number, number, number];
   facing: number;
   teamId: 1 | 2;
@@ -168,7 +188,10 @@ interface SoldierProps {
   commanderArchetype?: string;
 }
 
-function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId, race, unitType, isCommander, commanderArchetype }: SoldierProps) {
+function ToonRTSSoldierInner({
+  assets, unitState, previewClip, previewOneShot, preserveOnDeath,
+  position, facing, teamId, race, unitType, isCommander, commanderArchetype,
+}: SoldierProps) {
   // All 6 useFBX calls — cached by URL, so N soldiers only load each path once.
   const modelFBX = useFBX(assets.modelPath);
   const idleFBX  = useFBX(assets.idlePath);
@@ -333,7 +356,9 @@ function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId, race
     if (!actions) return;
 
     let clipName: string;
-    if (unitState === 'move') {
+    if (previewClip) {
+      clipName = previewClip;
+    } else if (unitState === 'move') {
       clipName = 'run';
     } else if (unitState === 'attack') {
       atkPhaseRef.current = 1 - atkPhaseRef.current;
@@ -347,21 +372,20 @@ function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId, race
     const next = actions[clipName] ?? actions['idle'] ?? Object.values(actions).find(Boolean);
     if (!next || next === curActionRef.current) return;
 
-    next.reset().setLoop(
-      unitState === 'dead' ? THREE.LoopOnce : THREE.LoopRepeat,
-      unitState === 'dead' ? 1 : Infinity,
-    );
+    const loop = !previewOneShot && unitState !== 'dead';
+    next.reset().setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
+    next.clampWhenFinished = !loop;
     if (curActionRef.current) curActionRef.current.crossFadeTo(next, 0.2, true);
     next.play();
     curActionRef.current = next;
-  }, [unitState]);
+  }, [unitState, previewClip, previewOneShot]);
 
   useFrame((_state, delta) => {
     mixerRef.current?.update(delta);
     if (!groupRef.current) return;
 
     // Fade-out on death
-    if (unitState === 'dead') {
+    if (unitState === 'dead' && !preserveOnDeath) {
       opacityRef.current = Math.max(0, opacityRef.current - delta * 0.6);
       groupRef.current.traverse(child => {
         const mesh = child as THREE.Mesh;
@@ -401,12 +425,29 @@ function ToonRTSSoldier(props: SoldierProps) {
 
 // ── Regiment (one UnitData → N soldiers in formation) ────────────────────────
 
-export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelected: boolean }) {
+export function ToonRTSRegiment({
+  unit,
+  isSelected,
+  previewClip,
+  previewOneShot,
+  preserveOnDeath,
+  showLabel = true,
+  useHeroModel = true,
+}: {
+  unit: UnitData;
+  isSelected: boolean;
+  /** May be a dedicated hero clip name; normal soldiers only use the standard names. */
+  previewClip?: string;
+  previewOneShot?: boolean;
+  preserveOnDeath?: boolean;
+  showLabel?: boolean;
+  useHeroModel?: boolean;
+}) {
   const isCommander = !!(unit as any).isCommander;
   const commanderArchetype: string | undefined = (unit as any).commanderArchetype;
 
   // Compute alive soldiers from health ratio
-  const aliveSoldiers = unit.state === 'dead'
+  const aliveSoldiers = unit.state === 'dead' && !preserveOnDeath
     ? 0
     : isCommander ? 1
     : Math.max(1, Math.ceil((unit.health / unit.maxHealth) * unit.maxSoldiers));
@@ -495,6 +536,7 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
                   position={pos}
                   facing={unit.formationFacing}
                   unitState={unit.state}
+                  previewClip={captainPreviewClip(previewClip)}
                 />
               </Suspense>
             );
@@ -513,6 +555,9 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
                   position={pos}
                   facing={unit.formationFacing}
                   unitState={unit.state}
+                  previewClip={previewClip === 'attack1' || previewClip === 'attack2'
+                    ? 'combo'
+                    : previewClip === 'die' ? 'sit' : previewClip}
                 />
               </Suspense>
             );
@@ -531,12 +576,13 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
                   position={pos}
                   facing={unit.formationFacing}
                   unitState={unit.state}
+                  previewClip={scourgePreviewClip(previewClip)}
                 />
               </Suspense>
             );
           }
           // ── Generic GLB / FBX hero (heroModelPath) ───────────────────────
-          if (cmdDef?.heroModelPath) {
+          if (cmdDef?.heroModelPath && useHeroModel) {
             return (
               <Suspense
                 key={`hero-${unit.id}`}
@@ -563,6 +609,11 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
             key={i}
             assets={assets}
             unitState={unit.state}
+            previewClip={previewClip === 'idle' || previewClip === 'run' || previewClip === 'attack1' || previewClip === 'attack2' || previewClip === 'die'
+              ? previewClip
+              : undefined}
+            previewOneShot={previewOneShot}
+            preserveOnDeath={preserveOnDeath}
             position={pos}
             facing={unit.formationFacing}
             teamId={unit.teamId}
@@ -581,11 +632,13 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
       <SelectionRing visible={isSelected} radius={ringRadius} />
 
       {/* Floating label — shows for all regiments except dead ones */}
-      <RegimentLabel
-        unit={unit}
-        aliveSoldiers={aliveSoldiers}
-        labelHeight={isCommander ? 5.5 : 4}
-      />
+      {showLabel && (
+        <RegimentLabel
+          unit={unit}
+          aliveSoldiers={aliveSoldiers}
+          labelHeight={isCommander ? 5.5 : 4}
+        />
+      )}
     </group>
   );
 }
