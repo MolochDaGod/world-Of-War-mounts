@@ -6,3 +6,4 @@
 - [Kenney building system](kenney-building-system.md) — Modular placement system: asset paths, scale factors, texture-override pattern, ghost preview, buildStore separation, GLB filenames.
 - [Toon RTS dev memory budget](toon-rts-dev-memory.md) — Keep binary assets out of Tailwind/Vite startup scans; defer battle rendering behind the phase boundary.
 - [Toon RTS alliance factions](toon-rts-alliance-factions.md) — The game has three playable alliances, not six independent factions.
+- [Canonical heroes](canonical-heroes.md) — Preserve the user-defined hero names exactly across all UI, data, and lore.

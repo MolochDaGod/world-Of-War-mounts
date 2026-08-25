@@ -3,26 +3,10 @@
  * Shows all player (teamId=1) regiments with health bars and soldier count.
  * Clicking a card selects that regiment.
  */
-import { useGameStore, UnitData, UnitType } from '@/game/store/gameStore';
+import { useGameStore, UnitData } from '@/game/store/gameStore';
 import { useShallow } from 'zustand/react/shallow';
 import { UNIT_ROSTER, getUnitName } from '@/game/data/UnitRoster';
-
-const TYPE_ICON: Record<UnitType, string> = {
-  infantry:     '⚔️',
-  swordsmen:    '⚔️',
-  spearmen:     '🗡️',
-  shieldwall:   '🛡️',
-  archers:      '🏹',
-  skirmishers:  '💨',
-  cavalry:      '🏇',
-  heavyCavalry: '⚡',
-  mage:         '🔮',
-  boltThrower:  '🎯',
-  catapult:     '💣',
-  grieeGlee:    '🪨',
-  skeletonWarrior: '💀',
-  meshyWarrior: '⚔️',
-};
+import { GameIcon, UNIT_TYPE_ICON } from './GameIcon';
 
 function RegimentCard({
   unit,
@@ -38,7 +22,7 @@ function RegimentCard({
     ? 0
     : Math.max(0, Math.ceil(hpPct * unit.maxSoldiers));
 
-  const icon = TYPE_ICON[unit.type] ?? '⚔️';
+  const icon = UNIT_TYPE_ICON[unit.type] ?? 'sword';
   const rosterIdx = UNIT_ROSTER.findIndex(u => u.type === unit.type);
   const name = getUnitName(unit.race, rosterIdx >= 0 ? rosterIdx : 0);
 
@@ -71,7 +55,7 @@ function RegimentCard({
     >
       {/* Icon + name */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={{ fontSize: 16 }}>{icon}</span>
+        <GameIcon name={icon} size={16} />
         <span style={{
           fontSize: 9, color: isDead ? '#888' : '#ddd',
           fontFamily: "'Cinzel', serif",

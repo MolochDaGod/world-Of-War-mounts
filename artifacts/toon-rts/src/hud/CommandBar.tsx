@@ -10,6 +10,7 @@
 import { useCommandMode, setCommandMode, CommandMode, MODE_LABEL } from '@/game/input/CommandMode';
 import { useGameStore } from '@/game/store/gameStore';
 import { useShallow } from 'zustand/react/shallow';
+import { GameIcon } from './GameIcon';
 
 interface ModeBtnProps {
   label: string;
@@ -103,7 +104,7 @@ export function CommandBar() {
           backdropFilter: 'blur(6px)',
           animation: 'pulse 1.5s ease-in-out infinite',
         }}>
-          ⬛ {activeLabel}
+           <GameIcon name="crosshair" size={12} /> {activeLabel}
           {mode === 'patrol' ? ' — click point A, then point B' : ' — click target  [ESC to cancel]'}
         </div>
       )}
@@ -143,7 +144,7 @@ export function CommandBar() {
             [S]
           </span>
           <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em' }}>
-            {anyStandGround ? '🛡 HOLD' : '🛡 HOLD'}
+            <GameIcon name="shieldCheck" size={13} /> HOLD
           </span>
         </button>
 

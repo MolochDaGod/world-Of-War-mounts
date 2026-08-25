@@ -1,5 +1,6 @@
 import { useGameStore } from '@/game/store/gameStore';
 import { GameUI } from '@/game/assets/CraftpixManifest';
+import { GameIcon, GameIconName } from './GameIcon';
 
 // ── Derived per-team data (all primitives, no raw units array) ──────────────
 
@@ -39,25 +40,25 @@ function ArmyColumn({ label, color, teamId }: ArmyColumnProps) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '6px' }}>
         {infantry > 0 && (
           <div style={{ fontSize: '11px', color: '#f0e8d5', display: 'flex', justifyContent: 'space-between' }}>
-            <span>⚔️ Infantry</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><GameIcon name="sword" size={13} /> Infantry</span>
             <span style={{ color: '#ffd700' }}>{infantry}</span>
           </div>
         )}
         {cavalry > 0 && (
           <div style={{ fontSize: '11px', color: '#f0e8d5', display: 'flex', justifyContent: 'space-between' }}>
-            <span>🐎 Cavalry</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><GameIcon name="move" size={13} /> Cavalry</span>
             <span style={{ color: '#ffd700' }}>{cavalry}</span>
           </div>
         )}
         {siege > 0 && (
           <div style={{ fontSize: '11px', color: '#f0e8d5', display: 'flex', justifyContent: 'space-between' }}>
-            <span>💣 Siege</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><GameIcon name="bomb" size={13} /> Siege</span>
             <span style={{ color: '#ffd700' }}>{siege}</span>
           </div>
         )}
         {mage > 0 && (
           <div style={{ fontSize: '11px', color: '#f0e8d5', display: 'flex', justifyContent: 'space-between' }}>
-            <span>🔮 Mage</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><GameIcon name="wand" size={13} /> Mage</span>
             <span style={{ color: '#ffd700' }}>{mage}</span>
           </div>
         )}
@@ -122,9 +123,9 @@ export function UnitInfoPanel() {
         </div>
       ) : (
         <>
-          <ArmyColumn label="⚔ Player" color="#60a5fa" teamId={1} />
+          <ArmyColumn label="Player" color="#60a5fa" teamId={1} />
           <div style={{ width: '1px', background: 'rgba(255,215,0,0.2)', margin: '8px 0' }} />
-          <ArmyColumn label="☠ Enemy" color="#f87171" teamId={2} />
+          <ArmyColumn label="Enemy" color="#f87171" teamId={2} />
         </>
       )}
 
@@ -144,7 +145,7 @@ export function UnitInfoPanel() {
             fontSize: '18px',
             textShadow: '0 0 20px #ffd700',
           }}>
-            🏆 Victory!
+            Victory!
           </div>
         </div>
       )}

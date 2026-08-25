@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 import { useGameStore } from '@/game/store/gameStore';
 import { ABILITY_DEFS } from '@/game/data/AbilityDefs';
 import { COMMANDER_BY_ID } from '@/game/data/CommanderDefs';
+import { ABILITY_ICON, GameIcon } from './GameIcon';
 
 function formatCooldown(seconds: number) {
   if (seconds <= 0) return 'READY';
@@ -56,7 +57,7 @@ export function HeroAbilityBar() {
         letterSpacing: '0.16em',
         textShadow: '0 1px 4px #000',
       }}>
-        ♛ {commander.name.toUpperCase()} · HERO ABILITIES
+        <GameIcon name="crown" size={12} /> {commander.name.toUpperCase()} · HERO ABILITIES
       </div>
       <div style={{
         display: 'flex',
@@ -121,7 +122,7 @@ export function HeroAbilityBar() {
               }}>
                 {commander.heroAbilities.indexOf(abilityId) + 1}
               </span>
-              <span style={{ fontSize: 19, lineHeight: 1 }}>{def.icon}</span>
+              <GameIcon name={ABILITY_ICON[abilityId]} size={19} />
               <span style={{ fontSize: 9, fontWeight: 800, lineHeight: 1.1, textAlign: 'center' }}>{def.name}</span>
               <span style={{ fontSize: 8, color: ready ? '#ddd' : '#999' }}>
                 {charges}/{def.maxCharges} · {formatCooldown(cooldown)}

@@ -77,7 +77,7 @@ export function RegimentLabel({ unit, aliveSoldiers, labelHeight }: Props) {
         textAlign: 'center',
       }}>
         {isCmd && (
-          <div style={{ fontSize: 12, marginBottom: 1, color: '#ffd700' }}>♛</div>
+          <div style={{ fontSize: 8, marginBottom: 2, color: '#ffd700', letterSpacing: '0.12em' }}>COMMANDER</div>
         )}
         <div style={{
           fontWeight: 700,

@@ -9,7 +9,7 @@ export type ProjectileKind = 'arrow' | 'bolt' | 'stone' | 'magic' | null;
 
 export interface UnitDef {
   type: UnitType;
-  icon: string;           // emoji icon for UI
+  icon: string;           // semantic icon name for generic UI
   category: ModelCategory;
   cost: number;           // gold cost
   isRanged: boolean;
@@ -25,7 +25,7 @@ export interface UnitDef {
 export const UNIT_ROSTER: UnitDef[] = [
   {
     type: 'swordsmen',
-    icon: '⚔️',
+    icon: 'sword',
     category: 'infantry',
     cost: 100,
     isRanged: false,
@@ -34,7 +34,7 @@ export const UNIT_ROSTER: UnitDef[] = [
   },
   {
     type: 'spearmen',
-    icon: '🗡️',
+    icon: 'target',
     category: 'infantry',
     cost: 120,
     isRanged: false,
@@ -43,7 +43,7 @@ export const UNIT_ROSTER: UnitDef[] = [
   },
   {
     type: 'shieldwall',
-    icon: '🛡️',
+    icon: 'shield',
     category: 'infantry',
     cost: 200,
     isRanged: false,
@@ -52,7 +52,7 @@ export const UNIT_ROSTER: UnitDef[] = [
   },
   {
     type: 'archers',
-    icon: '🏹',
+    icon: 'crosshair',
     category: 'infantry',
     cost: 150,
     isRanged: true,
@@ -61,7 +61,7 @@ export const UNIT_ROSTER: UnitDef[] = [
   },
   {
     type: 'skirmishers',
-    icon: '💨',
+    icon: 'wind',
     category: 'infantry',
     cost: 100,
     isRanged: false,
@@ -70,7 +70,7 @@ export const UNIT_ROSTER: UnitDef[] = [
   },
   {
     type: 'cavalry',
-    icon: '🏇',
+    icon: 'move',
     category: 'cavalry',
     cost: 200,
     isRanged: false,
@@ -79,7 +79,7 @@ export const UNIT_ROSTER: UnitDef[] = [
   },
   {
     type: 'heavyCavalry',
-    icon: '⚡',
+    icon: 'zap',
     category: 'cavalry',
     cost: 350,
     isRanged: false,
@@ -88,7 +88,7 @@ export const UNIT_ROSTER: UnitDef[] = [
   },
   {
     type: 'mage',
-    icon: '🔮',
+    icon: 'wand',
     category: 'infantry',
     cost: 300,
     isRanged: true,
@@ -97,7 +97,7 @@ export const UNIT_ROSTER: UnitDef[] = [
   },
   {
     type: 'boltThrower',
-    icon: '🎯',
+    icon: 'target',
     category: 'boltThrower',
     cost: 350,
     isRanged: true,
@@ -106,7 +106,7 @@ export const UNIT_ROSTER: UnitDef[] = [
   },
   {
     type: 'catapult',
-    icon: '💣',
+    icon: 'bomb',
     category: 'catapult',
     cost: 400,
     isRanged: true,
@@ -179,10 +179,10 @@ export function getUnitDescription(index: number): string {
 
 // Race icons and colours for the UI
 export const RACE_META: Record<Race, { icon: string; color: string; bgColor: string }> = {
-  Orcs:            { icon: '💀', color: '#6abf4b', bgColor: 'rgba(74,140,42,0.25)' },
-  Elves:           { icon: '🌿', color: '#6ab0de', bgColor: 'rgba(91,140,191,0.25)' },
-  WesternKingdoms: { icon: '👑', color: '#e0c060', bgColor: 'rgba(192,160,96,0.25)' },
-  Dwarves:         { icon: '⚒️', color: '#c88840', bgColor: 'rgba(139,96,64,0.25)' },
-  Barbarians:      { icon: '🔥', color: '#e05030', bgColor: 'rgba(176,48,32,0.25)' },
-  Undead:          { icon: '☠️', color: '#a070c0', bgColor: 'rgba(106,90,138,0.25)' },
+  Orcs:            { icon: 'skull', color: '#6abf4b', bgColor: 'rgba(74,140,42,0.25)' },
+  Elves:           { icon: 'leaf', color: '#6ab0de', bgColor: 'rgba(91,140,191,0.25)' },
+  WesternKingdoms: { icon: 'crown', color: '#e0c060', bgColor: 'rgba(192,160,96,0.25)' },
+  Dwarves:         { icon: 'hammer', color: '#c88840', bgColor: 'rgba(139,96,64,0.25)' },
+  Barbarians:      { icon: 'axe', color: '#e05030', bgColor: 'rgba(176,48,32,0.25)' },
+  Undead:          { icon: 'ghost', color: '#a070c0', bgColor: 'rgba(106,90,138,0.25)' },
 };

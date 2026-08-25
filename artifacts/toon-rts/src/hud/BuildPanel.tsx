@@ -14,11 +14,25 @@ import { useBuildStore } from '@/game/store/buildStore';
 import { useWorldStore } from '@/game/store/worldStore';
 import { BUILD_CATALOG, BUILD_TABS, type BuildPiece, type BuildTab } from '@/game/building/BuildCatalog';
 import { KenneyUI } from '@/game/building/KenneyManifest';
+import { GameIcon, GameIconName } from './GameIcon';
+
+const RESOURCE_ICON: Record<string, GameIconName> = {
+  wood: 'tree',
+  gold: 'coins',
+  crystal: 'gem',
+  coal: 'pickaxe',
+};
+
+const TAB_ICON: Record<BuildTab, GameIconName> = {
+  fortifications: 'castle',
+  buildings: 'hammer',
+  camp: 'landmark',
+  nature: 'tree',
+};
 
 // ── Cost label ────────────────────────────────────────────────────────────────
 function CostBadge({ piece }: { piece: BuildPiece }) {
   const resources = useWorldStore((s) => s.resources);
-  const parts: string[] = [];
   const { cost } = piece;
   const canAfford = (
     (cost.wood    === undefined || resources.wood    >= cost.wood)    &&
@@ -27,19 +41,21 @@ function CostBadge({ piece }: { piece: BuildPiece }) {
     (cost.coal    === undefined || resources.coal    >= cost.coal)
   );
 
-  if (cost.wood)    parts.push(`🪵${cost.wood}`);
-  if (cost.gold)    parts.push(`🪙${cost.gold}`);
-  if (cost.crystal) parts.push(`💎${cost.crystal}`);
-  if (cost.coal)    parts.push(`⛏️${cost.coal}`);
-
   return (
     <span style={{
       fontSize: '9px',
       color: canAfford ? '#d4af37' : '#e57373',
       whiteSpace: 'nowrap',
       lineHeight: 1,
+      display: 'inline-flex',
+      gap: 4,
+      alignItems: 'center',
     }}>
-      {parts.join(' ')}
+      {Object.entries(cost).map(([resource, amount]) => (
+        <span key={resource} style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+          <GameIcon name={RESOURCE_ICON[resource] ?? 'circle'} size={10} />{amount}
+        </span>
+      ))}
     </span>
   );
 }
@@ -79,7 +95,7 @@ function PieceButton({
       onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.94)')}
       onMouseUp={(e)   => (e.currentTarget.style.transform = 'scale(1)')}
     >
-      <span style={{ fontSize: '20px', lineHeight: 1 }}>{piece.icon}</span>
+      <GameIcon name={TAB_ICON[piece.tab]} size={20} />
       <span style={{
         fontSize: '8px',
         fontFamily: "'Cinzel', serif",
@@ -156,7 +172,7 @@ export function BuildPanel({ open, onClose }: { open: boolean; onClose: () => vo
             color: '#ffd700',
             textShadow: '0 1px 4px rgba(0,0,0,0.9)',
           }}>
-            🏗 Build Mode
+            <GameIcon name="hammer" size={15} /> Build Mode
           </span>
           <button
             onClick={() => { deactivate(); onClose(); }}
@@ -168,7 +184,7 @@ export function BuildPanel({ open, onClose }: { open: boolean; onClose: () => vo
               color: '#5b3a1c', fontWeight: 700, fontSize: '11px',
             }}
           >
-            ✕
+            <GameIcon name="x" size={12} />
           </button>
         </div>
 
@@ -190,7 +206,7 @@ export function BuildPanel({ open, onClose }: { open: boolean; onClose: () => vo
                 color: activeTab === tab.id ? '#fff' : '#3b2b1a',
               }}
             >
-              {tab.icon} {tab.label}
+              <GameIcon name={TAB_ICON[tab.id]} size={12} /> {tab.label}
             </button>
           ))}
         </div>
@@ -228,7 +244,7 @@ export function BuildPanel({ open, onClose }: { open: boolean; onClose: () => vo
             border: '1px solid rgba(255,215,0,0.2)',
           }}>
             <div style={{ color: '#ffd700', fontFamily: "'Cinzel', serif", fontSize: '11px', fontWeight: 700 }}>
-              {displayPiece.icon} {displayPiece.label}
+               <GameIcon name={TAB_ICON[displayPiece.tab]} size={13} /> {displayPiece.label}
             </div>
             <div style={{ color: '#ccc', fontSize: '10px', marginTop: '2px' }}>
               HP: {displayPiece.health} · Grid: {displayPiece.snapSize}u

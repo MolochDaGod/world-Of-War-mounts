@@ -12,6 +12,7 @@
 import { useGameStore } from '@/game/store/gameStore';
 import { getUnitAbilities, ABILITY_DEFS, AbilityId } from '@/game/data/AbilityDefs';
 import { useEffect } from 'react';
+import { ABILITY_ICON, GameIcon } from './GameIcon';
 
 /** Format seconds as 0:SS or M:SS */
 function fmtCd(secs: number) {
@@ -81,7 +82,7 @@ function AbilityBtn({ abilityId, charges, maxCharges, cdSecs, active, pending, o
       </span>
 
       {/* Icon */}
-      <span style={{ fontSize: '18px', lineHeight: 1 }}>{def.icon}</span>
+      <GameIcon name={ABILITY_ICON[abilityId]} size={18} />
 
       {/* Name */}
       <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.06em', textAlign: 'center' }}>
@@ -242,7 +243,7 @@ export function UnitAbilityBar() {
           backdropFilter: 'blur(6px)',
           animation: 'pulse 1.5s ease-in-out infinite',
         }}>
-          {ABILITY_DEFS[pendingAbility.abilityId].icon}&nbsp;
+          <GameIcon name={ABILITY_ICON[pendingAbility.abilityId]} size={14} />&nbsp;
           {ABILITY_DEFS[pendingAbility.abilityId].name} — click ground to place&nbsp;
           <span style={{ opacity: 0.5, cursor: 'pointer' }}
             onClick={() => setPending(null)}>[ESC]</span>

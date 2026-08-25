@@ -14,11 +14,12 @@ import {
 } from '@/game/data/CommanderDefs';
 import { FACTION_TO_RACE } from '@/game/data/FactionData';
 import { ABILITY_DEFS } from '@/game/data/AbilityDefs';
+import { ABILITY_ICON, GameIcon, GameIconName } from './GameIcon';
 
-const ARCHETYPE_ICON: Record<string, string> = {
-  champion: '⚔️',
-  warlord:  '🛡️',
-  archmage: '🔮',
+const ARCHETYPE_ICON: Record<string, GameIconName> = {
+  champion: 'sword',
+  warlord:  'shield',
+  archmage: 'wand',
 };
 
 const ARCHETYPE_LABEL: Record<string, string> = {
@@ -82,14 +83,14 @@ function CommanderCard({
         <div style={{
           position: 'absolute', top: 6, right: 8,
           fontSize: 14, color: '#ffd700',
-        }}>♛</div>
+        }}><GameIcon name="crown" size={14} /></div>
       )}
 
       {/* Archetype badge */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2,
       }}>
-        <span style={{ fontSize: 18 }}>{ARCHETYPE_ICON[def.archetype]}</span>
+        <GameIcon name={ARCHETYPE_ICON[def.archetype]} size={18} />
         <span style={{
           fontSize: 9, letterSpacing: '0.08em',
           color: '#888', textTransform: 'uppercase',
@@ -128,7 +129,7 @@ function CommanderCard({
         lineHeight: 1.4,
       }}>
         <span style={{ fontWeight: 700, letterSpacing: '0.06em' }}>PASSIVE · </span>
-        {def.heroPassive ?? `${def.leadershipBonus.type === 'attack' ? '⚔' : def.leadershipBonus.type === 'defense' ? '🛡' : '💨'} Leadership: +${Math.round((def.leadershipBonus.multiplier - 1) * 100)}% ${def.leadershipBonus.type} to allies within ${def.leadershipBonus.auraRadius}m`}
+         {def.heroPassive ?? `Leadership: +${Math.round((def.leadershipBonus.multiplier - 1) * 100)}% ${def.leadershipBonus.type} to allies within ${def.leadershipBonus.auraRadius}m`}
       </div>
 
       {/* Hero abilities */}
@@ -148,7 +149,7 @@ function CommanderCard({
 
       {/* Scale note */}
       <div style={{ fontSize: 8, color: '#666', marginTop: 4 }}>
-        ★ 1.5× Scale · Solo Hero Unit
+         1.5× Scale · Solo Hero Unit
       </div>
     </div>
   );
@@ -212,7 +213,7 @@ export function CommanderSelectPanel({ faction: _ }: Props) {
           }}
             onClick={() => setPlayerCommander(null)}
           >
-            ✕ Clear
+             <GameIcon name="x" size={12} /> Clear
           </div>
         )}
       </div>
@@ -236,7 +237,7 @@ export function CommanderSelectPanel({ faction: _ }: Props) {
           border: '1px solid rgba(255,215,0,0.25)',
           borderRadius: 6, fontSize: 10, color: '#ffd700',
         }}>
-          ♛ {chosen.name} will lead your forces — {Math.round((chosen.leadershipBonus.multiplier - 1) * 100)}%{' '}
+          {chosen.name} will lead your forces — {Math.round((chosen.leadershipBonus.multiplier - 1) * 100)}%{' '}
           {chosen.leadershipBonus.type} boost to allies within {chosen.leadershipBonus.auraRadius}m
         </div>
       )}

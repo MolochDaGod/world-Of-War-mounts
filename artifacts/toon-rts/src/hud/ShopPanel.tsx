@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useWorldStore } from '@/game/store/worldStore';
 import { GameUI } from '@/game/assets/CraftpixManifest';
+import { GameIcon, GameIconName } from './GameIcon';
 
 type Tab = 'upgrades' | 'buildings';
 
@@ -18,13 +19,20 @@ const STAT_COSTS: Record<string, number[]> = {
   speed:   [20, 40, 60],
 };
 
-const BUILDINGS: { id: string; label: string; icon: string; desc: string; costs: Record<string, number> }[] = [
-  { id: 'barracks',    label: 'Barracks',    icon: '🏰', desc: 'Train infantry units',        costs: { wood: 80, gold: 50  } },
-  { id: 'stable',      label: 'Stable',      icon: '🐴', desc: 'Train cavalry units',         costs: { wood: 60, gold: 80  } },
-  { id: 'mage_tower',  label: 'Mage Tower',  icon: '🔮', desc: 'Unlocks magic abilities',      costs: { wood: 40, gold: 120, crystal: 30 } },
-  { id: 'mine',        label: 'Mine',        icon: '⛏️',  desc: 'Passively gathers coal+gold', costs: { wood: 100, coal: 20 } },
-  { id: 'lumber_camp', label: 'Lumber Camp', icon: '🪵',  desc: 'Passively gathers wood',       costs: { wood: 50, gold: 30  } },
+const BUILDINGS: { id: string; label: string; icon: GameIconName; desc: string; costs: Record<string, number> }[] = [
+  { id: 'barracks',    label: 'Barracks',    icon: 'castle',  desc: 'Train infantry units',        costs: { wood: 80, gold: 50  } },
+  { id: 'stable',      label: 'Stable',      icon: 'move',    desc: 'Train cavalry units',         costs: { wood: 60, gold: 80  } },
+  { id: 'mage_tower',  label: 'Mage Tower',  icon: 'wand',    desc: 'Unlocks magic abilities',      costs: { wood: 40, gold: 120, crystal: 30 } },
+  { id: 'mine',        label: 'Mine',        icon: 'pickaxe', desc: 'Passively gathers coal+gold', costs: { wood: 100, coal: 20 } },
+  { id: 'lumber_camp', label: 'Lumber Camp', icon: 'tree',    desc: 'Passively gathers wood',       costs: { wood: 50, gold: 30  } },
 ];
+
+const RESOURCE_ICON: Record<string, GameIconName> = {
+  wood: 'tree',
+  gold: 'coins',
+  crystal: 'gem',
+  coal: 'pickaxe',
+};
 
 interface ShopPanelProps {
   onClose: () => void;
@@ -103,7 +111,7 @@ export function ShopPanel({ onClose }: ShopPanelProps) {
           justifyContent: 'center',
         }}
       >
-        ×
+        <GameIcon name="x" size={14} />
       </button>
 
       {/* Tabs */}
@@ -114,7 +122,9 @@ export function ShopPanel({ onClose }: ShopPanelProps) {
 
       {/* Resources reminder */}
       <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '10px', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
-        🪙 {Math.floor(resources.gold)} gold &nbsp;|&nbsp; 💎 {Math.floor(resources.crystal)} crystal &nbsp;|&nbsp; 🪵 {Math.floor(resources.wood)} wood
+        <GameIcon name="coins" size={13} /> {Math.floor(resources.gold)} gold &nbsp;|&nbsp;
+        <GameIcon name="gem" size={13} /> {Math.floor(resources.crystal)} crystal &nbsp;|&nbsp;
+        <GameIcon name="tree" size={13} /> {Math.floor(resources.wood)} wood
       </div>
 
       {/* ── Upgrades tab ── */}
@@ -174,7 +184,7 @@ export function ShopPanel({ onClose }: ShopPanelProps) {
                           {stat.charAt(0).toUpperCase() + stat.slice(1)} {level}/3
                         </span>
                         <span style={{ fontSize: '9px', color: maxed ? '#22c55e' : '#ffd700', textShadow: '0 1px 2px rgba(0,0,0,0.9)', lineHeight: 1.3 }}>
-                          {maxed ? 'MAX' : `🪙${cost}`}
+                           {maxed ? 'MAX' : <><GameIcon name="coins" size={11} /> {cost}</>}
                         </span>
                       </button>
                     );
@@ -205,7 +215,7 @@ export function ShopPanel({ onClose }: ShopPanelProps) {
                   opacity: affordable ? 1 : 0.6,
                 }}
               >
-                <span style={{ fontSize: '22px' }}>{b.icon}</span>
+                 <GameIcon name={b.icon} size={22} />
                 <div style={{ flex: 1 }}>
                   <div style={{ color: '#ffd700', fontFamily: "'Cinzel', serif", fontSize: '13px', fontWeight: 700 }}>
                     {b.label}
@@ -214,7 +224,7 @@ export function ShopPanel({ onClose }: ShopPanelProps) {
                   <div style={{ fontSize: '10px', color: '#f0e8d5' }}>
                     {Object.entries(b.costs).map(([k, v]) => (
                       <span key={k} style={{ marginRight: '6px' }}>
-                        {k === 'wood' ? '🪵' : k === 'gold' ? '🪙' : k === 'crystal' ? '💎' : k === 'coal' ? '⛏️' : '?'}{v}
+                         <GameIcon name={RESOURCE_ICON[k] ?? 'circle'} size={11} /> {v}
                       </span>
                     ))}
                   </div>

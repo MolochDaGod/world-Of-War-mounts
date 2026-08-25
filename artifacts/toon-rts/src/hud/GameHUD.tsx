@@ -13,14 +13,15 @@
  */
 import { memo } from 'react';
 import { useGameStore, AbilityType } from '../game/store/gameStore';
+import { ABILITY_ICON, GameIcon } from './GameIcon';
 
 // ── Static data ──────────────────────────────────────────────────────────────
-const ABILITIES: { id: AbilityType; key: string; name: string; icon: string; color: string }[] = [
-  { id: 'ice',       key: 'Q', name: 'Frost Nova',      icon: '❄',  color: '#88ccff' },
-  { id: 'lightning', key: 'E', name: 'Chain Lightning', icon: '⚡', color: '#aaffee' },
-  { id: 'meteor',    key: 'R', name: 'Meteor Strike',   icon: '☄',  color: '#ff8833' },
-  { id: 'fire',      key: 'F', name: 'Inferno',         icon: '🔥', color: '#ff4400' },
-  { id: 'wind',      key: 'T', name: 'Tornado',         icon: '🌪',  color: '#aaddcc' },
+const ABILITIES: { id: AbilityType; key: string; name: string; color: string }[] = [
+  { id: 'ice',       key: 'Q', name: 'Frost Nova',      color: '#88ccff' },
+  { id: 'lightning', key: 'E', name: 'Chain Lightning', color: '#aaffee' },
+  { id: 'meteor',    key: 'R', name: 'Meteor Strike',   color: '#ff8833' },
+  { id: 'fire',      key: 'F', name: 'Inferno',         color: '#ff4400' },
+  { id: 'wind',      key: 'T', name: 'Tornado',         color: '#aaddcc' },
 ];
 
 // ── MiniMap ───────────────────────────────────────────────────────────────────
@@ -180,7 +181,7 @@ export function GameHUD() {
             <SelectedUnitCard unitId={selectedId} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-2">
-              <span className="text-2xl opacity-30">⚔</span>
+              <GameIcon name="sword" size={24} />
               <span className="text-sm italic">Click a unit to inspect</span>
             </div>
           )}
@@ -205,7 +206,7 @@ export function GameHUD() {
                   <span className="absolute -top-2 -right-2 w-6 h-6 bg-amber-700 rounded-md flex items-center justify-center text-xs font-bold text-white shadow">
                     {ab.key}
                   </span>
-                  <span className="text-xl leading-none">{ab.icon}</span>
+                  <GameIcon name={ABILITY_ICON[ab.id]} size={20} />
                   <span className="text-[10px] text-gray-400 leading-none">{ab.name.split(' ')[0]}</span>
                 </button>
               );
@@ -222,7 +223,7 @@ export function GameHUD() {
         <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-auto">
           <div className="hud-panel p-12 rounded-3xl text-center flex flex-col gap-6">
             <h2 className="font-serif text-5xl text-amber-400">
-              {living1 === 0 ? '☠ Defeat' : '⚔ Victory'}
+              {living1 === 0 ? 'Defeat' : 'Victory'}
             </h2>
             <p className="text-gray-400 text-lg">
               {living1 === 0

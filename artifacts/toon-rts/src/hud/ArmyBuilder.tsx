@@ -9,13 +9,14 @@ import { useState, useCallback } from 'react';
 import { useGameStore, REGIMENT_DEFS } from '@/game/store/gameStore';
 import { useShallow } from 'zustand/react/shallow';
 import { CommanderSelectPanel } from './CommanderSelectPanel';
+import { GameIcon, GameIconName } from './GameIcon';
 
 // ── Map selector sub-component ────────────────────────────────────────────────
 function MapSelector() {
   const mapType    = useGameStore(s => s.mapType);
   const setMapType = useGameStore(s => s.setMapType);
 
-  const btn = (id: 'battlefield' | 'arena', label: string, icon: string) => {
+  const btn = (id: 'battlefield' | 'arena', label: string, icon: GameIconName) => {
     const active = mapType === id;
     return (
       <button
@@ -34,7 +35,7 @@ function MapSelector() {
           transition: 'all 0.18s',
         }}
       >
-        {icon} {label}
+        <GameIcon name={icon} size={13} /> {label}
       </button>
     );
   };
@@ -45,8 +46,8 @@ function MapSelector() {
         BATTLEFIELD
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
-        {btn('battlefield', 'Open Field', '🌿')}
-        {btn('arena', 'War Zone', '⚔️')}
+        {btn('battlefield', 'Open Field', 'tree')}
+        {btn('arena', 'War Zone', 'sword')}
       </div>
     </div>
   );
@@ -61,7 +62,7 @@ import type { UnitType } from '@/game/store/gameStore';
 // ── Army presets ──────────────────────────────────────────────────────────────
 interface ArmyPreset {
   label: string;
-  icon:  string;
+  icon:  GameIconName;
   desc:  string;
   units: UnitType[];
 }
@@ -70,102 +71,102 @@ interface ArmyPreset {
 const FACTION_PRESETS: Record<Faction, ArmyPreset[]> = {
   Crusade: [
     {
-      label: 'Iron Rush',  icon: '⚡',
+      label: 'Iron Rush',  icon: 'zap',
       desc:  'Twin cavalry + skirmishers flood the flanks before the enemy forms up',
       units: ['cavalry','cavalry','skirmishers','skirmishers','skirmishers','archers','swordsmen','swordsmen'],
     },
     {
-      label: 'Fortress',   icon: '🏰',
+      label: 'Fortress',   icon: 'castle',
       desc:  'Shield wall anchor + pikes + mage support — nothing gets through',
       units: ['shieldwall','shieldwall','spearmen','spearmen','mage','swordsmen','archers','archers'],
     },
     {
-      label: 'Holy Host',  icon: '✚',
+      label: 'Holy Host',  icon: 'cross',
       desc:  'Balanced crusader formation with wizard healing and heavy lancers',
       units: ['swordsmen','swordsmen','archers','spearmen','cavalry','heavyCavalry','mage','skirmishers'],
     },
   ],
   Fabled: [
     {
-      label: 'Wind Blitz', icon: '💨',
+      label: 'Wind Blitz', icon: 'wind',
       desc:  'Windrunners + forest riders exploit every gap at blinding speed',
       units: ['skirmishers','skirmishers','skirmishers','cavalry','cavalry','heavyCavalry','archers','archers'],
     },
     {
-      label: 'Arcane Rain',icon: '🌿',
+      label: 'Arcane Rain',icon: 'leaf',
       desc:  'Mage + double archers rain death from maximum range',
       units: ['mage','mage','archers','archers','archers','spearmen','shieldwall','swordsmen'],
     },
     {
-      label: 'Elven Host', icon: '🌟',
+      label: 'Elven Host', icon: 'sparkles',
       desc:  'Classic all-comers elven line — swift, versatile, lethal',
       units: ['swordsmen','swordsmen','archers','spearmen','cavalry','mage','skirmishers','heavyCavalry'],
     },
   ],
   Legion: [
     {
-      label: 'Death Wave', icon: '💀',
+      label: 'Death Wave', icon: 'skull',
       desc:  'Skirmisher wraiths + death knights surge as one unstoppable horde',
       units: ['skirmishers','skirmishers','skirmishers','heavyCavalry','heavyCavalry','swordsmen','swordsmen','mage'],
     },
     {
-      label: 'Dark Arts',  icon: '🩸',
+      label: 'Dark Arts',  icon: 'ghost',
       desc:  'Twin necromancers drain life while cavalry cleans up the wounded',
       units: ['mage','mage','heavyCavalry','cavalry','swordsmen','swordsmen','spearmen','skirmishers'],
     },
     {
-      label: 'Undead Wall',icon: '🛡',
+      label: 'Undead Wall',icon: 'shield',
       desc:  'Shields soak, mage drains, cavalry punishes anyone who breaks',
       units: ['shieldwall','shieldwall','spearmen','spearmen','mage','cavalry','swordsmen','swordsmen'],
     },
   ],
   Barbarians: [
     {
-      label: 'Berserker Rush', icon: '🔥',
+      label: 'Berserker Rush', icon: 'sparkles',
       desc:  'Swarm of berserkers and marauders crash the line before the enemy can form up',
       units: ['swordsmen','swordsmen','swordsmen','skirmishers','skirmishers','cavalry','archers','mage'],
     },
     {
-      label: 'Storm Horde',    icon: '⚡',
+      label: 'Storm Horde',    icon: 'zap',
       desc:  'Chaos riders and horse warriors hammer the flanks while shamans rain fire',
       units: ['cavalry','cavalry','heavyCavalry','skirmishers','skirmishers','mage','swordsmen','archers'],
     },
     {
-      label: 'Iron Tribe',     icon: '🪓',
+      label: 'Iron Tribe',     icon: 'axe',
       desc:  'Balanced tribal host — shield bearers hold, berserkers push, shamans support',
       units: ['shieldwall','shieldwall','swordsmen','swordsmen','spearmen','mage','archers','catapult'],
     },
   ],
   Dwarves: [
     {
-      label: 'Grudge Wall',    icon: '⚒️',
+      label: 'Grudge Wall',    icon: 'hammer',
       desc:  'Ironbreakers anchor the centre while the grudge thrower decides the battle',
       units: ['shieldwall','shieldwall','swordsmen','swordsmen','catapult','archers','archers','mage'],
     },
     {
-      label: 'Gunline',        icon: '💨',
+      label: 'Gunline',        icon: 'crosshair',
       desc:  'Thunderers and organ guns shred everything before it reaches your lines',
       units: ['archers','archers','archers','boltThrower','shieldwall','spearmen','swordsmen','mage'],
     },
     {
-      label: 'Iron Host',      icon: '🛡',
+      label: 'Iron Host',      icon: 'shield',
       desc:  'Full battle line — ironclad cavalry protects the flanks while hammerers grind forward',
       units: ['swordsmen','swordsmen','shieldwall','spearmen','cavalry','heavyCavalry','mage','catapult'],
     },
   ],
   Orcs: [
     {
-      label: 'Wolf Blitz',     icon: '🐺',
+      label: 'Wolf Blitz',     icon: 'move',
       desc:  'Wolf riders and armored raiders crash the flanks before the enemy can breathe',
       units: ['cavalry','cavalry','heavyCavalry','skirmishers','skirmishers','swordsmen','mage','grieeGlee'],
     },
     {
-      label: 'Warlock Storm',  icon: '☠️',
+      label: 'Warlock Storm',  icon: 'skull',
       desc:  'Warlocks and bolt hurlers devastate from range while orc warriors soak damage',
       units: ['mage','mage','boltThrower','swordsmen','swordsmen','shieldwall','skirmishers','cavalry'],
     },
     {
-      label: 'Green Tide',     icon: '💚',
+      label: 'Green Tide',     icon: 'leaf',
       desc:  'Sheer numbers — orc warriors, runners, and troll peons overwhelm any defence',
       units: ['swordsmen','swordsmen','swordsmen','skirmishers','skirmishers','spearmen','cavalry','grieeGlee'],
     },
@@ -267,7 +268,7 @@ function UnitCard({
         marginTop: 'auto',
       }}>
         <span style={{ fontSize: 11, color: canAfford ? '#ffd700' : '#666', fontWeight: 700 }}>
-          💰 {unit.cost}
+           <GameIcon name="coins" size={13} /> {unit.cost}
         </span>
         {canAfford && (
           <span style={{
@@ -291,14 +292,14 @@ function UnitCard({
 }
 
 // ── Section header ────────────────────────────────────────────────────────────
-function SectionHeader({ icon, label, color }: { icon: string; label: string; color: string }) {
+function SectionHeader({ icon, label, color }: { icon: GameIconName; label: string; color: string }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 8,
       padding: '6px 0 8px',
       marginBottom: 6,
     }}>
-      <span style={{ fontSize: 16 }}>{icon}</span>
+      <GameIcon name={icon} size={16} />
       <span style={{
         fontSize: 10, fontWeight: 700, letterSpacing: '0.2em',
         color, textTransform: 'uppercase',
@@ -481,7 +482,7 @@ export function ArmyBuilder() {
           border: '1px solid rgba(255,215,0,0.25)',
           borderRadius: 8, padding: '5px 12px',
         }}>
-          <span style={{ fontSize: 16 }}>💰</span>
+          <GameIcon name="coins" size={16} />
           <span style={{
             fontSize: 18, fontWeight: 700, color: '#ffd700',
             fontFamily: "'Cinzel', serif",
@@ -550,7 +551,7 @@ export function ArmyBuilder() {
             fontSize: 8, color: '#555', letterSpacing: '0.15em',
             marginBottom: 7, textTransform: 'uppercase',
           }}>
-            ⚡ Quick Deploy
+            <GameIcon name="zap" size={12} /> Quick Deploy
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {FACTION_PRESETS[playerFaction]?.map(preset => (
@@ -580,7 +581,7 @@ export function ArmyBuilder() {
                   e.currentTarget.style.color = '#ccc';
                 }}
               >
-                <span style={{ fontSize: 18 }}>{preset.icon}</span>
+      <GameIcon name={preset.icon} size={18} />
                 <span style={{
                   fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
                   fontFamily: "'Cinzel', serif",
@@ -596,7 +597,7 @@ export function ArmyBuilder() {
         </div>
 
         {/* INFANTRY */}
-        <SectionHeader icon="⚔️" label="Infantry" color={factionMeta.primaryColor} />
+        <SectionHeader icon="sword" label="Infantry" color={factionMeta.primaryColor} />
         <div style={{
           display: 'flex', gap: 10, flexWrap: 'nowrap',
           overflowX: 'auto', paddingBottom: 12,
@@ -613,7 +614,7 @@ export function ArmyBuilder() {
         </div>
 
         {/* MOUNTED */}
-        <SectionHeader icon="🐴" label="Mounted" color={factionMeta.primaryColor} />
+        <SectionHeader icon="move" label="Mounted" color={factionMeta.primaryColor} />
         <div style={{
           display: 'flex', gap: 10, flexWrap: 'nowrap',
           overflowX: 'auto', paddingBottom: 12,
@@ -630,7 +631,7 @@ export function ArmyBuilder() {
         </div>
 
         {/* SIEGE */}
-        <SectionHeader icon="💣" label="Siege" color={factionMeta.primaryColor} />
+        <SectionHeader icon="bomb" label="Siege" color={factionMeta.primaryColor} />
         <div style={{
           display: 'flex', gap: 10, flexWrap: 'nowrap',
           overflowX: 'auto', paddingBottom: 12,
@@ -704,7 +705,7 @@ export function ArmyBuilder() {
                 : 'none',
             }}
           >
-            ⚔ BATTLE
+            <GameIcon name="sword" size={15} /> BATTLE
           </button>
         </div>
 

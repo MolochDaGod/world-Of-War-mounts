@@ -1,15 +1,16 @@
 import { useGameStore, AbilityType } from '@/game/store/gameStore';
 import { GameUI } from '@/game/assets/CraftpixManifest';
+import { ABILITY_ICON, GameIcon } from './GameIcon';
 
-const ABILITIES: { id: AbilityType; key: string; name: string; icon: string; color: string }[] = [
-  { id: 'ice',       key: 'Q', name: 'Frost Nova',      icon: '❄️',  color: '#88ccff' },
-  { id: 'lightning', key: 'E', name: 'Chain Lightning', icon: '⚡',  color: '#aaffee' },
-  { id: 'meteor',    key: 'R', name: 'Meteor Strike',   icon: '☄️',  color: '#ff8833' },
-  { id: 'fire',      key: 'F', name: 'Inferno',         icon: '🔥',  color: '#ff4400' },
-  { id: 'wind',      key: 'T', name: 'Tornado',         icon: '🌪️',  color: '#aaddcc' },
-  { id: 'poison',      key: 'G', name: 'Poison Cloud',  icon: '☠️',  color: '#66dd22' },
-  { id: 'thunder',     key: 'H', name: 'Thunder Strike', icon: '🌩️', color: '#99ccff' },
-  { id: 'flame_blast', key: 'Y', name: 'Flame Blast',   icon: '🔥',  color: '#ff6600' },
+const ABILITIES: { id: AbilityType; key: string; name: string; color: string }[] = [
+  { id: 'ice',       key: 'Q', name: 'Frost Nova',      color: '#88ccff' },
+  { id: 'lightning', key: 'E', name: 'Chain Lightning', color: '#aaffee' },
+  { id: 'meteor',    key: 'R', name: 'Meteor Strike',   color: '#ff8833' },
+  { id: 'fire',      key: 'F', name: 'Inferno',         color: '#ff4400' },
+  { id: 'wind',      key: 'T', name: 'Tornado',         color: '#aaddcc' },
+  { id: 'poison',    key: 'G', name: 'Poison Cloud',    color: '#66dd22' },
+  { id: 'thunder',   key: 'H', name: 'Thunder Strike',  color: '#99ccff' },
+  { id: 'flame_blast', key: 'Y', name: 'Flame Blast',   color: '#ff6600' },
 ];
 
 export function AbilityHotbar() {
@@ -84,7 +85,7 @@ export function AbilityHotbar() {
             }}>
               {ab.key}
             </span>
-            <span style={{ fontSize: '20px', lineHeight: 1 }}>{ab.icon}</span>
+            <GameIcon name={ABILITY_ICON[ab.id]} size={20} />
             <span style={{
               fontSize: '9px',
               color: active ? '#ffd700' : '#9ca3af',

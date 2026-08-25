@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useWorldStore } from '@/game/store/worldStore';
 import { GameUI } from '@/game/assets/CraftpixManifest';
+import { GameIcon, GameIconName } from './GameIcon';
 
 function AnimatedValue({ value }: { value: number }) {
   const [flash, setFlash] = useState(false);
@@ -39,12 +40,12 @@ export function ResourceBar() {
   // avoid 60fps re-renders cascading through the HUD layer.
   const resources = useWorldStore(s => s.resources);
 
-  const items = [
-    { icon: '🪵', label: 'Wood',    value: resources.wood    },
-    { icon: '🪙', label: 'Gold',    value: resources.gold    },
-    { icon: '💎', label: 'Crystal', value: resources.crystal },
-    { icon: '⛏️', label: 'Coal',    value: resources.coal    },
-    { icon: '🍖', label: 'Food',    value: resources.food    },
+  const items: { icon: GameIconName; label: string; value: number }[] = [
+    { icon: 'tree',    label: 'Wood',    value: resources.wood    },
+    { icon: 'coins',   label: 'Gold',    value: resources.gold    },
+    { icon: 'gem',     label: 'Crystal', value: resources.crystal },
+    { icon: 'pickaxe', label: 'Coal',    value: resources.coal    },
+    { icon: 'utensils',label: 'Food',    value: resources.food    },
   ];
 
   return (
@@ -76,7 +77,7 @@ export function ResourceBar() {
             borderRight: i < items.length - 1 ? '1px solid rgba(255,215,0,0.2)' : 'none',
           }}
         >
-          <span style={{ fontSize: '15px', lineHeight: 1 }}>{item.icon}</span>
+          <GameIcon name={item.icon} size={15} strokeWidth={2} />
           <AnimatedValue value={item.value} />
         </div>
       ))}

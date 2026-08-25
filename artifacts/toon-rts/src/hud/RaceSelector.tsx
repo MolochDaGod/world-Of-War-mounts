@@ -10,6 +10,7 @@ import {
   Faction, FACTION_META, FACTION_DISPLAY, FACTION_TO_RACE,
   FACTION_ALLY_DISPLAY, PLAYABLE_FACTIONS,
 } from '../game/data/FactionData';
+import { GameIcon } from './GameIcon';
 
 const FACTIONS: Faction[] = PLAYABLE_FACTIONS;
 
@@ -194,7 +195,7 @@ export function RaceSelector() {
           <span style={{
             fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
             color: '#4a9eff', textTransform: 'uppercase',
-          }}>⚔ Your Faction</span>
+          }}><GameIcon name="sword" size={13} /> Your Faction</span>
           <div style={{
             height: 1, flex: 1,
             background: 'linear-gradient(90deg,rgba(74,158,255,0.4),transparent)',
@@ -241,7 +242,7 @@ export function RaceSelector() {
           <span style={{
             fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
             color: '#e03030', textTransform: 'uppercase',
-          }}>☠ Enemy Faction</span>
+          }}><GameIcon name="skull" size={13} /> Enemy Faction</span>
           <div style={{
             height: 1, flex: 1,
             background: 'linear-gradient(90deg,rgba(224,48,48,0.4),transparent)',

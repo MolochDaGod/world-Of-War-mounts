@@ -17,6 +17,7 @@ import { CombatTimer }           from './CombatTimer';
 import { UnitAbilityBar }        from './UnitAbilityBar';
 import { HeroAbilityBar }        from './HeroAbilityBar';
 import { useBuildStore }          from '@/game/store/buildStore';
+import { GameIcon }               from './GameIcon';
 
 // ── Time of day display ────────────────────────────────────────────────────────
 // Polls getState() at 1Hz instead of subscribing to timeOfDay (written at 60fps
@@ -59,7 +60,7 @@ function TimeOfDay() {
         textShadow: '0 1px 4px rgba(0,0,0,0.9)',
       }}
     >
-      <span style={{ fontSize: '18px' }}>{isNight ? '🌙' : '☀️'}</span>
+      <GameIcon name={isNight ? 'moon' : 'sun'} size={18} />
       <span>Day {dayCount}</span>
       <span style={{ opacity: 0.75, fontVariantNumeric: 'tabular-nums' }}>{timeStr}</span>
     </div>
@@ -99,7 +100,7 @@ function BuildButton({ onClick, active }: { onClick: () => void; active: boolean
       onMouseUp={e    => (e.currentTarget.style.transform = 'scale(1)')}
       title="Toggle Build Mode (B)"
     >
-      🏗 Build
+      <GameIcon name="hammer" size={15} /> Build
     </button>
   );
 }
@@ -132,7 +133,7 @@ function PauseButton({ paused, onToggle }: { paused: boolean; onToggle: () => vo
       onMouseUp={e    => (e.currentTarget.style.transform = 'scale(1)')}
       title={paused ? 'Resume' : 'Pause'}
     >
-      {paused ? '▶' : '⏸'}
+      <GameIcon name={paused ? 'play' : 'pause'} size={16} />
     </button>
   );
 }
@@ -167,7 +168,7 @@ function ShopButton({ onClick }: { onClick: () => void }) {
       onMouseDown={e  => (e.currentTarget.style.transform = 'scale(0.97)')}
       onMouseUp={e    => (e.currentTarget.style.transform = 'scale(1)')}
     >
-      🏪 Shop
+      <GameIcon name="store" size={15} /> Shop
     </button>
   );
 }
@@ -311,7 +312,7 @@ export function OpenWorldHUD() {
               }}
             >
               <div style={{ fontFamily: "'Cinzel', serif", fontSize: '32px', color: '#ffd700', marginBottom: '8px' }}>
-                ⏸ Paused
+                <GameIcon name="pause" size={26} /> Paused
               </div>
               <button
                 onClick={() => setPaused(false)}
