@@ -13,6 +13,7 @@ import {
   COMMANDER_BY_ID,
 } from '@/game/data/CommanderDefs';
 import { FACTION_TO_RACE } from '@/game/data/FactionData';
+import { FACTION_META, RACE_TO_FACTION } from '@/game/data/FactionData';
 import { ABILITY_DEFS } from '@/game/data/AbilityDefs';
 import { ABILITY_ICON, GameIcon, GameIconName } from './GameIcon';
 
@@ -174,9 +175,13 @@ function StatPill({ label, value, color }: { label: string; value: string; color
 interface Props {
   /** Which faction's race to show commanders for. Falls back to selectedRace. */
   faction?: string;
+  /** Compact selected-commander chip used after the first setup step. */
+  compact?: boolean;
+  onContinue?: () => void;
+  onEdit?: () => void;
 }
 
-export function CommanderSelectPanel({ faction: _ }: Props) {
+export function CommanderSelectPanel({ faction: _, compact = false, onContinue, onEdit }: Props) {
   const { selectedRace, playerCommander, setPlayerCommander } = useGameStore(
     useShallow(s => ({
       selectedRace:      s.selectedRace,
@@ -187,6 +192,67 @@ export function CommanderSelectPanel({ faction: _ }: Props) {
 
   const commanders = getCommandersForRace(selectedRace);
   const chosen     = playerCommander ? COMMANDER_BY_ID[playerCommander] : null;
+  const selectedFaction = RACE_TO_FACTION[selectedRace] ?? 'Crusade';
+  const factionMeta = FACTION_META[selectedFaction];
+
+  if (compact) {
+    return (
+      <div style={{
+        position: 'fixed',
+        right: 18,
+        bottom: 18,
+        zIndex: 70,
+        width: 'min(310px, calc(100vw - 36px))',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 12px',
+        background: 'linear-gradient(135deg, rgba(18,20,34,0.98), rgba(9,11,20,0.98))',
+        border: `1px solid ${factionMeta.primaryColor}88`,
+        borderRadius: 12,
+        boxShadow: `0 12px 35px rgba(0,0,0,0.45), 0 0 22px ${factionMeta.glowColor}`,
+        backdropFilter: 'blur(14px)',
+        animation: 'commanderDock 360ms cubic-bezier(0.16, 1, 0.3, 1) both',
+      }}>
+        <div style={{
+          width: 48, height: 48, flexShrink: 0,
+          display: 'grid', placeItems: 'center',
+          borderRadius: 9,
+          background: `${factionMeta.primaryColor}18`,
+          border: `1px solid ${factionMeta.primaryColor}50`,
+        }}>
+          <img
+            src={factionMeta.emblem}
+            alt=""
+            style={{ width: 38, height: 38, objectFit: 'contain', filter: `drop-shadow(0 0 7px ${factionMeta.primaryColor})` }}
+          />
+        </div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 8, color: factionMeta.primaryColor, letterSpacing: '0.15em', fontWeight: 800 }}>
+            FIELD COMMANDER
+          </div>
+          <div style={{ color: '#fff', fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {chosen?.name ?? 'No commander'}
+          </div>
+          <div style={{ color: '#8f95a8', fontSize: 9, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {chosen?.title ?? 'Choose a hero to lead your army'}
+          </div>
+        </div>
+        <button
+          onClick={onEdit}
+          title="Change commander"
+          style={{
+            flexShrink: 0, background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.16)', borderRadius: 7,
+            color: '#d9dce5', cursor: 'pointer', padding: '7px 9px',
+            fontSize: 9, fontWeight: 700,
+          }}
+        >
+          Change
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -240,6 +306,30 @@ export function CommanderSelectPanel({ faction: _ }: Props) {
           {chosen.name} will lead your forces — {Math.round((chosen.leadershipBonus.multiplier - 1) * 100)}%{' '}
           {chosen.leadershipBonus.type} boost to allies within {chosen.leadershipBonus.auraRadius}m
         </div>
+      )}
+
+      {onContinue && (
+        <button
+          disabled={!chosen}
+          onClick={onContinue}
+          style={{
+            width: '100%',
+            marginTop: 14,
+            padding: '12px 16px',
+            borderRadius: 8,
+            border: `1px solid ${chosen ? '#ffd700aa' : 'rgba(255,255,255,0.1)'}`,
+            background: chosen ? 'linear-gradient(135deg, #8a6416, #c99a2e)' : 'rgba(255,255,255,0.05)',
+            color: chosen ? '#fff8dc' : '#555',
+            cursor: chosen ? 'pointer' : 'not-allowed',
+            fontFamily: "'Cinzel', serif",
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: '0.1em',
+            boxShadow: chosen ? '0 0 18px rgba(255,215,0,0.22)' : 'none',
+          }}
+        >
+          <GameIcon name="check" size={14} /> CONFIRM COMMANDER &amp; VIEW ARMY
+        </button>
       )}
     </div>
   );

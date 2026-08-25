@@ -9,7 +9,7 @@ import { useState, useCallback } from 'react';
 import { useGameStore, REGIMENT_DEFS } from '@/game/store/gameStore';
 import { useShallow } from 'zustand/react/shallow';
 import { CommanderSelectPanel } from './CommanderSelectPanel';
-import { GameIcon, GameIconName } from './GameIcon';
+import { GameIcon, GameIconName, UNIT_TYPE_ICON } from './GameIcon';
 
 // ── Map selector sub-component ────────────────────────────────────────────────
 function MapSelector() {
@@ -199,12 +199,29 @@ function UnitCard({
   unit: FactionUnit; gold: number; alreadyInArmy: number; onAdd: () => void;
 }) {
   const [hover, setHover] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
   const canAfford = gold >= unit.cost;
   const regDef = REGIMENT_DEFS[unit.type] ?? REGIMENT_DEFS.swordsmen;
+  const raceLabel: Record<string, string> = {
+    WesternKingdoms: 'Human',
+    Elves: 'Elf',
+    Undead: 'Undead',
+    Barbarians: 'Barbarian',
+    Dwarves: 'Dwarf',
+    Orcs: 'Orc',
+  };
 
   return (
     <div
+      role="button"
+      tabIndex={canAfford ? 0 : -1}
       onClick={canAfford ? onAdd : undefined}
+      onKeyDown={e => {
+        if (canAfford && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onAdd();
+        }
+      }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -217,40 +234,51 @@ function UnitCard({
         cursor: canAfford ? 'pointer' : 'default',
         opacity: canAfford ? 1 : 0.4,
         transition: 'all 0.15s',
-        width: 108, flexShrink: 0,
+        width: '100%', minWidth: 0, minHeight: 315,
         position: 'relative',
+        outline: 'none',
+        textAlign: 'left',
       }}
     >
       {/* Portrait */}
       <div style={{
-        width: '100%', height: 80, marginBottom: 6,
+        width: '100%', height: 132, marginBottom: 8,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         borderRadius: 6,
-        background: 'rgba(0,0,0,0.25)',
+        background: `radial-gradient(circle at 50% 35%, ${factionMetaColor(unit.race)}22, rgba(0,0,0,0.42) 72%)`,
+        border: `1px solid ${factionMetaColor(unit.race)}32`,
         overflow: 'hidden',
       }}>
-        <img
-          src={unit.icon}
-          alt={unit.name}
-          style={{ height: '100%', width: '100%', objectFit: 'contain' }}
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
-          }}
-        />
+        {imageFailed
+          ? <GameIcon name={UNIT_TYPE_ICON[unit.type] ?? 'sword'} size={54} strokeWidth={1.35} />
+          : <img
+              src={resolveUnitPortrait(unit)}
+              alt={`${unit.name} portrait`}
+              loading="eager"
+              style={{
+                height: '100%', width: '100%',
+                objectFit: unit.race === 'Barbarians' || unit.race === 'Dwarves' ? 'cover' : 'contain',
+                imageRendering: 'auto',
+              }}
+              onError={() => setImageFailed(true)}
+            />}
       </div>
 
       {/* Name */}
       <div style={{
-        fontSize: 10, fontWeight: 700, color: '#f0e8d5',
+        fontSize: 12, fontWeight: 800, color: '#f0e8d5',
         fontFamily: "'Cinzel', serif", lineHeight: 1.2,
-        marginBottom: 3, textAlign: 'center',
+        marginBottom: 4, textAlign: 'left',
       }}>{unit.name}</div>
 
       {/* Soldiers + type */}
       <div style={{
-        fontSize: 9, color: '#888', textAlign: 'center', marginBottom: 5,
+        fontSize: 9, color: '#a5aaba', marginBottom: 7,
       }}>
-        {unit.maxSoldiers} {unit.maxSoldiers === 1 ? 'engine' : 'men'}
+        <span style={{ color: factionMetaColor(unit.race), fontWeight: 700 }}>
+          {raceLabel[unit.race ?? ''] ?? unit.race}
+        </span>
+        {' · '}{unit.maxSoldiers} {unit.maxSoldiers === 1 ? 'engine' : 'troops'}
         {' · '}{unit.isRanged ? 'Ranged' : 'Melee'}
       </div>
 
@@ -260,6 +288,15 @@ function UnitCard({
         <StatBar label="DEF" value={unit.statDefense} />
         <StatBar label="SPD" value={unit.statSpeed} />
         {unit.isRanged && <StatBar label="RNG" value={unit.statRange} />}
+      </div>
+
+      <div style={{
+        minHeight: 30, marginBottom: 7,
+        color: hover ? '#c8ccda' : '#777d8e',
+        fontSize: 9, lineHeight: 1.35,
+        transition: 'color 0.15s',
+      }}>
+        {unit.lore}
       </div>
 
       {/* Cost row */}
@@ -289,6 +326,46 @@ function UnitCard({
       )}
     </div>
   );
+}
+
+function factionMetaColor(race?: string) {
+  const colors: Record<string, string> = {
+    WesternKingdoms: '#4a9eff',
+    Elves: '#3dcc6e',
+    Undead: '#cc44cc',
+    Barbarians: '#e05030',
+    Dwarves: '#c88840',
+    Orcs: '#6abf4b',
+  };
+  return colors[race ?? ''] ?? '#ffd700';
+}
+
+/**
+ * The newer allied rosters use their verified faction art until individual crops
+ * are available, so a unit card never collapses to a blank image area.
+ */
+function resolveUnitPortrait(unit: FactionUnit) {
+  if (unit.race === 'Barbarians') return '/assets/unit-icons/barbarian.png';
+  if (unit.race === 'Dwarves') return '/assets/unit-icons/dwarf.png';
+
+  if (unit.race === 'Orcs') {
+    const byType: Partial<Record<UnitType, string>> = {
+      swordsmen: '/assets/unit-icons/orc_warrior.png',
+      archers: '/assets/unit-icons/orc_archer.png',
+      spearmen: '/assets/unit-icons/orc_warrior.png',
+      shieldwall: '/assets/unit-icons/orc_paladin.png',
+      skirmishers: '/assets/unit-icons/orc_merc.png',
+      cavalry: '/assets/unit-icons/wolf_mount.png',
+      heavyCavalry: '/assets/unit-icons/orc_paladin.png',
+      mage: '/assets/unit-icons/orc_mage.png',
+      boltThrower: '/assets/unit-icons/orc_archer.png',
+      catapult: '/assets/unit-icons/orc_warrior.png',
+      grieeGlee: '/assets/unit-icons/orc_warrior.png',
+    };
+    return byType[unit.type] ?? '/assets/unit-icons/orc_warrior.png';
+  }
+
+  return unit.icon;
 }
 
 // ── Section header ────────────────────────────────────────────────────────────
@@ -328,7 +405,7 @@ function ArmySlot({
         position: 'relative',
       }}
     >
-      <img src={unit.icon} alt={unit.name}
+      <img src={resolveUnitPortrait(unit)} alt={unit.name}
         style={{ width: 38, height: 38, objectFit: 'contain' }}
         onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }}
       />
@@ -357,6 +434,7 @@ function EmptySlot() {
 
 // ── Main ArmyBuilder ──────────────────────────────────────────────────────────
 export function ArmyBuilder() {
+  const [commanderConfirmed, setCommanderConfirmed] = useState(false);
   // Store primitives — individual selectors
   const selectedRace = useGameStore(s => s.selectedRace);
   const enemyRace    = useGameStore(s => s.enemyRace);
@@ -539,10 +617,34 @@ export function ArmyBuilder() {
         </div>
       </div>
 
+      {!commanderConfirmed ? (
+        <div style={{
+          flex: 1, overflowY: 'auto', display: 'flex',
+          alignItems: 'center', justifyContent: 'center',
+          padding: '28px 24px 40px',
+          background: 'radial-gradient(ellipse at 50% 30%, rgba(255,215,0,0.06), transparent 58%)',
+        }}>
+          <div style={{ width: 'min(980px, 100%)' }}>
+            <div style={{ textAlign: 'center', marginBottom: 18 }}>
+              <div style={{
+                color: factionMeta.primaryColor, fontSize: 10, fontWeight: 800,
+                letterSpacing: '0.24em', textTransform: 'uppercase',
+              }}>
+                Step 1 · Choose your commander
+              </div>
+              <div style={{ color: '#858b9e', fontSize: 12, marginTop: 7 }}>
+                Your hero is selected first and stays with you while you build the army.
+              </div>
+            </div>
+            <CommanderSelectPanel onContinue={() => setCommanderConfirmed(true)} />
+          </div>
+        </div>
+      ) : (
+      <>
       {/* ── BODY: unit picker ───────────────────────────────────────────── */}
       <div style={{
         flex: 1, display: 'flex', flexDirection: 'column',
-        overflow: 'hidden', padding: '12px 20px 0',
+        overflowY: 'auto', padding: '14px 24px 16px',
       }}>
 
         {/* ── QUICK DEPLOY presets ─────────────────────────────────────── */}
@@ -599,8 +701,9 @@ export function ArmyBuilder() {
         {/* INFANTRY */}
         <SectionHeader icon="sword" label="Infantry" color={factionMeta.primaryColor} />
         <div style={{
-          display: 'flex', gap: 10, flexWrap: 'nowrap',
-          overflowX: 'auto', paddingBottom: 12,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+          gap: 10, paddingBottom: 18,
         }}>
           {infantry.map(unit => (
             <UnitCard
@@ -616,8 +719,9 @@ export function ArmyBuilder() {
         {/* MOUNTED */}
         <SectionHeader icon="move" label="Mounted" color={factionMeta.primaryColor} />
         <div style={{
-          display: 'flex', gap: 10, flexWrap: 'nowrap',
-          overflowX: 'auto', paddingBottom: 12,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+          gap: 10, paddingBottom: 18,
         }}>
           {mounted.map(unit => (
             <UnitCard
@@ -633,8 +737,9 @@ export function ArmyBuilder() {
         {/* SIEGE */}
         <SectionHeader icon="bomb" label="Siege" color={factionMeta.primaryColor} />
         <div style={{
-          display: 'flex', gap: 10, flexWrap: 'nowrap',
-          overflowX: 'auto', paddingBottom: 12,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+          gap: 10, paddingBottom: 6,
         }}>
           {siege.map(unit => (
             <UnitCard
@@ -715,12 +820,13 @@ export function ArmyBuilder() {
           Click a regiment to add · Click army slot to remove · {playerArmy.length === 8 ? '⚠ FULL — remove a regiment to add another' : `${8 - playerArmy.length} slots free`}
         </div>
 
-        {/* Map + Commander selection */}
-        <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ marginTop: 12 }}>
           <MapSelector />
-          <CommanderSelectPanel />
         </div>
       </div>
+      <CommanderSelectPanel compact onEdit={() => setCommanderConfirmed(false)} />
+      </>
+      )}
     </div>
   );
 }

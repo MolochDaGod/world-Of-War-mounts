@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { useWorldStore } from '@/game/store/worldStore';
-import { GameUI } from '@/game/assets/CraftpixManifest';
 import { GameIcon, GameIconName } from './GameIcon';
 
 function AnimatedValue({ value }: { value: number }) {
@@ -52,17 +51,16 @@ export function ResourceBar() {
     <div
       className="pointer-events-auto"
       style={{
-        backgroundImage: `url('${GameUI.table2}')`,
-        backgroundSize: '100% 100%',
-        backgroundRepeat: 'no-repeat',
-        height: '52px',
-        minWidth: '600px',
-        maxWidth: '820px',
+        background: 'linear-gradient(135deg, rgba(8,13,25,0.94), rgba(18,27,45,0.88))',
+        border: '1px solid rgba(255,215,0,0.22)',
+        borderRadius: '12px',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.28)',
+        minHeight: '42px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '0px',
-        padding: '0 36px',
+        gap: '2px',
+        padding: '6px 8px',
         position: 'relative',
       }}
     >
@@ -72,17 +70,24 @@ export function ResourceBar() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '4px',
-            padding: '0 10px',
+            gap: '5px',
+            padding: '0 8px',
             borderRight: i < items.length - 1 ? '1px solid rgba(255,215,0,0.2)' : 'none',
           }}
         >
           <GameIcon name={item.icon} size={15} strokeWidth={2} />
+          <span style={{
+            color: 'rgba(240,232,213,0.58)',
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+          }}>
+            {item.label}
+          </span>
           <AnimatedValue value={item.value} />
         </div>
       ))}
-
-      {/* Day/time divider */}
     </div>
   );
 }

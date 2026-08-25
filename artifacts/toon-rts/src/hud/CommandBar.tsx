@@ -80,7 +80,7 @@ export function CommandBar() {
   return (
     <div style={{
       position: 'fixed',
-      bottom: '76px',
+      top: '68px',
       left: '50%',
       transform: 'translateX(-50%)',
       display: 'flex',

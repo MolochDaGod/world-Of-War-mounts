@@ -1,5 +1,4 @@
 import { useGameStore } from '@/game/store/gameStore';
-import { GameUI } from '@/game/assets/CraftpixManifest';
 import { GameIcon, GameIconName } from './GameIcon';
 
 // ── Derived per-team data (all primitives, no raw units array) ──────────────
@@ -98,9 +97,11 @@ export function UnitInfoPanel() {
     <div
       className="pointer-events-auto"
       style={{
-        backgroundImage: `url('${GameUI.table1}')`,
-        backgroundSize: '100% 100%',
-        backgroundRepeat: 'no-repeat',
+        background: 'linear-gradient(135deg, rgba(7,12,22,0.93), rgba(20,29,46,0.86))',
+        border: '1px solid rgba(255,215,0,0.2)',
+        borderRadius: '12px',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.32)',
+        backdropFilter: 'blur(8px)',
         width: '320px',
         minHeight: '110px',
         display: 'flex',

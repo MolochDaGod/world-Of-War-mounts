@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from '@/game/store/gameStore';
+import { createUUID } from '@/game/utils/uuid';
 import { emitMoveMarker } from '@/game/effects/MoveMarker';
 import {
   getCommandMode, setCommandMode,
@@ -135,7 +136,7 @@ export function RTSInputController() {
         const dest: [number, number, number] = [hit.x, 0, hit.z];
         if (pendingAbility.abilityId === 'holy_totem') {
           placeTotem({
-            id: `totem_${Date.now()}`,
+            id: createUUID('totem'),
             position: dest,
             teamId: 1, // player is always team 1
             radius: 14,

@@ -116,3 +116,14 @@
 .hud-panel {
   @apply bg-[#0f141e]/85 backdrop-blur-md border border-[#ffffff1a] shadow-lg text-[#f0e8d5];
 }
+
+@keyframes commanderDock {
+  from {
+    opacity: 0;
+    transform: translate(42px, 26px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}

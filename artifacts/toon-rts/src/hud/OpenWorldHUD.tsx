@@ -208,28 +208,28 @@ export function OpenWorldHUD() {
             top: 0,
             left: 0,
             right: 0,
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
+            display: 'grid',
+            gridTemplateColumns: '1fr auto 1fr',
+            alignItems: 'start',
             padding: '12px 16px',
             pointerEvents: 'none',
           }}
         >
-          {/* Left spacer */}
-          <div style={{ width: '120px' }} />
-
-          {/* Center — Resource Bar */}
-          <div style={{ pointerEvents: 'auto' }}>
+          {/* Left — resources */}
+          <div style={{ pointerEvents: 'auto', justifySelf: 'start' }}>
             <ResourceBar />
           </div>
 
-          {/* Right — Time + Pause + Shop */}
+          {/* Center — reserved for the battle timer */}
+          <div />
+
+          {/* Right — time + game controls */}
           <div
             style={{
               display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-end',
+              alignItems: 'center',
               gap: '8px',
+              justifySelf: 'end',
               pointerEvents: 'none',
             }}
           >
@@ -253,37 +253,79 @@ export function OpenWorldHUD() {
             bottom: 0,
             left: 0,
             right: 0,
-            display: 'flex',
+            display: 'grid',
+            gridTemplateColumns: 'minmax(240px, 1fr) minmax(360px, 2fr) minmax(180px, 280px)',
             alignItems: 'flex-end',
-            justifyContent: 'space-between',
+            gap: '16px',
             padding: '12px 16px',
             pointerEvents: 'none',
           }}
         >
-          {/* Bottom-left — Unit info */}
+          {/* Bottom-left — selected army summary */}
           <div style={{ pointerEvents: 'auto' }}>
             <UnitInfoPanel />
           </div>
 
-          {/* Bottom-center — Regiment bar + Ability hotbar */}
+          {/* Bottom-center — regiment command deck */}
           <div
             style={{
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              gap: '6px',
+              justifyContent: 'center',
+              minWidth: 0,
               pointerEvents: 'auto',
             }}
           >
-            <UnitAbilityBar />
             <RegimentBar />
-            <HeroAbilityBar />
-            <AbilityHotbar />
           </div>
 
-          {/* Bottom-right — MiniMap */}
+          {/* Bottom-right — minimap */}
           <div style={{ pointerEvents: 'auto' }}>
             <MiniMap />
+          </div>
+        </div>
+
+        {/* ── Ability dock ── */}
+        <div style={{
+          position: 'absolute',
+          left: '50%',
+          bottom: '132px',
+          transform: 'translateX(-50%)',
+          width: 'min(760px, calc(100vw - 380px))',
+          minWidth: 360,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 6,
+          padding: '8px 10px',
+          background: 'rgba(5,8,16,0.62)',
+          border: '1px solid rgba(255,215,0,0.12)',
+          borderRadius: 12,
+          backdropFilter: 'blur(8px)',
+          pointerEvents: 'none',
+        }}>
+          <div style={{
+            width: '100%',
+            color: 'rgba(255,255,255,0.42)',
+            fontSize: 8,
+            fontWeight: 800,
+            letterSpacing: '0.18em',
+            textAlign: 'center',
+          }}>
+            ABILITIES
+          </div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            width: '100%',
+            flexWrap: 'wrap',
+            pointerEvents: 'auto',
+          }}>
+            <UnitAbilityBar />
+            <HeroAbilityBar />
+            <AbilityHotbar />
           </div>
         </div>
 

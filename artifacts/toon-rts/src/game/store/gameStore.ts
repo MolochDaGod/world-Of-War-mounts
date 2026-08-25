@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { AbilityId, ABILITY_DEFS, TotemData } from '../data/AbilityDefs';
 import { COMMANDER_BY_ID, getCommandersForRace } from '../data/CommanderDefs';
 import { removeExpiredCasts } from '../diagnostics/battleMemoryDiagnostics';
+import { createUUID } from '../utils/uuid';
 
 export type Race = 'Barbarians' | 'Dwarves' | 'Elves' | 'Orcs' | 'Undead' | 'WesternKingdoms';
 
@@ -28,6 +29,8 @@ export type Difficulty = 'easy' | 'normal' | 'hard';
 
 export interface UnitData {
   id: string;
+  /** Canonical entity UUID. Kept alongside id for explicit entity identity. */
+  uuid: string;
   race: Race;
   type: UnitType;
   position: [number, number, number];
@@ -167,8 +170,7 @@ interface GameState {
   regenAbilityCharges:(unitId: string, now: number) => void;
 }
 
-let uidCounter = 0;
-function uid() { return `u_${++uidCounter}`; }
+function uid() { return createUUID(); }
 
 function initialAbilityCharges(abilityIds: AbilityId[]) {
   return Object.fromEntries(
@@ -254,8 +256,10 @@ function buildUnits(army: RegimentSlot[], race: Race, teamId: 1 | 2, diffMult: n
   return army.map((slot, i) => {
     const def  = REGIMENT_DEFS[slot.unitType] ?? REGIMENT_DEFS.swordsmen;
     const hp   = Math.round((slot.hpOverride ?? def.hp) * diffMult);
+    const uuid = uid();
     return {
-      id: uid(),
+      id: uuid,
+      uuid,
       race: slot.race ?? race,
       type: slot.unitType,
       position: positions[i] ?? [0, 0, teamId === 1 ? 20 : -20],
@@ -322,7 +326,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   castAbility: (type, target) => set((state) => ({
     activeCasts: [...state.activeCasts, {
-      id: `cast_${Date.now()}_${Math.floor(Math.random() * 999)}`,
+      id: createUUID('cast'),
       type, target, startTime: Date.now(),
     }],
   })),
@@ -588,7 +592,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           // Add burst VFX for each caster
           for (const caster of casters) {
             newBursts = [...newBursts, {
-              id: `burst_${Date.now()}_${caster.id}`,
+              id: createUUID('burst'),
               position: caster.position,
               radius: 22,
               createdAt: Date.now(),
@@ -738,8 +742,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Spawn commander hero unit if one was chosen
     const { playerCommander } = get();
     const cmdDef = playerCommander ? COMMANDER_BY_ID[playerCommander] : null;
+    const cmdUuid = uid();
     const cmdUnit: UnitData[] = cmdDef ? [{
-      id: uid(),
+      id: cmdUuid,
+      uuid: cmdUuid,
       race: selectedRace,
       type: 'swordsmen',
       position: [0, 0, 18],
@@ -761,8 +767,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Spawn a random enemy commander for the AI
     const enemyCommanders = getCommandersForRace(enemyRace);
     const enemyCmdDef = enemyCommanders[Math.floor(Math.random() * enemyCommanders.length)] ?? null;
+    const enemyCmdUuid = uid();
     const enemyCmdUnit: UnitData[] = enemyCmdDef ? [{
-      id: uid(),
+      id: enemyCmdUuid,
+      uuid: enemyCmdUuid,
       race: enemyRace,
       type: 'swordsmen',
       position: [0, 0, -18],

@@ -7,3 +7,4 @@
 - [Toon RTS dev memory budget](toon-rts-dev-memory.md) — Keep binary assets out of Tailwind/Vite startup scans; defer battle rendering behind the phase boundary.
 - [Toon RTS alliance factions](toon-rts-alliance-factions.md) — The game has three playable alliances, not six independent factions.
 - [Canonical heroes](canonical-heroes.md) — Preserve the user-defined hero names exactly across all UI, data, and lore.
+- [Army setup flow](army-setup-flow.md) — Commander choice is the first army-setup decision, then docks as a compact bottom-right card.

@@ -46,6 +46,10 @@ export default defineConfig({
       // Single shared Three.js instance — prevents "Multiple instances" errors
       // and makes the manualChunks match reliable (one canonical path).
       'three': path.resolve(import.meta.dirname, 'node_modules/three'),
+      // Drei re-exports its optional Stats helper from its package barrel. The
+      // installed ESM stats.js build has no default export, so provide the
+      // compatible no-op class used by the unused debug overlay.
+      'stats.js': path.resolve(import.meta.dirname, 'src/game/compat/dreiStats.ts'),
     },
     dedupe: ['react', 'react-dom', 'three', '@react-three/fiber', '@react-three/drei'],
   },

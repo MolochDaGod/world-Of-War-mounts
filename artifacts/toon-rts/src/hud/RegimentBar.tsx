@@ -32,6 +32,8 @@ function RegimentCard({
   return (
     <button
       onClick={onClick}
+      data-unit-uuid={unit.uuid}
+      aria-label={`${name}${isDead ? ', routed' : ''}`}
       style={{
         background: isSelected
           ? 'rgba(255,215,0,0.18)'
