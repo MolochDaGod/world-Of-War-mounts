@@ -329,9 +329,12 @@ export function OpenWorldHUD() {
             pointerEvents: 'auto',
           }}>
             {isPreparation ? (
-              <span style={{ color: 'rgba(255,255,255,0.68)', fontSize: 11, letterSpacing: '0.04em' }}>
-                Inspect your army and set your view. Combat orders unlock when deployment ends.
-              </span>
+              <>
+                <span style={{ color: 'rgba(255,255,255,0.68)', fontSize: 11, letterSpacing: '0.04em' }}>
+                  Inspect your army and set your view. Combat orders unlock when deployment ends.
+                </span>
+                <UnitAbilityBar />
+              </>
             ) : (
               <>
                 <UnitAbilityBar />

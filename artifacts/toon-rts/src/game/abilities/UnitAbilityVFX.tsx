@@ -7,12 +7,14 @@ import { HealTotem } from './HealTotem';
 import { NaturesBountyVFX } from './NaturesBounty';
 import { LifeDrainAura } from './LifeDrainAura';
 import { StandGroundEffect } from './StandGroundEffect';
+import { SkillBurstVFX } from './SkillBurstVFX';
 import { useFrame } from '@react-three/fiber';
 import { useRef } from 'react';
 
 export function UnitAbilityVFX() {
   const totems       = useGameStore(s => s.totems);
   const bountyBursts = useGameStore(s => s.bountyBursts);
+  const skillBursts  = useGameStore(s => s.skillBursts);
   const units        = useGameStore(s => s.units);
   const elapsed      = useGameStore(s => s.combatElapsed);
 
@@ -31,6 +33,7 @@ export function UnitAbilityVFX() {
     if (t - lastClean.current > 1) {
       lastClean.current = t;
       useGameStore.getState().expireBountyBursts(Date.now());
+      useGameStore.getState().expireSkillBursts(Date.now());
     }
   });
 
@@ -44,6 +47,11 @@ export function UnitAbilityVFX() {
       {/* Fabled nature's bounty bursts */}
       {bountyBursts.map(burst => (
         <NaturesBountyVFX key={burst.id} burst={burst} />
+      ))}
+
+      {/* Direct regiment and commander skill hits */}
+      {skillBursts.map(burst => (
+        <SkillBurstVFX key={burst.id} burst={burst} />
       ))}
 
       {/* Legion life drain aura */}

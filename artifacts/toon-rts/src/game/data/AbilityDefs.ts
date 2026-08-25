@@ -26,6 +26,8 @@ export type AbilityId =
   | 'life_drain'       // Necromancer  — toggle vampiric aura
   | 'death_strike'     // Death Knights — 3× damage + bleed
   | 'phase_shift'      // Wraiths      — invulnerable 3 s
+  | 'arcane_burst'     // Mages        — ground-targeted damage + slow
+  | 'siege_barrage'    // Siege crews  — ground-targeted damage + stun
   // Commander heroes
   | 'shield_wall'      // Warlords     — nearby allies gain damage reduction
   | 'formation_lock'   // Warlords     — nearby allies hold their formation
@@ -34,6 +36,20 @@ export type AbilityId =
   ;
 
 export type AbilityTargeting = 'ground' | 'self' | 'toggle';
+export type SkillVfxKind = 'arcane' | 'flame' | 'frost' | 'impact' | 'nature' | 'shockwave';
+export type SkillTargetTeam = 'ally' | 'enemy' | 'both';
+
+export interface AreaEffectSpec {
+  radius: number;
+  targetTeam: SkillTargetTeam;
+  damage?: number;
+  heal?: number;
+  slowPercent?: number;
+  stunDuration?: number;
+  statusDuration?: number;
+  falloff?: boolean;
+  vfx: SkillVfxKind;
+}
 
 export interface AbilityDef {
   id: AbilityId;
@@ -46,6 +62,10 @@ export interface AbilityDef {
   cooldownPerCharge: number; // seconds per charge recharge
   targeting: AbilityTargeting;
   faction: Race | 'all'; // which faction can use it
+  /** Only explicitly marked, non-ground skills may be used by autonomous AI. */
+  autonomous?: boolean;
+  areaEffect?: AreaEffectSpec;
+  attackEffect?: AreaEffectSpec;
 }
 
 export const ABILITY_DEFS: Record<AbilityId, AbilityDef> = {
@@ -63,6 +83,10 @@ export const ABILITY_DEFS: Record<AbilityId, AbilityDef> = {
      shortcut: 'X', icon: 'shield', color: '#aaccff',
     maxCharges: 1, cooldownPerCharge: 22, targeting: 'self',
     faction: 'WesternKingdoms',
+    areaEffect: {
+      radius: 8, targetTeam: 'enemy', damage: 150, slowPercent: 0.3,
+      statusDuration: 5, falloff: true, vfx: 'impact',
+    },
   },
   cavalry_charge: {
     id: 'cavalry_charge', name: 'Charge',
@@ -70,6 +94,9 @@ export const ABILITY_DEFS: Record<AbilityId, AbilityDef> = {
      shortcut: 'Z', icon: 'zap', color: '#ffcc44',
     maxCharges: 2, cooldownPerCharge: 18, targeting: 'self',
     faction: 'WesternKingdoms',
+    attackEffect: {
+      radius: 5, targetTeam: 'enemy', damage: 95, falloff: true, vfx: 'shockwave',
+    },
   },
 
   // ── Fabled ─────────────────────────────────────────────────────────────────
@@ -79,6 +106,9 @@ export const ABILITY_DEFS: Record<AbilityId, AbilityDef> = {
      shortcut: 'Z', icon: 'leaf', color: '#44ff88',
     maxCharges: 1, cooldownPerCharge: 50, targeting: 'self',
     faction: 'Elves',
+    areaEffect: {
+      radius: 22, targetTeam: 'ally', heal: 350, falloff: false, vfx: 'nature',
+    },
   },
   multi_shot: {
     id: 'multi_shot', name: 'Multi-Shot',
@@ -118,6 +148,30 @@ export const ABILITY_DEFS: Record<AbilityId, AbilityDef> = {
     faction: 'Undead',
   },
 
+  // ── Shared regiment skills ─────────────────────────────────────────────────
+  arcane_burst: {
+    id: 'arcane_burst', name: 'Arcane Burst',
+    description: 'Detonate a focused rune for 260 damage and a 25% slow in a 9-unit radius',
+    shortcut: 'C', icon: 'wand', color: '#b388ff',
+    maxCharges: 2, cooldownPerCharge: 24, targeting: 'ground',
+    faction: 'all',
+    areaEffect: {
+      radius: 9, targetTeam: 'enemy', damage: 260, slowPercent: 0.25,
+      statusDuration: 4, falloff: true, vfx: 'arcane',
+    },
+  },
+  siege_barrage: {
+    id: 'siege_barrage', name: 'Barrage',
+    description: 'Lob a crushing shell into a 10-unit area for 340 damage and a brief stun',
+    shortcut: 'V', icon: 'bomb', color: '#ff9966',
+    maxCharges: 2, cooldownPerCharge: 28, targeting: 'ground',
+    faction: 'all',
+    areaEffect: {
+      radius: 10, targetTeam: 'enemy', damage: 340, stunDuration: 1.25,
+      falloff: true, vfx: 'impact',
+    },
+  },
+
   // ── Commander heroes ───────────────────────────────────────────────────────
   shield_wall: {
     id: 'shield_wall', name: 'Shield Wall',
@@ -139,6 +193,9 @@ export const ABILITY_DEFS: Record<AbilityId, AbilityDef> = {
      shortcut: '1', icon: 'sparkles', color: '#ffb347',
     maxCharges: 2, cooldownPerCharge: 26, targeting: 'self',
     faction: 'all',
+    areaEffect: {
+      radius: 12, targetTeam: 'enemy', damage: 320, falloff: false, vfx: 'flame',
+    },
   },
   arcane_barrier: {
     id: 'arcane_barrier', name: 'Arcane Barrier',
@@ -153,23 +210,33 @@ export const ABILITY_DEFS: Record<AbilityId, AbilityDef> = {
 // key = `${race}_${unitType}`
 export const UNIT_ABILITIES: Partial<Record<string, AbilityId[]>> = {
   // Crusade (WesternKingdoms)
-  WesternKingdoms_mage:        ['holy_totem'],
+  WesternKingdoms_mage:        ['holy_totem', 'arcane_burst'],
   WesternKingdoms_shieldwall:  ['shield_bash'],
   WesternKingdoms_cavalry:     ['cavalry_charge'],
   WesternKingdoms_heavyCavalry:['cavalry_charge'],
   // Fabled (Elves)
-  Elves_mage:        ['natures_bounty'],
+  Elves_mage:        ['natures_bounty', 'arcane_burst'],
   Elves_archers:     ['multi_shot'],
   Elves_skirmishers: ['wind_step'],
   // Legion (Undead)
-  Undead_mage:        ['life_drain'],
+  Undead_mage:        ['life_drain', 'arcane_burst'],
   Undead_heavyCavalry:['death_strike'],
   Undead_skirmishers: ['phase_shift'],
 };
 
+for (const race of ['Barbarians', 'Dwarves', 'Orcs'] as Race[]) {
+  UNIT_ABILITIES[`${race}_mage`] = ['arcane_burst'];
+}
+for (const type of ['boltThrower', 'catapult', 'grieeGlee'] as UnitType[]) {
+  UNIT_ABILITIES[`all_${type}`] = ['siege_barrage'];
+}
+
 /** Get abilities for a race + unit type combo. */
 export function getUnitAbilities(race: Race, type: UnitType): AbilityId[] {
-  return UNIT_ABILITIES[`${race}_${type}`] ?? [];
+  return Array.from(new Set([
+    ...(UNIT_ABILITIES[`${race}_${type}`] ?? []),
+    ...(UNIT_ABILITIES[`all_${type}`] ?? []),
+  ]));
 }
 
 // ── Totem data ────────────────────────────────────────────────────────────────

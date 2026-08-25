@@ -9,6 +9,7 @@
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:warzone": "node --experimental-strip-types scripts/test-warzone-destruction.ts",
+    "test:combat": "node --experimental-strip-types scripts/test-combat-skills.ts",
     "build:prod": "node scripts/build-prod.mjs",
     "build:prod:verbose": "node scripts/build-prod.mjs --verbose",
     "compress": "node scripts/compress-dist.mjs",

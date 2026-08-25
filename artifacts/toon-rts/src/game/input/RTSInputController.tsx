@@ -21,7 +21,6 @@ import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from '@/game/store/gameStore';
 import { useWarZoneStore } from '@/game/store/warZoneStore';
-import { createUUID } from '@/game/utils/uuid';
 import { emitMoveMarker } from '@/game/effects/MoveMarker';
 import {
   getCommandMode, setCommandMode,
@@ -84,6 +83,7 @@ export function RTSInputController() {
         case 'KeyY': useGameStore.getState().setActiveAbility('flame_blast'); e.preventDefault(); break;
         case 'Escape': {
           useGameStore.getState().setPendingAbility(null);
+          useGameStore.getState().setAbilityTarget(null);
           useGameStore.getState().setActiveAbility(null);
           setCommandMode('default');
           break;
@@ -132,26 +132,15 @@ export function RTSInputController() {
       const store = useGameStore.getState();
       if (store.phase !== 'battle') return;
       const { selectedUnitIds, issueMove, issueAttackMove, issuePatrol, issueLob, issueCoverAttack,
-              pendingAbility, placeTotem, triggerAbility, setPendingAbility, combatElapsed } = store;
+               pendingAbility, triggerAbility, setPendingAbility, setAbilityTarget } = store;
 
       // ── Pending ability ground click (e.g. holy totem placement) ────────────
       if (pendingAbility) {
         const dest: [number, number, number] = [hit.x, 0, hit.z];
-        if (pendingAbility.abilityId === 'holy_totem') {
-          placeTotem({
-            id: createUUID('totem'),
-            position: dest,
-            teamId: 1, // player is always team 1
-            radius: 14,
-            healPerSec: 35,
-            expiresAt: combatElapsed + 12,
-          });
-          emitMoveMarker(dest);
-        } else {
-          triggerAbility(pendingAbility.unitIds, pendingAbility.abilityId, dest);
-          emitMoveMarker(dest);
-        }
+        triggerAbility(pendingAbility.unitIds, pendingAbility.abilityId, dest);
+        emitMoveMarker(dest);
         setPendingAbility(null);
+        setAbilityTarget(null);
         return;
       }
 
@@ -224,6 +213,17 @@ export function RTSInputController() {
         dragStart = null;
         return;
       }
+        const pendingAbility = useGameStore.getState().pendingAbility;
+        if (phase === 'battle' && pendingAbility) {
+          const hit = groundHit(e.clientX, e.clientY);
+          if (hit) {
+            useGameStore.getState().setAbilityTarget({
+              origin: [0, 0, 0],
+              direction: [hit.x, 0, hit.z],
+              distance: hit.length(),
+            });
+          }
+        }
       if (!dragStart || !(e.buttons & 1)) { dragStart = null; return; }
       const dx = e.clientX - dragStart.x;
       const dy = e.clientY - dragStart.y;

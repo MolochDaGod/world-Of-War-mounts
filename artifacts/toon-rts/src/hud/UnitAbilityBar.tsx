@@ -29,17 +29,19 @@ interface AbilityBtnProps {
   cdSecs: number;       // seconds until next charge (0 = ready)
   active?: boolean;     // toggle state (life drain)
   pending?: boolean;    // waiting for ground click
+  locked?: boolean;     // preparation preview; combat commands are unavailable
   onClick: () => void;
 }
 
-function AbilityBtn({ abilityId, charges, maxCharges, cdSecs, active, pending, onClick }: AbilityBtnProps) {
+function AbilityBtn({ abilityId, charges, maxCharges, cdSecs, active, pending, locked, onClick }: AbilityBtnProps) {
   const def  = ABILITY_DEFS[abilityId];
   const ready = charges > 0 && cdSecs <= 0;
 
   return (
     <button
       onClick={onClick}
-      title={`${def.name}: ${def.description}`}
+      disabled={(!ready && !active && !pending) || locked}
+      title={`${def.name}: ${def.description}${locked ? ' (available when battle begins)' : ''}`}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -61,7 +63,7 @@ function AbilityBtn({ abilityId, charges, maxCharges, cdSecs, active, pending, o
           ? 'rgba(0,0,0,0.55)'
           : 'rgba(0,0,0,0.35)',
         color: ready || active || pending ? def.color : 'rgba(255,255,255,0.35)',
-        cursor: ready || active ? 'pointer' : 'default',
+        cursor: locked ? 'not-allowed' : ready || active || pending ? 'pointer' : 'default',
         transition: 'all 0.12s',
         minWidth: '58px',
         boxShadow: active
@@ -73,7 +75,7 @@ function AbilityBtn({ abilityId, charges, maxCharges, cdSecs, active, pending, o
           : 'none',
         backdropFilter: 'blur(6px)',
         position: 'relative',
-        opacity: ready || active || pending ? 1 : 0.6,
+        opacity: locked ? 0.7 : ready || active || pending ? 1 : 0.6,
       }}
     >
       {/* Shortcut badge */}
@@ -88,6 +90,11 @@ function AbilityBtn({ abilityId, charges, maxCharges, cdSecs, active, pending, o
       <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.06em', textAlign: 'center' }}>
         {def.name}
       </span>
+      {(def.areaEffect || def.attackEffect) && (
+        <span style={{ fontSize: '8px', opacity: 0.72, lineHeight: 1 }}>
+          {def.attackEffect ? `IMPACT AOE ${def.attackEffect.radius}` : `AOE ${def.areaEffect!.radius}`}
+        </span>
+      )}
 
       {/* Charge pips */}
       <div style={{ display: 'flex', gap: '3px', marginTop: '1px' }}>
@@ -170,7 +177,7 @@ export function UnitAbilityBar() {
     return () => window.removeEventListener('keydown', handler);
   }, [phase, selectedIds, units, combatElapsed]);
 
-  if (phase !== 'battle' || selectedIds.length === 0) return null;
+  if ((phase !== 'battle' && phase !== 'preparation') || selectedIds.length === 0) return null;
 
   // Collect abilities across selected units
   const selectedUnits = units.filter(
@@ -208,6 +215,7 @@ export function UnitAbilityBar() {
   if (abilityMap.size === 0) return null;
 
   function handleAbility(aid: AbilityId, specificUnitId?: string) {
+    if (phase !== 'battle') return;
     const def   = ABILITY_DEFS[aid];
     const entry = abilityMap.get(aid);
     if (!entry) return;
@@ -249,6 +257,21 @@ export function UnitAbilityBar() {
             onClick={() => setPending(null)}>[ESC]</span>
         </div>
       )}
+      {phase === 'preparation' && (
+        <div style={{
+          background: 'rgba(0,0,0,0.72)',
+          border: '1px solid rgba(255,215,0,0.26)',
+          borderRadius: '6px',
+          padding: '3px 12px',
+          fontSize: '10px',
+          fontWeight: 700,
+          letterSpacing: '0.09em',
+          color: '#f6d365',
+          backdropFilter: 'blur(6px)',
+        }}>
+          TACTICAL SKILLS — AVAILABLE WHEN BATTLE BEGINS
+        </div>
+      )}
 
       {/* Ability buttons */}
       <div style={{ display: 'flex', gap: '6px' }}>
@@ -261,6 +284,7 @@ export function UnitAbilityBar() {
             cdSecs={info.cdSecs}
             active={info.active}
             pending={pendingAbility?.abilityId === aid}
+            locked={phase !== 'battle'}
             onClick={() => handleAbility(aid)}
           />
         ))}

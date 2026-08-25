@@ -15,6 +15,8 @@ import { useFrame } from '@react-three/fiber';
 import { useGameStore } from '@/game/store/gameStore';
 import { useShallow }   from 'zustand/react/shallow';
 import { COMMANDER_BY_ID } from '@/game/data/CommanderDefs';
+import { ABILITY_DEFS } from '@/game/data/AbilityDefs';
+import { TargetingTelegraph } from '@/game/abilities/SkillBurstVFX';
 
 // ── Aura ring colours ─────────────────────────────────────────────────────────
 const AURA_COLOR: Record<string, string> = {
@@ -97,6 +99,8 @@ function AuraFillDisc({ cx, cz, radius, bonusType }: AuraRingProps) {
 // ── Main overlay component ────────────────────────────────────────────────────
 export function BattleVFXOverlay() {
   const phase = useGameStore(s => s.phase);
+  const pendingAbility = useGameStore(s => s.pendingAbility);
+  const abilityTarget = useGameStore(s => s.abilityTarget);
   const units = useGameStore(
     useShallow(s => s.units.filter(u => (u as any).isCommander && u.state !== 'dead')),
   );
@@ -119,6 +123,17 @@ export function BattleVFXOverlay() {
           </group>
         );
       })}
+      {pendingAbility && abilityTarget && (() => {
+        const def = ABILITY_DEFS[pendingAbility.abilityId];
+        const radius = def.areaEffect?.radius ?? (pendingAbility.abilityId === 'holy_totem' ? 14 : 6);
+        return (
+          <TargetingTelegraph
+            position={abilityTarget.direction}
+            radius={radius}
+            color={def.color}
+          />
+        );
+      })()}
     </group>
   );
 }

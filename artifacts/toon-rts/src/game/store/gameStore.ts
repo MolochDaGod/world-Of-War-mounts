@@ -1,9 +1,14 @@
 import { create } from 'zustand';
-import { AbilityId, ABILITY_DEFS, TotemData } from '../data/AbilityDefs';
+import { AbilityId, ABILITY_DEFS, getUnitAbilities, TotemData } from '../data/AbilityDefs';
 import { COMMANDER_BY_ID, getCommandersForRace } from '../data/CommanderDefs';
 import { removeExpiredCasts } from '../diagnostics/battleMemoryDiagnostics';
 import { createUUID } from '../utils/uuid';
 import { useWarZoneStore } from './warZoneStore';
+import {
+  consumeSkillCharge,
+  isTimedSkillBurstExpired,
+  resolveAreaSkill,
+} from '../physics/combatSkillResolver';
 
 export type Race = 'Barbarians' | 'Dwarves' | 'Elves' | 'Orcs' | 'Undead' | 'WesternKingdoms';
 
@@ -58,9 +63,13 @@ export interface UnitData {
   standGround?: boolean;
   phaseShift?: boolean;                        // untargetable by enemies
   phaseShiftUntil?: number;                    // combatElapsed seconds when it expires
+  slowUntil?: number;                          // combatElapsed when slow expires
+  slowMultiplier?: number;                     // movement multiplier while slowed
+  stunnedUntil?: number;                       // cannot move or attack while active
   bleed?: { damage: number; ticks: number };   // bleed applied by Death Strike
   speedBoostUntil?: number;                    // combatElapsed when speed boost expires
   chargeBoost?: boolean;                       // next attack 3× damage (Charge / Death Strike)
+  pendingAttackSkill?: AbilityId;              // next attack also releases this skill's AOE
   pendingBleed?: boolean;                      // next hit inflicts bleed (Death Strike only)
   lifedrainAura?: boolean;                     // Legion mage toggle — heals allies on hit
   shieldBashing?: boolean;                     // one-tick AOE shield bash (consumed in CombatSystem)
@@ -81,6 +90,16 @@ export interface AbilityTarget {
   origin: [number, number, number];
   direction: [number, number, number];
   distance: number;
+}
+
+export interface SkillBurst {
+  id: string;
+  position: [number, number, number];
+  radius: number;
+  color: string;
+  kind: 'arcane' | 'flame' | 'frost' | 'impact' | 'nature' | 'shockwave';
+  createdAt: number;
+  duration: number;
 }
 
 /** Army builder regiment selection — maxSoldiers/hp override from faction data */
@@ -146,6 +165,7 @@ interface GameState {
   // ── Ability system ──────────────────────────────────────────────────────────
   totems: TotemData[];
   bountyBursts: { id: string; position: [number,number,number]; radius: number; createdAt: number }[];
+  skillBursts: SkillBurst[];
   combatElapsed: number;          // seconds since battle started (ticked by CombatSystem)
   pendingAbility: { abilityId: AbilityId; unitIds: string[] } | null;  // waiting for ground click
   /** The two-minute deployment window only counts down after all required map assets are ready. */
@@ -177,6 +197,8 @@ interface GameState {
   placeTotem:       (totem: TotemData) => void;
   expireTotems:     (now: number) => void;
   expireBountyBursts:(now: number) => void;
+  emitSkillBurst: (burst: Omit<SkillBurst, 'id' | 'createdAt'> & Partial<Pick<SkillBurst, 'id' | 'createdAt'>>) => void;
+  expireSkillBursts:(now: number) => void;
   tickCombatElapsed:(delta: number) => void;
   tickPreparation: (delta: number) => void;
   setPreparationAssetProgress: (progress: number, message: string) => void;
@@ -288,6 +310,7 @@ function buildUnits(army: RegimentSlot[], race: Race, teamId: 1 | 2, diffMult: n
       formationCols: def.formationCols,
       formationFacing: facing,
       spacing: def.spacing,
+      abilityCharges: initialAbilityCharges(getUnitAbilities(slot.race ?? race, slot.unitType)),
     };
   });
 }
@@ -330,6 +353,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   commandTarget: null,
   totems: [],
   bountyBursts: [],
+  skillBursts: [],
   combatElapsed: 0,
   pendingAbility: null,
   preparationRemaining: 120,
@@ -524,6 +548,18 @@ export const useGameStore = create<GameState>((set, get) => ({
   expireBountyBursts: (now) => set(s => ({
     bountyBursts: s.bountyBursts.filter(b => now - b.createdAt < 2_500),
   })),
+  emitSkillBurst: (burst) => set(s => ({
+    skillBursts: [...s.skillBursts, {
+      ...burst,
+      id: burst.id ?? createUUID('skill'),
+      createdAt: burst.createdAt ?? Date.now(),
+      duration: burst.duration ?? 1_100,
+    }],
+  })),
+  expireSkillBursts: (now) => set(s => {
+    const skillBursts = s.skillBursts.filter(burst => !isTimedSkillBurstExpired(burst, now));
+    return skillBursts.length === s.skillBursts.length ? {} : { skillBursts };
+  }),
 
   tickCombatElapsed: (delta) => set(s => ({ combatElapsed: s.combatElapsed + delta })),
   tickPreparation: (delta) => set((state) => {
@@ -592,64 +628,113 @@ export const useGameStore = create<GameState>((set, get) => ({
       const now = state.combatElapsed;
 
       // Check that at least one unit has charges (skip for toggles)
-      const casters = state.units.filter(u => idSet.has(u.id) && u.state !== 'dead');
+      let casters = state.units.filter(u => idSet.has(u.id) && u.state !== 'dead');
       if (casters.length === 0) return {};
 
       if (def.targeting !== 'toggle') {
-        const first = casters[0];
-        const cs = first.abilityCharges?.[abilityId];
-        const charges = cs?.charges ?? def.maxCharges;
-        if (charges <= 0) return {};
+        casters = casters.filter(caster => {
+          const charges = caster.abilityCharges?.[abilityId]?.charges ?? def.maxCharges;
+          return charges > 0;
+        });
+        if (casters.length === 0) return {};
       }
+      const casterIds = new Set(casters.map(caster => caster.id));
 
       const consumeCharge = (u: UnitData): UnitData['abilityCharges'] => {
-        const prev = u.abilityCharges?.[abilityId];
-        const charges = (prev?.charges ?? def.maxCharges) - 1;
         return {
           ...u.abilityCharges,
-          [abilityId]: { charges: Math.max(0, charges), nextChargeAt: now + def.cooldownPerCharge },
+          [abilityId]: consumeSkillCharge(u.abilityCharges?.[abilityId], def, now),
         };
       };
 
       let units = state.units;
       let newBursts = state.bountyBursts;
+      let newSkillBursts = state.skillBursts;
+      let newTotems = state.totems;
       let scoreDelta1 = 0;
       let scoreDelta2 = 0;
 
+      // All instant/ground AOEs share one deterministic resolver. It takes a
+      // snapshot for each caster, applies every eligible target exactly once,
+      // and returns patches that are committed in this single Zustand write.
+      if (def.areaEffect) {
+        if (def.targeting === 'ground' && !_target) return {};
+
+        for (const caster of casters) {
+          const origin = def.targeting === 'ground'
+            ? _target!
+            : caster.position;
+          const resolution = resolveAreaSkill({
+            units,
+            caster,
+            origin,
+            definition: def,
+            now,
+          });
+          units = units.map(unit => ({
+            ...unit,
+            ...resolution.patches.get(unit.id),
+          }));
+          scoreDelta1 += resolution.scoreDelta1;
+          scoreDelta2 += resolution.scoreDelta2;
+          newSkillBursts = [...newSkillBursts, {
+            id: createUUID('skill'),
+            position: origin,
+            radius: def.areaEffect.radius,
+            color: def.color,
+            kind: def.areaEffect.vfx,
+            createdAt: Date.now(),
+            duration: def.areaEffect.vfx === 'nature' ? 2_200 : 1_100,
+          }];
+        }
+
+        units = units.map(unit => (
+          casterIds.has(unit.id) && unit.state !== 'dead'
+            ? { ...unit, abilityCharges: consumeCharge(unit) }
+            : unit
+        ));
+
+        return {
+          units,
+          bountyBursts: newBursts,
+          skillBursts: newSkillBursts,
+          teamScores: {
+            team1: state.teamScores.team1 + scoreDelta1,
+            team2: state.teamScores.team2 + scoreDelta2,
+          },
+          pendingAbility: null,
+        };
+      }
+
       switch (abilityId) {
         case 'cavalry_charge':
-          units = units.map(u => idSet.has(u.id) && u.state !== 'dead'
-            ? { ...u, chargeBoost: true, abilityCharges: consumeCharge(u) } : u);
+          units = units.map(u => casterIds.has(u.id) && u.state !== 'dead'
+            ? { ...u, chargeBoost: true, pendingAttackSkill: 'cavalry_charge', abilityCharges: consumeCharge(u) } : u);
           break;
 
         case 'death_strike':
-          units = units.map(u => idSet.has(u.id) && u.state !== 'dead'
+          units = units.map(u => casterIds.has(u.id) && u.state !== 'dead'
             ? { ...u, chargeBoost: true, pendingBleed: true, abilityCharges: consumeCharge(u) } : u);
           break;
 
-        case 'shield_bash':
-          units = units.map(u => idSet.has(u.id) && u.state !== 'dead'
-            ? { ...u, shieldBashing: true, abilityCharges: consumeCharge(u) } : u);
-          break;
-
         case 'wind_step':
-          units = units.map(u => idSet.has(u.id) && u.state !== 'dead'
+          units = units.map(u => casterIds.has(u.id) && u.state !== 'dead'
             ? { ...u, speedBoostUntil: now + 5, abilityCharges: consumeCharge(u) } : u);
           break;
 
         case 'multi_shot':
-          units = units.map(u => idSet.has(u.id) && u.state !== 'dead'
+          units = units.map(u => casterIds.has(u.id) && u.state !== 'dead'
             ? { ...u, multiShotReady: true, abilityCharges: consumeCharge(u) } : u);
           break;
 
         case 'life_drain':
           // Toggle — no charge cost
-          units = units.map(u => idSet.has(u.id) && u.state !== 'dead'
+          units = units.map(u => casterIds.has(u.id) && u.state !== 'dead'
             ? { ...u, lifedrainAura: !u.lifedrainAura } : u);
           break;
 
         case 'phase_shift':
-          units = units.map(u => idSet.has(u.id) && u.state !== 'dead'
+          units = units.map(u => casterIds.has(u.id) && u.state !== 'dead'
             ? { ...u, phaseShift: true, phaseShiftUntil: now + 3, abilityCharges: consumeCharge(u) } : u);
           break;
 
@@ -667,7 +752,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           }
           units = units.map(u => {
             const heal = batchedHeals.get(u.id);
-            const wasCharge = idSet.has(u.id);
+            const wasCharge = casterIds.has(u.id);
             return { ...u,
               health: heal ? Math.min(u.maxHealth, u.health + heal) : u.health,
               abilityCharges: wasCharge ? consumeCharge(u) : u.abilityCharges,
@@ -694,7 +779,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             return {
               ...u,
               shieldWallUntil: nearby ? now + 6 : u.shieldWallUntil,
-              abilityCharges: idSet.has(u.id) ? consumeCharge(u) : u.abilityCharges,
+              abilityCharges: casterIds.has(u.id) ? consumeCharge(u) : u.abilityCharges,
             };
           });
           break;
@@ -747,7 +832,7 @@ export const useGameStore = create<GameState>((set, get) => ({
                 arcaneBarrierHp: barrierActive ? (u.arcaneBarrierHp ?? 0) - absorbed : u.arcaneBarrierHp,
               };
             }
-            return idSet.has(u.id) ? { ...u, abilityCharges: consumeCharge(u) } : u;
+            return casterIds.has(u.id) ? { ...u, abilityCharges: consumeCharge(u) } : u;
           });
           break;
         }
@@ -762,19 +847,34 @@ export const useGameStore = create<GameState>((set, get) => ({
               ...u,
               arcaneBarrierUntil: nearby ? now + 8 : u.arcaneBarrierUntil,
               arcaneBarrierHp: nearby ? 650 : u.arcaneBarrierHp,
-              abilityCharges: idSet.has(u.id) ? consumeCharge(u) : u.abilityCharges,
+              abilityCharges: casterIds.has(u.id) ? consumeCharge(u) : u.abilityCharges,
             };
           });
           break;
 
         case 'holy_totem':
-          // ground-targeting: handled by placeTotem after pendingAbility ground click
+          if (!_target) return {};
+          for (const caster of casters) {
+            newTotems = [...newTotems, {
+              id: createUUID('totem'),
+              position: _target,
+              teamId: caster.teamId,
+              radius: 14,
+              healPerSec: 35,
+              expiresAt: now + 12,
+            }];
+          }
+          units = units.map(u => casterIds.has(u.id)
+            ? { ...u, abilityCharges: consumeCharge(u) }
+            : u);
           break;
       }
 
       return {
         units,
         bountyBursts: newBursts,
+        skillBursts: newSkillBursts,
+        totems: newTotems,
         teamScores: {
           team1: state.teamScores.team1 + scoreDelta1,
           team2: state.teamScores.team2 + scoreDelta2,
@@ -887,6 +987,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       preparationAssetError: null,
       totems: [],
       bountyBursts: [],
+      skillBursts: [],
       pendingAbility: null,
     });
   },
@@ -916,6 +1017,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       preparationAssetProgress: 0,
       preparationAssetMessage: 'Preparing battlefield assets…',
       preparationAssetError: null,
+      skillBursts: [],
     });
   },
 
@@ -936,6 +1038,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     commandTarget: null,
     totems: [],
     bountyBursts: [],
+    skillBursts: [],
     combatElapsed: 0,
     pendingAbility: null,
     preparationRemaining: 120,

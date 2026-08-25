@@ -140,6 +140,8 @@ export const ABILITY_ICON: Record<string, GameIconName> = {
   life_drain: 'ghost',
   death_strike: 'skull',
   phase_shift: 'ghost',
+  arcane_burst: 'wand',
+  siege_barrage: 'bomb',
   shield_wall: 'shieldCheck',
   formation_lock: 'landmark',
   holy_flame: 'sparkles',

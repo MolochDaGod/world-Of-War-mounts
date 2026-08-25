@@ -74,7 +74,7 @@ let _flashes: Flash[] = [];
 let _flashId = 0;
 
 function FlashMesh({ flash }: { flash: Flash }) {
-  const ref = useRef<THREE.Mesh>(null);
+  const ref = useRef<THREE.Group>(null);
   useFrame((_, dt) => {
     flash.life -= dt;
     if (ref.current) {
@@ -88,17 +88,23 @@ function FlashMesh({ flash }: { flash: Flash }) {
     : '#ffcc44';
 
   return (
-    <mesh ref={ref} position={flash.pos}>
-      <sphereGeometry args={[0.5, 6, 4]} />
-      <meshStandardMaterial
-        color={color}
-        emissive={color}
-        emissiveIntensity={2}
-        transparent
-        opacity={0.8}
-        depthWrite={false}
-      />
-    </mesh>
+    <group ref={ref} position={flash.pos}>
+      <mesh>
+        <sphereGeometry args={[0.5, 6, 4]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={2}
+          transparent
+          opacity={0.8}
+          depthWrite={false}
+        />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.65, 0]}>
+        <ringGeometry args={[0.55, 0.78, 20]} />
+        <meshBasicMaterial color={color} transparent opacity={0.8} depthWrite={false} />
+      </mesh>
+    </group>
   );
 }
 

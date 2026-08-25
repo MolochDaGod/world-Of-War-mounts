@@ -19,6 +19,7 @@ import { useFrame } from '@react-three/fiber';
 import { useGameStore, UnitData } from '../store/gameStore';
 import { emitProjectile, ProjectileKind } from '../effects/ProjectileSystem';
 import { ABILITY_DEFS, AbilityId } from '../data/AbilityDefs';
+import { canAutoCastRegimentSkill, resolveAreaSkill } from './combatSkillResolver';
 import { COMMANDER_BY_ID } from '../data/CommanderDefs';
 import { useWarZoneStore } from '../store/warZoneStore';
 import {
@@ -160,6 +161,47 @@ export function CombatSystem() {
     const curHp = (u: UnitData) => (patches.get(u.id)?.health ?? u.health) as number;
     const isDead = (u: UnitData) => patches.get(u.id)?.state === 'dead' || u.state === 'dead';
 
+    const applyAreaSkill = (
+      caster: UnitData,
+      abilityId: AbilityId,
+      origin: [number, number, number],
+      useAttackEffect = false,
+    ) => {
+      const def = ABILITY_DEFS[abilityId];
+      const areaEffect = useAttackEffect ? def?.attackEffect : def?.areaEffect;
+      if (!def || !areaEffect) return;
+      const snapshot = units.map(candidate => ({
+        ...candidate,
+        ...patches.get(candidate.id),
+      }));
+      const currentCaster = snapshot.find(candidate => candidate.id === caster.id) ?? caster;
+      const resolution = resolveAreaSkill({
+        units: snapshot,
+        caster: currentCaster,
+        origin,
+        definition: useAttackEffect ? { ...def, areaEffect } : def,
+        now: elapsed,
+      });
+      for (const [id, patch] of resolution.patches) {
+        patches.set(id, { ...patches.get(id), ...patch });
+      }
+      for (const id of resolution.deadIds) {
+        if (!kills.includes(id)) kills.push(id);
+        delete attackTimers[id];
+      }
+      scoreDelta1 += resolution.scoreDelta1;
+      scoreDelta2 += resolution.scoreDelta2;
+      // A rare skill cast may add one visual event; normal combat remains a
+      // single batched store write per tick.
+      useGameStore.getState().emitSkillBurst({
+        position: origin,
+        radius: areaEffect.radius,
+        color: def.color,
+        kind: areaEffect.vfx,
+        duration: 1_100,
+      });
+    };
+
     function advanceWithCover(unit: UnitData, target: [number, number, number], step: number) {
       if (mapType !== 'arena') {
         const dx = target[0] - unit.position[0];
@@ -211,6 +253,16 @@ export function CombatSystem() {
       if (unit.speedBoostUntil !== undefined && elapsed >= unit.speedBoostUntil) {
         patches.set(unit.id, { ...patches.get(unit.id), speedBoostUntil: undefined });
       }
+      if (unit.slowUntil !== undefined && elapsed >= unit.slowUntil) {
+        patches.set(unit.id, { ...patches.get(unit.id), slowUntil: undefined, slowMultiplier: undefined });
+      }
+      const stunnedUntil = cur(unit, 'stunnedUntil') ?? 0;
+      if (stunnedUntil > elapsed) {
+        if (cur(unit, 'state') !== 'idle') {
+          patches.set(unit.id, { ...patches.get(unit.id), state: 'idle' });
+        }
+        continue;
+      }
 
       // ── Bleed damage ────────────────────────────────────────────────────
       if (unit.bleed && unit.bleed.ticks > 0) {
@@ -238,30 +290,7 @@ export function CombatSystem() {
       // ── Shield Bash — one-tick AOE ───────────────────────────────────────
       if (unit.shieldBashing) {
         patches.set(unit.id, { ...patches.get(unit.id), shieldBashing: false });
-        const bashRange = cfg.attackRange + 3;
-        for (const enemy of living) {
-          if (enemy.teamId === unit.teamId || isDead(enemy)) continue;
-          const dx = enemy.position[0] - unit.position[0];
-          const dz = enemy.position[2] - unit.position[2];
-          if (Math.sqrt(dx*dx + dz*dz) > bashRange) continue;
-          const bashDmg = cfg.damage * 1.5;
-          const hp = Math.max(0, curHp(enemy) - bashDmg);
-          if (hp <= 0) {
-            patches.set(enemy.id, { ...patches.get(enemy.id), health: 0, state: 'dead' });
-            kills.push(enemy.id);
-            delete attackTimers[enemy.id];
-            if (unit.teamId === 1) scoreDelta1++; else scoreDelta2++;
-          } else {
-            // Apply 30 % slow for 5 s
-            patches.set(enemy.id, { ...patches.get(enemy.id), health: hp, speedBoostUntil: elapsed + 5 });
-          }
-        }
-        // Emit a burst VFX
-        emitProjectile(unit.position, [
-          unit.position[0] + (Math.random() - 0.5) * 3,
-          unit.position[1],
-          unit.position[2] + (Math.random() - 0.5) * 3,
-        ], 'arrow');
+        applyAreaSkill(unit, 'shield_bash', unit.position);
       }
 
       // ── Find nearest living enemy (skip phased units) ───────────────────
@@ -467,6 +496,15 @@ export function CombatSystem() {
               }
             }
           }
+
+          const pendingAttackSkill = cur(unit, 'pendingAttackSkill');
+          if (pendingAttackSkill) {
+            applyAreaSkill(unit, pendingAttackSkill, nearest.position, true);
+            patches.set(unit.id, {
+              ...patches.get(unit.id),
+              pendingAttackSkill: undefined,
+            });
+          }
         }
 
       } else {
@@ -479,6 +517,7 @@ export function CombatSystem() {
         }
 
         const speedMult = (unit.speedBoostUntil && elapsed < unit.speedBoostUntil ? 1.8 : 1.0)
+          * ((cur(unit, 'slowUntil') ?? 0) > elapsed ? (cur(unit, 'slowMultiplier') ?? 1) : 1)
           * commanderMult(unit, 'speed');
 
         const pTarget = unit.targetPosition;
@@ -552,13 +591,14 @@ export function CombatSystem() {
       }
 
       // ── MAGE AUTO-CAST ─────────────────────────────────────────────────────
-      // If the mage has an ability with charges and an enemy is in range,
-      // consume the charge automatically (player still controls commander spells).
+      // Regiment skills are player-directed by default. Only definitions that
+      // explicitly opt into autonomous AI can spend a charge here; in particular,
+      // ground skills such as Arcane Burst must retain their charge until aimed.
       if (unit.type === 'mage' && unit.abilityCharges && nearest && minDist <= cfg.attackRange * 1.4) {
         for (const [abilityId, cs] of Object.entries(unit.abilityCharges)) {
           if (!cs || cs.charges < 1) continue;
           const def = ABILITY_DEFS[abilityId as AbilityId];
-          if (!def || def.targeting === 'toggle') continue;
+          if (!def || !canAutoCastRegimentSkill(def)) continue;
           // Auto-cast on a cadence: every 2× normal cooldown so it doesn't spam
           const autoCastKey = `autocast_${unit.id}_${abilityId}`;
           const lastCast = chargeRegenTimers[autoCastKey] ?? 0;
