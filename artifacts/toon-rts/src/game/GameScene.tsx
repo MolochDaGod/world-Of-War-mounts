@@ -27,7 +27,6 @@ import { WildAnimals }     from './wildlife/WildAnimals';
 import { BattleArmy }      from './characters/ToonRTSRegiment';
 import { MedievalNPCs }    from './characters/MedievalNPCs';
 import { AbilityManager }  from './abilities/AbilityManager';
-import { AimController }   from './abilities/AimController';
 import { UnitAbilityVFX }  from './abilities/UnitAbilityVFX';
 import { CombatSystem }    from './physics/CombatSystem';
 import { ProjectileSystem } from './effects/ProjectileSystem';
@@ -306,7 +305,6 @@ export function GameScene() {
 
           <UnitAbilityVFX />
           <AbilityManager />
-          <AimController />
 
           {/* ── Post-processing ── */}
           <EffectComposer multisampling={0}>

@@ -10,6 +10,7 @@ import {
   isTimedSkillBurstExpired,
   resolveAreaSkill,
 } from '../physics/combatSkillResolver.ts';
+import { layoutArmyPositions } from './formationLayout.ts';
 
 export type Race = 'Barbarians' | 'Dwarves' | 'Elves' | 'Orcs' | 'Undead' | 'WesternKingdoms';
 
@@ -42,6 +43,8 @@ export interface UnitData {
   type: UnitType;
   position: [number, number, number];
   targetPosition?: [number, number, number];
+  /** Explicit enemy target from a Fight-mode click. Takes priority over nearest-enemy scanning. */
+  targetUnitId?: string;
   health: number;
   maxHealth: number;
   state: UnitState;
@@ -185,6 +188,7 @@ interface GameState {
 
   issueMove:        (unitIds: string[], targetPosition: [number, number, number]) => void;
   issueAttackMove:  (unitIds: string[], targetPosition: [number, number, number]) => void;
+  issueFocusAttack: (unitIds: string[], targetUnitId: string) => void;
   issuePatrol:      (unitIds: string[], patrolA: [number,number,number], patrolB: [number,number,number]) => void;
   issueLob:         (unitIds: string[], target: [number, number, number]) => void;
   issueCoverAttack: (unitIds: string[], obstacleId: string) => void;
@@ -241,52 +245,6 @@ export const REGIMENT_DEFS: Record<UnitType, {
   skeletonWarrior:{ hp: 500,  maxSoldiers: 10, formationRows: 2, formationCols: 5, spacing: 1.1, cost: 60  },
   meshyWarrior:   { hp: 2600, maxSoldiers: 8,  formationRows: 2, formationCols: 4, spacing: 1.6, cost: 250 },
 };
-
-// Categorise types for positioning
-function regimentCategory(t: UnitType): 'melee' | 'ranged' | 'siege' {
-  if (t === 'archers' || t === 'mage') return 'ranged';
-  if (t === 'boltThrower' || t === 'catapult' || t === 'grieeGlee') return 'siege';
-  return 'melee';
-}
-
-/** Compute line positions for an army. Team 1 uses positive Z, team 2 negative Z. */
-function layoutArmyPositions(
-  army: RegimentSlot[],
-  teamId: 1 | 2,
-): [number, number, number][] {
-  const sign = teamId === 1 ? 1 : -1;
-  const melee   = army.filter(s => regimentCategory(s.unitType) === 'melee');
-  const ranged  = army.filter(s => regimentCategory(s.unitType) === 'ranged');
-  const siege   = army.filter(s => regimentCategory(s.unitType) === 'siege');
-
-  const positions: [number, number, number][] = [];
-
-  const layoutLine = (group: RegimentSlot[], zBase: number) => {
-    group.forEach((_, i) => {
-      const x = (i - (group.length - 1) / 2) * 12;
-      positions.push([x, 0, sign * zBase]);
-    });
-  };
-
-  // Build in order matching original array so positions match indices
-  const meleeStart = 0;
-  const rangedStart = melee.length;
-  const siegeStart  = melee.length + ranged.length;
-
-  for (let i = 0; i < melee.length; i++) {
-    const x = (i - (melee.length - 1) / 2) * 12;
-    positions[meleeStart + i] = [x, 0, sign * 20];
-  }
-  for (let i = 0; i < ranged.length; i++) {
-    const x = (i - (ranged.length - 1) / 2) * 14;
-    positions[rangedStart + i] = [x, 0, sign * 34];
-  }
-  for (let i = 0; i < siege.length; i++) {
-    const x = (i - (siege.length - 1) / 2) * 16;
-    positions[siegeStart + i] = [x, 0, sign * 48];
-  }
-  return positions;
-}
 
 function buildUnits(army: RegimentSlot[], race: Race, teamId: 1 | 2, diffMult: number): UnitData[] {
   const positions = layoutArmyPositions(army, teamId);
@@ -435,7 +393,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       commandTarget: targetPosition,
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead'
-           ? { ...u, targetPosition, attackMove: false,
+           ? { ...u, targetPosition, targetUnitId: undefined, attackMove: false,
                patrolA: undefined, patrolB: undefined, lobTarget: undefined,
                coverTargetId: undefined, state: 'move' }
           : u,
@@ -449,7 +407,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       commandTarget: targetPosition,
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead'
-           ? { ...u, targetPosition, attackMove: true,
+           ? { ...u, targetPosition, targetUnitId: undefined, attackMove: true,
                patrolA: undefined, patrolB: undefined, lobTarget: undefined,
                coverTargetId: undefined, state: 'move' }
           : u,
@@ -457,12 +415,37 @@ export const useGameStore = create<GameState>((set, get) => ({
     }));
   },
 
+  issueFocusAttack: (unitIds, targetUnitId) => {
+    const idSet = new Set(unitIds);
+    set(state => {
+      const target = state.units.find(unit => unit.id === targetUnitId && unit.state !== 'dead');
+      if (!target) return {};
+      return {
+        units: state.units.map(unit => (
+          idSet.has(unit.id) && unit.teamId !== target.teamId && unit.state !== 'dead'
+            ? {
+                ...unit,
+                targetUnitId,
+                targetPosition: target.position,
+                attackMove: true,
+                patrolA: undefined,
+                patrolB: undefined,
+                lobTarget: undefined,
+                coverTargetId: undefined,
+                state: 'move',
+              }
+            : unit
+        )),
+      };
+    });
+  },
+
   issuePatrol: (unitIds, patrolA, patrolB) => {
     const idSet = new Set(unitIds);
     set(state => ({
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead'
-           ? { ...u, patrolA, patrolB, patrolToB: true,
+            ? { ...u, targetUnitId: undefined, patrolA, patrolB, patrolToB: true,
                targetPosition: patrolA, attackMove: false, lobTarget: undefined,
                coverTargetId: undefined, state: 'move' }
           : u,
@@ -476,7 +459,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set(state => ({
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead' && SIEGE.has(u.type)
-           ? { ...u, lobTarget: target, patrolA: undefined, patrolB: undefined,
+            ? { ...u, targetUnitId: undefined, lobTarget: target, patrolA: undefined, patrolB: undefined,
                coverTargetId: undefined, attackMove: false }
           : u,
       ),
@@ -491,6 +474,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         idSet.has(u.id) && u.state !== 'dead' && SIEGE.has(u.type)
           ? {
               ...u,
+              targetUnitId: undefined,
               coverTargetId: obstacleId,
               targetPosition: undefined,
               patrolA: undefined,
@@ -509,7 +493,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set(state => ({
       units: state.units.map(u =>
         idSet.has(u.id) && u.state !== 'dead'
-           ? { ...u, targetPosition: undefined, attackMove: false,
+           ? { ...u, targetUnitId: undefined, targetPosition: undefined, attackMove: false,
                patrolA: undefined, patrolB: undefined, lobTarget: undefined,
                coverTargetId: undefined, state: 'idle' }
           : u,

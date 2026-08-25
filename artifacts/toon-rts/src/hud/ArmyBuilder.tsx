@@ -10,6 +10,7 @@ import { useGameStore, REGIMENT_DEFS } from '@/game/store/gameStore';
 import { useShallow } from 'zustand/react/shallow';
 import { CommanderSelectPanel } from './CommanderSelectPanel';
 import { GameIcon, GameIconName, UNIT_TYPE_ICON } from './GameIcon';
+import { getCombatStatBars, getCombatStats } from '@/game/data/CombatStats';
 
 // ── Map selector sub-component ────────────────────────────────────────────────
 function MapSelector() {
@@ -202,6 +203,8 @@ function UnitCard({
   const [imageFailed, setImageFailed] = useState(false);
   const canAfford = gold >= unit.cost;
   const regDef = REGIMENT_DEFS[unit.type] ?? REGIMENT_DEFS.swordsmen;
+  const combatStats = getCombatStats(unit.type);
+  const statBars = getCombatStatBars(unit.type);
   const raceLabel: Record<string, string> = {
     WesternKingdoms: 'Human',
     Elves: 'Elf',
@@ -279,15 +282,15 @@ function UnitCard({
           {raceLabel[unit.race ?? ''] ?? unit.race}
         </span>
         {' · '}{unit.maxSoldiers} {unit.maxSoldiers === 1 ? 'engine' : 'troops'}
-        {' · '}{unit.isRanged ? 'Ranged' : 'Melee'}
+        {' · '}{combatStats.role === 'siege' ? 'Siege' : combatStats.role === 'ranged' ? 'Ranged' : 'Melee'}
       </div>
 
       {/* Stats */}
       <div style={{ marginBottom: 6 }}>
-        <StatBar label="ATK" value={unit.statAttack} />
-        <StatBar label="DEF" value={unit.statDefense} />
-        <StatBar label="SPD" value={unit.statSpeed} />
-        {unit.isRanged && <StatBar label="RNG" value={unit.statRange} />}
+        <StatBar label="ATK" value={statBars.attack} />
+        <StatBar label="CAD" value={statBars.defense} />
+        <StatBar label="SPD" value={statBars.speed} />
+        {combatStats.role !== 'melee' && <StatBar label="RNG" value={statBars.range} />}
       </div>
 
       <div style={{

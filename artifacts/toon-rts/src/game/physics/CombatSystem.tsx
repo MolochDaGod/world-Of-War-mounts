@@ -28,33 +28,10 @@ import {
   resolveWarZoneMovement,
   activeWarZoneObstacles,
 } from '../world/warZoneGeometry';
+import { getCombatStats } from '../data/CombatStats';
 
 const TICK = 0.05; // seconds per combat frame (≈ 20 Hz) — cinematic pace
 const BATTLE_LIMIT = 480; // 8-minute timer
-
-// ── Slower combat config ──────────────────────────────────────────────────────
-const UNIT_CONFIG: Record<UnitData['type'], {
-  damage: number;
-  attackRange: number;
-  speed: number;
-  attackCooldown: number;
-}> = {
-  infantry:    { damage: 100, attackRange: 6,  speed: 4.5, attackCooldown: 1.3 },
-  swordsmen:   { damage: 100, attackRange: 6,  speed: 4.5, attackCooldown: 1.3 },
-  spearmen:    { damage: 82,  attackRange: 8,  speed: 4.0, attackCooldown: 1.3 },
-  shieldwall:  { damage: 66,  attackRange: 5,  speed: 2.5, attackCooldown: 2.0 },
-  skirmishers: { damage: 72,  attackRange: 6,  speed: 6.5, attackCooldown: 1.0 },
-  archers:     { damage: 55,  attackRange: 18, speed: 3.5, attackCooldown: 2.3 },
-  cavalry:     { damage: 138, attackRange: 7,  speed: 8.0, attackCooldown: 1.0 },
-  heavyCavalry:{ damage: 192, attackRange: 8,  speed: 7.0, attackCooldown: 1.6 },
-  mage:        { damage: 110, attackRange: 14, speed: 2.5, attackCooldown: 2.6 },
-  boltThrower:    { damage: 154, attackRange: 26, speed: 1.5, attackCooldown: 3.9 },
-  catapult:       { damage: 220, attackRange: 32, speed: 1.2, attackCooldown: 5.2 },
-  // GLB units
-  grieeGlee:      { damage: 240, attackRange: 14, speed: 2.5, attackCooldown: 3.5 },
-  skeletonWarrior:{ damage:  55, attackRange:  5, speed: 4.5, attackCooldown: 0.9 },
-  meshyWarrior:   { damage: 145, attackRange:  6, speed: 4.0, attackCooldown: 1.1 },
-};
 
 const RANGED_TYPES = new Set<UnitData['type']>(['archers', 'mage', 'boltThrower', 'catapult', 'grieeGlee']);
 const SIEGE_TYPES  = new Set<UnitData['type']>(['boltThrower', 'catapult', 'grieeGlee']);
@@ -231,7 +208,7 @@ export function CombatSystem() {
           : RANGED_TYPES.has(unit.type)
             ? 0.12
             : 0.45;
-        const damage = (UNIT_CONFIG[unit.type] ?? UNIT_CONFIG.swordsmen).damage
+        const damage = getCombatStats(unit.type).damage
           * damageMultiplier * TICK;
         obstacleDamage.set(blocker.id, (obstacleDamage.get(blocker.id) ?? 0) + damage);
       }
@@ -243,7 +220,7 @@ export function CombatSystem() {
       if (isDead(unit)) continue;
 
       const p = patches.get(unit.id) ?? {};
-      const cfg = UNIT_CONFIG[unit.type] ?? UNIT_CONFIG.swordsmen;
+      const cfg = getCombatStats(unit.type);
 
       // ── Expire phase shift ──────────────────────────────────────────────
       if (unit.phaseShift && unit.phaseShiftUntil !== undefined && elapsed >= unit.phaseShiftUntil) {
@@ -342,13 +319,37 @@ export function CombatSystem() {
 
       let nearest: UnitData | null = null;
       let minDist = Infinity;
-      for (const other of living) {
-        if (other.teamId === unit.teamId || isDead(other)) continue;
-        if (patches.get(other.id)?.phaseShift || other.phaseShift) continue;
-        const dx = unit.position[0] - other.position[0];
-        const dz = unit.position[2] - other.position[2];
-        const d  = Math.sqrt(dx*dx + dz*dz);
-        if (d < minDist) { minDist = d; nearest = other; }
+      const focusedTarget = unit.targetUnitId
+        ? living.find(other => (
+          other.id === unit.targetUnitId
+          && other.teamId !== unit.teamId
+          && !isDead(other)
+          && !(patches.get(other.id)?.phaseShift || other.phaseShift)
+        ))
+        : undefined;
+
+      if (focusedTarget) {
+        nearest = focusedTarget;
+        minDist = Math.hypot(
+          unit.position[0] - focusedTarget.position[0],
+          unit.position[2] - focusedTarget.position[2],
+        );
+      } else {
+        if (unit.targetUnitId) {
+          patches.set(unit.id, {
+            ...patches.get(unit.id),
+            targetUnitId: undefined,
+            targetPosition: undefined,
+          });
+        }
+        for (const other of living) {
+          if (other.teamId === unit.teamId || isDead(other)) continue;
+          if (patches.get(other.id)?.phaseShift || other.phaseShift) continue;
+          const dx = unit.position[0] - other.position[0];
+          const dz = unit.position[2] - other.position[2];
+          const d  = Math.sqrt(dx*dx + dz*dz);
+          if (d < minDist) { minDist = d; nearest = other; }
+        }
       }
 
       if (!nearest) {
@@ -521,7 +522,9 @@ export function CombatSystem() {
           * ((cur(unit, 'slowUntil') ?? 0) > elapsed ? (cur(unit, 'slowMultiplier') ?? 1) : 1)
           * commanderMult(unit, 'speed');
 
-        const pTarget = unit.targetPosition;
+        // Focus orders follow the target's live position. The stored
+        // targetPosition is only a fallback for move, patrol, and attack-move.
+        const pTarget = focusedTarget?.position ?? unit.targetPosition;
         if (pTarget) {
           const pdx = pTarget[0] - unit.position[0];
           const pdz = pTarget[2] - unit.position[2];

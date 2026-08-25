@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { useFrame } from '@react-three/fiber';
 import type { UnitState } from '@/game/store/gameStore';
+import { reportModelDiagnostic } from '@/game/diagnostics/modelDiagnostics';
 
 export interface GLBSoldierProps {
   glbPath: string;
@@ -87,6 +88,26 @@ export function GLBSoldierMesh({
 
   // Track which animation is playing to avoid restarting
   const currentAnim = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (animations.length === 0) {
+      reportModelDiagnostic(`glb-animations:${glbPath}`, `${glbPath} has no animation clips; it will render in its bind pose.`);
+      return;
+    }
+    for (const [state, expected] of Object.entries(animMap)) {
+      const available = animations.some(clip => (
+        clip.name === expected
+        || clip.name.includes(`|${expected}|`)
+        || clip.name.endsWith(`|${expected}`)
+      ));
+      if (!available) {
+        reportModelDiagnostic(
+          `glb-animation:${glbPath}:${state}:${expected}`,
+          `${glbPath} has no ${state} animation matching "${expected}".`,
+        );
+      }
+    }
+  }, [glbPath, animations, animMap]);
 
   useEffect(() => {
     const target = animMap[unitState] ?? animMap['idle'] ?? null;

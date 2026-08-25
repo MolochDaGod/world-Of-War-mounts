@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:warzone": "node --experimental-strip-types scripts/test-warzone-destruction.ts",
     "test:combat": "node --experimental-strip-types scripts/test-combat-skills.ts",
+    "test:deployment": "node --experimental-strip-types scripts/test-deployment-layout.ts",
     "build:prod": "node scripts/build-prod.mjs",
     "build:prod:verbose": "node scripts/build-prod.mjs --verbose",
     "compress": "node scripts/compress-dist.mjs",

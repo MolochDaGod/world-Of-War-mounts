@@ -18,6 +18,15 @@ const EDGE_MARGIN = 50;
 const MIN_PITCH = THREE.MathUtils.degToRad(34);
 const MAX_PITCH = THREE.MathUtils.degToRad(68);
 
+function isTypingTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement && (
+    target.isContentEditable
+    || target.tagName === 'INPUT'
+    || target.tagName === 'TEXTAREA'
+    || target.tagName === 'SELECT'
+  );
+}
+
 export function RTSCamera() {
   const { camera, gl } = useThree();
 
@@ -34,8 +43,14 @@ export function RTSCamera() {
   useEffect(() => {
     const canvas = gl.domElement;
 
-    const onKeyDown  = (e: KeyboardEvent) => { keys.current[e.code] = true; };
-    const onKeyUp    = (e: KeyboardEvent) => { delete keys.current[e.code]; };
+    const onKeyDown  = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target) || e.defaultPrevented || e.shiftKey) return;
+      keys.current[e.code] = true;
+    };
+    const onKeyUp    = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return;
+      delete keys.current[e.code];
+    };
 
     const onWheel    = (e: WheelEvent) => {
       e.preventDefault();

@@ -2,7 +2,7 @@
  * RTSInputController — all RTS mouse + keyboard commands inside the R3F Canvas.
  *
  * Mouse:
- *   LMB single click on ground   → deselect all (via Canvas onPointerMissed)
+ *   LMB single click on ground   → place an armed commander/ground ability
  *   LMB drag on ground           → rubber-band box select (player team 1 only)
  *   RMB click                    → execute current command mode at target location
  *   MMB drag                     → camera pan (handled in RTSCamera)
@@ -28,6 +28,15 @@ import {
   MODE_CURSOR,
 } from '@/game/input/CommandMode';
 import { findWarZoneObstacleAtPoint } from '@/game/world/warZoneGeometry';
+
+function isTypingTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement && (
+    target.isContentEditable
+    || target.tagName === 'INPUT'
+    || target.tagName === 'TEXTAREA'
+    || target.tagName === 'SELECT'
+  );
+}
 
 // ── Module-level selection-box state (shared with SelectionBoxOverlay) ────────
 interface BoxRect { x1: number; y1: number; x2: number; y2: number }
@@ -59,7 +68,7 @@ export function RTSInputController() {
     // ── Keyboard shortcuts ────────────────────────────────────────────────────
     const onKeyDown = (e: KeyboardEvent) => {
       // Ignore when typing in an input field
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (isTypingTarget(e.target)) return;
       const phase = useGameStore.getState().phase;
       if (phase !== 'battle') return;
 
@@ -69,6 +78,9 @@ export function RTSInputController() {
         case 'KeyP': setCommandMode('patrol');  e.preventDefault(); break;
         case 'KeyL': setCommandMode('lob');     e.preventDefault(); break;
         case 'KeyS': {
+          // S remains camera-back by itself. Shift+S is the explicit
+          // stand-ground command, preventing simultaneous camera movement.
+          if (!e.shiftKey) break;
           const { selectedUnitIds, toggleStandGround } = useGameStore.getState();
           if (selectedUnitIds.length > 0) { toggleStandGround(selectedUnitIds); e.preventDefault(); }
           break;
@@ -131,8 +143,9 @@ export function RTSInputController() {
     const executeCommand = (hit: THREE.Vector3) => {
       const store = useGameStore.getState();
       if (store.phase !== 'battle') return;
-      const { selectedUnitIds, issueMove, issueAttackMove, issuePatrol, issueLob, issueCoverAttack,
-               pendingAbility, triggerAbility, setPendingAbility, setAbilityTarget } = store;
+      const { selectedUnitIds, units, issueMove, issueAttackMove, issuePatrol, issueLob, issueCoverAttack,
+                pendingAbility, triggerAbility, setPendingAbility, setAbilityTarget,
+                activeAbility, castAbility, setActiveAbility } = store;
 
       // ── Pending ability ground click (e.g. holy totem placement) ────────────
       if (pendingAbility) {
@@ -141,6 +154,25 @@ export function RTSInputController() {
         emitMoveMarker(dest);
         setPendingAbility(null);
         setAbilityTarget(null);
+        return;
+      }
+
+      // Commander spell hotkeys share this controller with all other RTS input.
+      // Use the selected commander, then the first selected regiment, as the
+      // casting origin so targeting feedback is anchored to the actual army.
+      if (activeAbility) {
+        const caster = units.find(unit => (
+          selectedUnitIds.includes(unit.id) && unit.isCommander && unit.state !== 'dead'
+        )) ?? units.find(unit => selectedUnitIds.includes(unit.id) && unit.state !== 'dead');
+        const origin = caster?.position ?? [0, 0, 0];
+        const target: [number, number, number] = [hit.x, 0, hit.z];
+        castAbility(activeAbility, {
+          origin,
+          direction: [target[0] - origin[0], 0, target[2] - origin[2]],
+          distance: Math.hypot(target[0] - origin[0], target[2] - origin[2]),
+        });
+        setActiveAbility(null);
+        emitMoveMarker(target);
         return;
       }
 
@@ -263,13 +295,27 @@ export function RTSInputController() {
               selected.push(unit.id);
             }
           }
-          selectUnits(selected);
+          if (e.shiftKey) {
+            const existing = useGameStore.getState().selectedUnitIds;
+            selectUnits([...new Set([...existing, ...selected])]);
+          } else {
+            selectUnits(selected);
+          }
         } else {
-          // Single LMB in command mode → execute on ground
+          // Fight-mode enemy clicks are R3F click events, which fire after
+          // this native mouseup. Defer only that ground order one task so the
+          // regiment can claim the click and install a focused target first.
           const mode = getCommandMode();
-          if (useGameStore.getState().phase === 'battle' && mode !== 'default') {
+          const store = useGameStore.getState();
+          if (store.phase === 'battle' && (mode !== 'default' || store.pendingAbility || store.activeAbility)) {
             const hit = groundHit(e.clientX, e.clientY);
-            if (hit) executeCommand(hit);
+            if (hit && mode === 'fight') {
+              window.setTimeout(() => {
+                if (getCommandMode() === 'fight') executeCommand(hit);
+              }, 0);
+            } else if (hit) {
+              executeCommand(hit);
+            }
           }
           // otherwise deselect handled by Canvas onPointerMissed
         }

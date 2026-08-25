@@ -8,10 +8,10 @@ import { useMemo } from 'react';
 import { Suspense } from 'react';
 import type { UnitData } from '@/game/store/gameStore';
 import { useGameStore }   from '@/game/store/gameStore';
-import { useShallow }     from 'zustand/react/shallow';
 import { MeshySoldier }   from './MeshySoldier';
 import { SelectionRing }  from './CharacterBase';
 import { RegimentLabel }  from './RegimentLabel';
+import { getCommandMode, setCommandMode } from '@/game/input/CommandMode';
 
 interface Props {
   unit: UnitData;
@@ -19,7 +19,6 @@ interface Props {
 }
 
 export function MeshyWarriorRegiment({ unit, isSelected }: Props) {
-  const setSelectedUnitIds = useGameStore(s => s.selectUnits);
   const isCommander = !!(unit as any).isCommander;
 
   const aliveCount = unit.state === 'dead'
@@ -51,7 +50,24 @@ export function MeshyWarriorRegiment({ unit, isSelected }: Props) {
       {/* Click hitbox */}
       <mesh
         position={[unit.position[0], 1.5, unit.position[2]]}
-        onClick={e => { e.stopPropagation(); setSelectedUnitIds([unit.id]); }}
+        onClick={e => {
+          e.stopPropagation();
+          if (unit.state === 'dead') return;
+          const store = useGameStore.getState();
+          if (unit.teamId === 2) {
+            if (store.phase === 'battle' && getCommandMode() === 'fight' && store.selectedUnitIds.length > 0) {
+              store.issueFocusAttack(store.selectedUnitIds, unit.id);
+              setCommandMode('default');
+            }
+            return;
+          }
+          const next = e.nativeEvent.shiftKey
+            ? (store.selectedUnitIds.includes(unit.id)
+                ? store.selectedUnitIds.filter(id => id !== unit.id)
+                : [...store.selectedUnitIds, unit.id])
+            : [unit.id];
+          store.selectUnits(next);
+        }}
         visible={false}
       >
         <boxGeometry args={[ringRadius * 2, 3, ringRadius * 2]} />

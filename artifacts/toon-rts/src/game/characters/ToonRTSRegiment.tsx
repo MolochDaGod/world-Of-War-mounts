@@ -28,6 +28,8 @@ import { SkeletonWarriorRegiment } from './SkeletonWarriorRegiment';
 import { MeshyWarriorRegiment }    from './MeshyWarriorRegiment';
 import { HeroCommanderMesh }       from './HeroCommanderMesh';
 import { PirateKingMesh }          from './PirateKingMesh';
+import { getCommandMode, setCommandMode } from '@/game/input/CommandMode';
+import { reportModelDiagnostic } from '@/game/diagnostics/modelDiagnostics';
 
 // ── Formation helpers ─────────────────────────────────────────────────────────
 
@@ -278,6 +280,49 @@ function ToonRTSSoldierInner({ assets, unitState, position, facing, teamId, race
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene]);
 
+  // Asset failures should never silently look like a broken soldier. These
+  // checks do not interrupt the fallback renderer or animation mixer.
+  useEffect(() => {
+    let skinnedMeshes = 0;
+    const bones = new Set<string>();
+    scene.traverse(object => {
+      if ((object as THREE.SkinnedMesh).isSkinnedMesh) skinnedMeshes++;
+      if ((object as THREE.Bone).isBone) bones.add(object.name);
+    });
+    const assetKey = `${race}/${unitType}/${assets.modelPath}`;
+    if (skinnedMeshes === 0) {
+      reportModelDiagnostic(`fbx-skinned:${assetKey}`, `${assetKey} has no skinned mesh; using the visible fallback if needed.`);
+    }
+    if (bones.size === 0) {
+      reportModelDiagnostic(`fbx-bones:${assetKey}`, `${assetKey} has no skeleton bones; FBX animation clips cannot bind.`);
+    }
+
+    const clips = [
+      ['idle', idleFBX], ['run', runFBX], ['attack1', atk1FBX], ['attack2', atk2FBX], ['death', dieFBX],
+    ] as const;
+    for (const [name, fbx] of clips) {
+      if (!fbx.animations[0]) {
+        reportModelDiagnostic(`fbx-clip:${assetKey}:${name}`, `${assetKey} is missing its ${name} animation clip.`);
+      }
+    }
+
+    const equipment = getEquipIndex(equipGLTF.scene);
+    const commander = isCommander && commanderArchetype ? COMMANDER_BY_ID[commanderArchetype] : undefined;
+    const requested = commander?.meshShow ?? getEquipmentList(race, unitType);
+    for (const meshName of requested) {
+      const source = equipment.get(meshName.toLowerCase());
+      if (source?.parent?.name && !bones.has(source.parent.name)) {
+        reportModelDiagnostic(
+          `fbx-equipment:${assetKey}:${meshName}`,
+          `${assetKey} cannot attach ${meshName}: skeleton is missing ${source.parent.name}.`,
+        );
+      }
+    }
+  }, [
+    scene, assets.modelPath, race, unitType, isCommander, commanderArchetype,
+    idleFBX, runFBX, atk1FBX, atk2FBX, dieFBX, equipGLTF,
+  ]);
+
   // Drive animations from unitState
   useEffect(() => {
     const mixer = mixerRef.current;
@@ -376,22 +421,46 @@ export function ToonRTSRegiment({ unit, isSelected }: { unit: UnitData; isSelect
         unit.spacing,
         unit.formationFacing,
       ).slice(0, aliveSoldiers),
-    // Recompute when regiment center moves or soldier count changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [unit.position[0], unit.position[2], unit.formationFacing, aliveSoldiers],
+    [
+      unit.position[0],
+      unit.position[2],
+      unit.formationRows,
+      unit.formationCols,
+      unit.spacing,
+      unit.formationFacing,
+      aliveSoldiers,
+    ],
   );
 
   // Selection ring radius scales with formation width
   const ringRadius = ((unit.formationCols - 1) * unit.spacing) / 2 + 1.2;
 
   // Invisible click hitbox — covers the formation footprint for LMB selection
-  const selectUnits = useGameStore(s => s.selectUnits);
   const hitW = (unit.formationCols - 1) * unit.spacing + 2;
   const hitD = (unit.formationRows - 1) * unit.spacing + 2;
 
-  const handleClick = (e: { stopPropagation: () => void }) => {
+  const handleClick = (e: { stopPropagation: () => void; nativeEvent?: MouseEvent }) => {
     e.stopPropagation(); // prevent ground plane from also deselecting
-    if (unit.state !== 'dead') selectUnits([unit.id]);
+    if (unit.state === 'dead') return;
+    const store = useGameStore.getState();
+
+    // Enemy units are deliberate focus targets only while Fight mode is armed.
+    if (unit.teamId === 2) {
+      if (store.phase === 'battle' && getCommandMode() === 'fight' && store.selectedUnitIds.length > 0) {
+        store.issueFocusAttack(store.selectedUnitIds, unit.id);
+        setCommandMode('default');
+      }
+      return;
+    }
+
+    if (e.nativeEvent?.shiftKey) {
+      const next = store.selectedUnitIds.includes(unit.id)
+        ? store.selectedUnitIds.filter(id => id !== unit.id)
+        : [...store.selectedUnitIds, unit.id];
+      store.selectUnits(next);
+    } else {
+      store.selectUnits([unit.id]);
+    }
   };
 
   return (

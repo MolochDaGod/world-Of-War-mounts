@@ -14,9 +14,9 @@ import { GLBSoldierMesh }  from './GLBSoldierMesh';
 import { SelectionRing }   from './CharacterBase';
 import { RegimentLabel }   from './RegimentLabel';
 import { useGameStore }    from '@/game/store/gameStore';
-import { useShallow }      from 'zustand/react/shallow';
 import * as THREE          from 'three';
 import type { UnitState }  from '@/game/store/gameStore';
+import { getCommandMode, setCommandMode } from '@/game/input/CommandMode';
 
 const ORC_GLB    = '/assets/characters/glb/graatorc.glb';
 const GOBLIN_GLB = '/assets/characters/glb/goblin_crew.glb';
@@ -51,9 +51,6 @@ interface Props {
 }
 
 export function GrieeGleeRegiment({ unit, isSelected }: Props) {
-  const setSelectedUnitIds = useGameStore(s => s.selectUnits);
-  const selectedUnitIds    = useGameStore(useShallow(s => s.selectedUnitIds));
-
   const alivePairs = unit.state === 'dead'
     ? 0
     : Math.max(1, Math.ceil((unit.health / unit.maxHealth) * unit.maxSoldiers));
@@ -72,9 +69,23 @@ export function GrieeGleeRegiment({ unit, isSelected }: Props) {
 
   const ringRadius = ((unit.formationCols ?? 3) * (unit.spacing ?? 5)) / 2 + 1.5;
 
-  const handleClick = (e: { stopPropagation: () => void }) => {
+  const handleClick = (e: { stopPropagation: () => void; nativeEvent?: MouseEvent }) => {
     e.stopPropagation();
-    setSelectedUnitIds([unit.id]);
+    if (unit.state === 'dead') return;
+    const store = useGameStore.getState();
+    if (unit.teamId === 2) {
+      if (store.phase === 'battle' && getCommandMode() === 'fight' && store.selectedUnitIds.length > 0) {
+        store.issueFocusAttack(store.selectedUnitIds, unit.id);
+        setCommandMode('default');
+      }
+      return;
+    }
+    const next = e.nativeEvent?.shiftKey
+      ? (store.selectedUnitIds.includes(unit.id)
+          ? store.selectedUnitIds.filter(id => id !== unit.id)
+          : [...store.selectedUnitIds, unit.id])
+      : [unit.id];
+    store.selectUnits(next);
   };
 
   return (
