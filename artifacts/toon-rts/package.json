@@ -11,6 +11,7 @@
     "test:warzone": "node --experimental-strip-types scripts/test-warzone-destruction.ts",
     "test:combat": "node --experimental-strip-types scripts/test-combat-skills.ts",
     "test:regiment-motion": "node --experimental-strip-types scripts/test-regiment-combat-motion.ts",
+    "test:pursuit": "node --experimental-strip-types scripts/test-pursuit-ai.ts",
     "test:commanders": "node --experimental-strip-types scripts/test-canonical-commanders.ts",
     "test:deployment": "node --experimental-strip-types scripts/test-deployment-layout.ts",
     "build:prod": "node scripts/build-prod.mjs",

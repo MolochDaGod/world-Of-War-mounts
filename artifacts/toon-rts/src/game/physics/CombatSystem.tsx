@@ -31,6 +31,7 @@ import {
 } from '../world/warZoneGeometry';
 import { getCombatStats } from '../data/CombatStats';
 import {
+  calculatePursuitPoint,
   chargeMovementAllowed,
   chargeExitPosition,
   combatDefenseMultiplier,
@@ -61,6 +62,8 @@ const cavalryCharges = new Map<string, {
   hitIds: Set<string>;
 }>();
 const cavalryChargeCooldowns = new Map<string, number>();
+type PursuitSample = { position: [number, number, number]; elapsed: number };
+const pursuitHistory = new Map<string, PursuitSample>();
 const MELEE_WINDUP = 0.22;
 const CAVALRY_REFORM_DELAY = 2.4;
 
@@ -97,6 +100,7 @@ export function CombatSystem() {
       meleeWindups.clear();
       cavalryCharges.clear();
       cavalryChargeCooldowns.clear();
+      pursuitHistory.clear();
     }
 
     // ── Commander leadership aura — pre-compute per team ─────────────────
@@ -741,9 +745,31 @@ export function CombatSystem() {
           }
         } else {
           // ── AI BEHAVIOUR — unit-type tactics ──────────────────────────
-          const dx = nearest.position[0] - unit.position[0];
-          const dz = nearest.position[2] - unit.position[2];
+          // Melee regiments pursue a short, bounded lead point for moving
+          // targets. The regiment remains one steering body; its soldiers
+          // continue to render from the same formation anchor.
+          const isMelee = getCombatStats(unit.type).role === 'melee';
+          const pursuitSample = pursuitHistory.get(nearest.id);
+          const pursuit = isMelee
+            ? calculatePursuitPoint({
+                pursuerPosition: unit.position,
+                targetPosition: nearest.position,
+                previousTargetPosition: pursuitSample?.position,
+                previousTargetElapsed: pursuitSample?.elapsed,
+                elapsed,
+                pursuerSpeed: cfg.speed * speedMult,
+                engagementRange: cfg.attackRange,
+              })
+            : null;
+          const chasePoint = pursuit?.point ?? nearest.position;
+          const dx = chasePoint[0] - unit.position[0];
+          const dz = chasePoint[2] - unit.position[2];
           const dist = Math.sqrt(dx*dx + dz*dz);
+
+          if (dist < 0.0001) {
+            patches.set(unit.id, { ...patches.get(unit.id), state: 'idle' });
+            continue;
+          }
 
           let moveX = dx / dist;
           let moveZ = dz / dist;
@@ -836,6 +862,21 @@ export function CombatSystem() {
           }
         }
       }
+    }
+
+    // Save base positions after this tick's decisions. A movement patch is
+    // committed below; storing the base position here makes the next tick's
+    // sample represent the actual target displacement between store writes.
+    for (const target of living) {
+      if (!isDead(target)) {
+        pursuitHistory.set(target.id, { position: target.position, elapsed });
+      }
+    }
+    const livingIds = new Set(
+      living.filter(target => !isDead(target)).map(target => target.id),
+    );
+    for (const targetId of pursuitHistory.keys()) {
+      if (!livingIds.has(targetId)) pursuitHistory.delete(targetId);
     }
 
     // ── 3. Ability charge regen (1 Hz) ─────────────────────────────────────
