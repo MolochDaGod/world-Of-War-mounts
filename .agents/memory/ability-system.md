@@ -56,3 +56,10 @@ description: Per-unit abilities, charges, stand ground, VFX, combat timer; facti
 - **Commander unit spawned at [0,0,18]** (front-center of player army), facing Math.PI
 - **commanderAttackMult only applies to 'attack' bonus type** — speed/defense bonuses not yet wired to movement/DR
 - **Postprocessing "multiple Three.js" warning**: alias `three` in vite.config.ts to fix
+
+## Multi-target combat resolution
+**Rule:** When one combat event can affect several targets, evaluate each later target against the current tick’s accumulated outcome before applying a direct follow-up hit or score.
+
+**Why:** An AOE released by an earlier target can kill a later target in the same charge/sweep; treating the original target list as still alive causes duplicate damage, score, and removal.
+
+**How to apply:** Keep combat deterministic in the shared tick, consume a pending attack effect once per event, and consult the current patched liveness before every subsequent direct hit.

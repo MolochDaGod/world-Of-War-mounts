@@ -37,3 +37,10 @@ Large GLBs preloaded at module-init level (e.g. 34 MB flame, 155 MB PirateKing s
 
 ## WebGL error in agent screenshots
 The agent sandbox has no GPU. `THREE.WebGLRenderer: Error creating WebGL context` in screenshots is expected and does NOT indicate a code bug. The app works correctly in real browsers.
+
+## First-frame character transforms
+**Rule:** A renderer that also synchronizes a character root through `useFrame` must provide the same position and facing declaratively on its first `<group>` render.
+
+**Why:** Frame-driven synchronization begins after the component commits, allowing a loaded GLB to flash at world origin even when its game-state coordinates are already correct.
+
+**How to apply:** Keep the canonical regiment position in the store, pass it as initial JSX transform props, and retain the frame update only for later movement smoothing/synchronization.

@@ -60,12 +60,18 @@ export function GrieeGleeRegiment({ unit, isSelected }: Props) {
     const out: [number, number, number][] = [];
     const cols = unit.formationCols ?? 3;
     const spacing = unit.spacing ?? 5;
+    const cos = Math.cos(unit.formationFacing);
+    const sin = Math.sin(unit.formationFacing);
     for (let c = 0; c < alivePairs; c++) {
-      const x = unit.position[0] + (c - (cols - 1) / 2) * spacing;
-      out.push([x, 0, unit.position[2]]);
+      const localX = (c - (cols - 1) / 2) * spacing;
+      out.push([
+        unit.position[0] + cos * localX,
+        0,
+        unit.position[2] + sin * localX,
+      ]);
     }
     return out;
-  }, [unit.position, unit.formationCols, unit.spacing, alivePairs]);
+  }, [unit.position, unit.formationCols, unit.spacing, unit.formationFacing, alivePairs]);
 
   const ringRadius = ((unit.formationCols ?? 3) * (unit.spacing ?? 5)) / 2 + 1.5;
 

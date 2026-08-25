@@ -135,7 +135,7 @@ export function GLBSoldierMesh({
   });
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} position={position} rotation={[0, facing, 0]}>
       <primitive object={cloned} />
     </group>
   );

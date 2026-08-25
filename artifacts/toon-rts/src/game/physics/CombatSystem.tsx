@@ -18,6 +18,7 @@ import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGameStore, UnitData } from '../store/gameStore';
 import { emitProjectile, ProjectileKind } from '../effects/ProjectileSystem';
+import { emitCombatImpact } from '../effects/CombatEffects';
 import { ABILITY_DEFS, AbilityId } from '../data/AbilityDefs';
 import { canAutoCastRegimentSkill, resolveAreaSkill } from './combatSkillResolver';
 import { COMMANDER_BY_ID } from '../data/CommanderDefs';
@@ -29,12 +30,19 @@ import {
   activeWarZoneObstacles,
 } from '../world/warZoneGeometry';
 import { getCombatStats } from '../data/CombatStats';
+import {
+  chargeMovementAllowed,
+  chargeExitPosition,
+  combatDefenseMultiplier,
+  sweptChargeTargets,
+} from './regimentCombatMotion';
 
 const TICK = 0.05; // seconds per combat frame (≈ 20 Hz) — cinematic pace
 const BATTLE_LIMIT = 480; // 8-minute timer
 
 const RANGED_TYPES = new Set<UnitData['type']>(['archers', 'mage', 'boltThrower', 'catapult', 'grieeGlee']);
 const SIEGE_TYPES  = new Set<UnitData['type']>(['boltThrower', 'catapult', 'grieeGlee']);
+const CAVALRY_TYPES = new Set<UnitData['type']>(['cavalry', 'heavyCavalry']);
 
 function projectileKind(type: UnitData['type']): ProjectileKind {
   if (type === 'mage')                    return 'magic';
@@ -46,6 +54,15 @@ function projectileKind(type: UnitData['type']): ProjectileKind {
 // Module-level timers
 const attackTimers: Record<string, number> = {};
 const chargeRegenTimers: Record<string, number> = {};
+const meleeWindups = new Map<string, { strikeAt: number }>();
+const cavalryCharges = new Map<string, {
+  targetId: string;
+  exitPosition: [number, number, number];
+  hitIds: Set<string>;
+}>();
+const cavalryChargeCooldowns = new Map<string, number>();
+const MELEE_WINDUP = 0.22;
+const CAVALRY_REFORM_DELAY = 2.4;
 
 // Combat elapsed tracked locally, synced to store every ~1 s
 let localElapsed  = 0;
@@ -77,6 +94,9 @@ export function CombatSystem() {
       lastStoreSync = 0;
       for (const key of Object.keys(attackTimers)) delete attackTimers[key];
       for (const key of Object.keys(chargeRegenTimers)) delete chargeRegenTimers[key];
+      meleeWindups.clear();
+      cavalryCharges.clear();
+      cavalryChargeCooldowns.clear();
     }
 
     // ── Commander leadership aura — pre-compute per team ─────────────────
@@ -374,7 +394,161 @@ export function CombatSystem() {
         continue;
       }
 
+      const isCavalry = CAVALRY_TYPES.has(unit.type);
+      const formationLockedUntil = cur(unit, 'formationLockUntil') ?? 0;
+      const chargeMovementLocked = !chargeMovementAllowed(
+        cur(unit, 'standGround'),
+        formationLockedUntil,
+        elapsed,
+      );
+      const canInitiateCharge = isCavalry
+        && targetVisible
+        && !chargeMovementLocked
+        && (unit.attackMove || !!unit.targetUnitId || !unit.targetPosition);
+      let charge = cavalryCharges.get(unit.id);
+      if (charge && (charge.targetId !== nearest.id || chargeMovementLocked)) {
+        cavalryCharges.delete(unit.id);
+        charge = undefined;
+      }
+      if (
+        !charge
+        && canInitiateCharge
+        && minDist > cfg.attackRange * 1.18
+        && elapsed >= (cavalryChargeCooldowns.get(unit.id) ?? 0)
+      ) {
+        charge = {
+          targetId: nearest.id,
+          exitPosition: chargeExitPosition(
+            unit.position,
+            nearest.position,
+            Math.max(8, unit.formationCols * unit.spacing * 1.4),
+          ),
+          hitIds: new Set(),
+        };
+        cavalryCharges.set(unit.id, charge);
+      }
+
+      // A charge advances through the target formation instead of stopping at
+      // attack range. Swept targets are resolved once against the deterministic
+      // tick segment; Rapier stays out of regiment movement.
+      if (charge) {
+        const exitDx = charge.exitPosition[0] - unit.position[0];
+        const exitDz = charge.exitPosition[2] - unit.position[2];
+        const exitDistance = Math.hypot(exitDx, exitDz);
+        const speedMult = (unit.speedBoostUntil && elapsed < unit.speedBoostUntil ? 1.8 : 1.0)
+          * ((cur(unit, 'slowUntil') ?? 0) > elapsed ? (cur(unit, 'slowMultiplier') ?? 1) : 1)
+          * commanderMult(unit, 'speed');
+        const step = cfg.speed * speedMult * TICK * 1.45;
+        const nextPosition = exitDistance <= step
+          ? charge.exitPosition
+          : advanceWithCover(unit, charge.exitPosition, step);
+        const sweepWidth = Math.max(2.4, unit.formationCols * unit.spacing * 0.32);
+        const swept = sweptChargeTargets(
+          unit,
+          unit.position,
+          nextPosition,
+          living.filter(candidate => !isDead(candidate)),
+          charge.hitIds,
+          sweepWidth,
+        );
+        const chargeAttackSkill = cur(unit, 'pendingAttackSkill');
+        let attackSkillResolved = false;
+
+        for (const target of swept) {
+          // A prior charge impact can release an AOE that kills a later
+          // regiment in this same sweep. Always read the current patch before
+          // applying the direct hit so score/removal remain one-per-target.
+          if (isDead(target)) {
+            charge.hitIds.add(target.id);
+            continue;
+          }
+          charge.hitIds.add(target.id);
+          const guarded = target.type === 'shieldwall'
+            || patches.get(target.id)?.standGround
+            || target.standGround;
+          let damageMultiplier = 1;
+          if (unit.chargeBoost) damageMultiplier *= 3;
+          const damageReduction = combatDefenseMultiplier({
+            shieldwall: target.type === 'shieldwall',
+            standGround: patches.get(target.id)?.standGround ?? target.standGround,
+            shieldWallUntil: patches.get(target.id)?.shieldWallUntil ?? target.shieldWallUntil,
+            commanderDefenseMultiplier: commanderMult(target, 'defense'),
+            elapsed,
+          });
+          const rawDamage = cfg.damage * 1.25 * damageMultiplier
+            * damageReduction * commanderMult(unit, 'attack');
+          let damage = rawDamage;
+          const barrierUntil = patches.get(target.id)?.arcaneBarrierUntil ?? target.arcaneBarrierUntil ?? 0;
+          const barrierHp = patches.get(target.id)?.arcaneBarrierHp ?? target.arcaneBarrierHp ?? 0;
+          if (barrierUntil > elapsed && barrierHp > 0) {
+            const absorbed = Math.min(barrierHp, damage);
+            damage -= absorbed;
+            patches.set(target.id, {
+              ...patches.get(target.id),
+              arcaneBarrierHp: barrierHp - absorbed,
+            });
+          }
+          const hp = Math.max(0, curHp(target) - damage);
+          patches.set(target.id, {
+            ...patches.get(target.id),
+            health: hp,
+            stunnedUntil: hp > 0 ? Math.max(cur(target, 'stunnedUntil') ?? 0, elapsed + 0.45) : undefined,
+            ...(hp <= 0 ? { state: 'dead' as const } : {}),
+          });
+          emitCombatImpact(unit.position, target.position, guarded ? 'guard' : 'charge');
+          if (hp <= 0) {
+            kills.push(target.id);
+            delete attackTimers[target.id];
+            if (unit.teamId === 1) scoreDelta1++; else scoreDelta2++;
+          }
+          if (chargeAttackSkill && !attackSkillResolved) {
+            applyAreaSkill(unit, chargeAttackSkill, target.position, true);
+            patches.set(unit.id, { ...patches.get(unit.id), pendingAttackSkill: undefined });
+            attackSkillResolved = true;
+          }
+        }
+
+        if (unit.chargeBoost && swept.length > 0) {
+          patches.set(unit.id, { ...patches.get(unit.id), chargeBoost: false });
+        }
+
+        const facing = Math.atan2(exitDx, exitDz);
+        if (exitDistance <= step) {
+          cavalryCharges.delete(unit.id);
+          cavalryChargeCooldowns.set(unit.id, elapsed + CAVALRY_REFORM_DELAY);
+          patches.set(unit.id, {
+            ...patches.get(unit.id),
+            position: nextPosition,
+            formationFacing: facing,
+            state: 'idle',
+          });
+        } else {
+          patches.set(unit.id, {
+            ...patches.get(unit.id),
+            position: nextPosition,
+            formationFacing: facing,
+            state: 'move',
+          });
+        }
+        continue;
+      }
+
       const inRange = minDist <= cfg.attackRange && targetVisible;
+      const meleeWindup = meleeWindups.get(unit.id);
+      if (!inRange && meleeWindup) meleeWindups.delete(unit.id);
+      if (inRange && !RANGED_TYPES.has(unit.type)) {
+        const lastHit = attackTimers[unit.id] ?? 0;
+        if (!meleeWindup && elapsed - lastHit >= cfg.attackCooldown) {
+          meleeWindups.set(unit.id, { strikeAt: elapsed + MELEE_WINDUP });
+          patches.set(unit.id, { ...patches.get(unit.id), state: 'attack' });
+          continue;
+        }
+        if (meleeWindup && elapsed < meleeWindup.strikeAt) {
+          patches.set(unit.id, { ...patches.get(unit.id), state: 'attack' });
+          continue;
+        }
+        if (meleeWindup) meleeWindups.delete(unit.id);
+      }
 
       if (inRange) {
         // ── ATTACK ────────────────────────────────────────────────────────
@@ -439,14 +613,16 @@ export function CombatSystem() {
           // ── Damage reduction on target ───────────────────────────────
           // Shieldwall passive: 80 % damage taken; stand ground: 75 % damage taken
           const targetType = nearest.type;
-          let drMult = 1.0;
-          if (targetType === 'shieldwall') drMult *= 0.80;
-          if (patches.get(nearest.id)?.standGround || nearest.standGround) drMult *= 0.75;
-          // Defense aura: reduce incoming damage by 1/mult for buffed defenders
-          drMult *= 1 / commanderMult(nearest, 'defense');
-          if ((patches.get(nearest.id)?.shieldWallUntil ?? nearest.shieldWallUntil ?? 0) > elapsed) {
-            drMult *= 0.55;
-          }
+          const guarded = targetType === 'shieldwall'
+            || patches.get(nearest.id)?.standGround
+            || nearest.standGround;
+          const drMult = combatDefenseMultiplier({
+            shieldwall: targetType === 'shieldwall',
+            standGround: patches.get(nearest.id)?.standGround ?? nearest.standGround,
+            shieldWallUntil: patches.get(nearest.id)?.shieldWallUntil ?? nearest.shieldWallUntil,
+            commanderDefenseMultiplier: commanderMult(nearest, 'defense'),
+            elapsed,
+          });
 
           const rawDmg = cfg.damage * dmgMult * drMult * commanderMult(unit, 'attack');
           let effectiveDmg = rawDmg;
@@ -461,6 +637,9 @@ export function CombatSystem() {
             });
           }
           const hp     = Math.max(0, curHp(nearest) - effectiveDmg);
+          if (!RANGED_TYPES.has(unit.type)) {
+            emitCombatImpact(unit.position, nearest.position, guarded ? 'guard' : 'melee');
+          }
 
           // ── Charge boost: consume flag ───────────────────────────────
           if (unit.chargeBoost) {

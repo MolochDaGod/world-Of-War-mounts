@@ -30,6 +30,7 @@ import { AbilityManager }  from './abilities/AbilityManager';
 import { UnitAbilityVFX }  from './abilities/UnitAbilityVFX';
 import { CombatSystem }    from './physics/CombatSystem';
 import { ProjectileSystem } from './effects/ProjectileSystem';
+import { CombatEffects }    from './effects/CombatEffects';
 import { MoveMarker }      from './effects/MoveMarker';
 import { RTSInputController } from './input/RTSInputController';
 import { BuildSystem }       from './building/BuildSystem';
@@ -297,6 +298,7 @@ export function GameScene() {
 
           {/* Projectiles live outside Physics — they are purely visual */}
           <ProjectileSystem />
+          <CombatEffects />
           <BattleVFXOverlay />
 
           {/* Move-order VFX and RTS mouse input (ground plane + LMB/RMB handlers) */}

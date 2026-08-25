@@ -47,16 +47,22 @@ export function SkeletonWarriorRegiment({ unit, isSelected }: Props) {
   // Grid slot positions
   const slots: [number, number, number][] = useMemo(() => {
     const out: [number, number, number][] = [];
+    const cos = Math.cos(unit.formationFacing);
+    const sin = Math.sin(unit.formationFacing);
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         if (out.length >= aliveCount) break;
-        const x = unit.position[0] + (c - (cols - 1) / 2) * spacing;
-        const z = unit.position[2] + (r - (rows - 1) / 2) * spacing;
-        out.push([x, 0, z]);
+        const localX = (c - (cols - 1) / 2) * spacing;
+        const localZ = (r - (rows - 1) / 2) * spacing;
+        out.push([
+          unit.position[0] + cos * localX - sin * localZ,
+          0,
+          unit.position[2] + sin * localX + cos * localZ,
+        ]);
       }
     }
     return out;
-  }, [unit.position, rows, cols, spacing, aliveCount]);
+  }, [unit.position, unit.formationFacing, rows, cols, spacing, aliveCount]);
 
   const ringRadius = (cols * spacing) / 2 + 0.8;
 
