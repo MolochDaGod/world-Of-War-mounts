@@ -1,14 +1,15 @@
 import { create } from 'zustand';
-import { AbilityId, ABILITY_DEFS, getUnitAbilities, TotemData } from '../data/AbilityDefs';
-import { COMMANDER_BY_ID, getCommandersForRace } from '../data/CommanderDefs';
-import { removeExpiredCasts } from '../diagnostics/battleMemoryDiagnostics';
-import { createUUID } from '../utils/uuid';
-import { useWarZoneStore } from './warZoneStore';
+import { ABILITY_DEFS, getUnitAbilities } from '../data/AbilityDefs.ts';
+import type { AbilityId, TotemData } from '../data/AbilityDefs.ts';
+import { COMMANDER_BY_ID, getCommandersForRace } from '../data/CommanderDefs.ts';
+import { removeExpiredCasts } from '../diagnostics/battleMemoryDiagnostics.ts';
+import { createUUID } from '../utils/uuid.ts';
+import { useWarZoneStore } from './warZoneStore.ts';
 import {
   consumeSkillCharge,
   isTimedSkillBurstExpired,
   resolveAreaSkill,
-} from '../physics/combatSkillResolver';
+} from '../physics/combatSkillResolver.ts';
 
 export type Race = 'Barbarians' | 'Dwarves' | 'Elves' | 'Orcs' | 'Undead' | 'WesternKingdoms';
 
@@ -205,7 +206,7 @@ interface GameState {
   markPreparationAssetsReady: () => void;
   setPreparationAssetError: (message: string) => void;
   retryPreparationAssetLoad: () => void;
-  regenAbilityCharges:(unitId: string, now: number) => void;
+  regenAbilityCharges:(unitId: string) => void;
 }
 
 function uid() { return createUUID(); }
@@ -598,9 +599,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     preparationAssetLoadKey: state.preparationAssetLoadKey + 1,
   })),
 
-  regenAbilityCharges: (unitId, now) => set(s => {
+  regenAbilityCharges: (unitId) => set(s => {
     const unit = s.units.find(u => u.id === unitId);
     if (!unit || !unit.abilityCharges) return {};
+    const now = s.combatElapsed;
     const newCharges = { ...unit.abilityCharges };
     let changed = false;
     for (const [abilityId, state] of Object.entries(newCharges)) {
@@ -793,7 +795,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             return {
               ...u,
               formationLockUntil: nearby ? now + 8 : u.formationLockUntil,
-              abilityCharges: idSet.has(u.id) ? consumeCharge(u) : u.abilityCharges,
+              abilityCharges: casterIds.has(u.id) ? consumeCharge(u) : u.abilityCharges,
             };
           });
           break;

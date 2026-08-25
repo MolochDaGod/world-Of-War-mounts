@@ -10,7 +10,7 @@
  *    also heals nearby friendlies for 45 % of damage dealt.  (targeting: toggle)
  */
 
-import { Race, UnitType } from '../store/gameStore';
+import type { Race, UnitType } from '../store/gameStore.ts';
 
 // ── Ability IDs ──────────────────────────────────────────────────────────────
 export type AbilityId =

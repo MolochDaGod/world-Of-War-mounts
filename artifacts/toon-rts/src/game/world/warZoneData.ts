@@ -1,5 +1,5 @@
-import { BUILD_CATALOG_MAP } from '@/game/building/BuildCatalog';
-import { WarZoneNature } from './WarZoneManifest';
+import { BUILD_CATALOG_MAP } from '../building/BuildCatalog.ts';
+import { WarZoneNature } from './WarZoneManifest.ts';
 
 export type WarZoneObstacleKind = 'forest' | 'stone' | 'ruin' | 'building';
 

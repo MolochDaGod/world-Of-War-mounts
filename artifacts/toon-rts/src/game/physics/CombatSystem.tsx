@@ -85,7 +85,7 @@ export function CombatSystem() {
 
     const store = useGameStore.getState();
     const { phase, units, totems, mapType, batchCombatTick, batchRemoveUnits,
-            tickCombatElapsed, expireTotems, setPhase } = store;
+             tickCombatElapsed, expireTotems, regenAbilityCharges, setPhase } = store;
 
     if (phase !== 'battle') {
       battleActive.current = false;
@@ -145,6 +145,7 @@ export function CombatSystem() {
     const patches   = new Map<string, Partial<UnitData>>();
     const kills: string[] = [];
     const autoHeroCasts: { unitId: string; abilityId: AbilityId }[] = [];
+    const chargeRegenUnitIds: string[] = [];
     const obstacleDamage = new Map<string, number>();
     const warZoneObstacles = mapType === 'arena'
       ? useWarZoneStore.getState().obstacles
@@ -650,21 +651,7 @@ export function CombatSystem() {
       const lastRegen = chargeRegenTimers[`regen_${unit.id}`] ?? 0;
       if (elapsed - lastRegen < REGEN_CHECK_INTERVAL) continue;
       chargeRegenTimers[`regen_${unit.id}`] = elapsed;
-
-      let changed = false;
-      const newCharges = { ...unit.abilityCharges };
-      for (const [abilityId, cs] of Object.entries(newCharges)) {
-        if (!cs) continue;
-        const def = ABILITY_DEFS[abilityId as AbilityId];
-        if (!def || def.targeting === 'toggle') continue;
-        if (cs.charges < def.maxCharges && elapsed >= cs.nextChargeAt) {
-          newCharges[abilityId] = { charges: cs.charges + 1, nextChargeAt: elapsed + def.cooldownPerCharge };
-          changed = true;
-        }
-      }
-      if (changed) {
-        patches.set(unit.id, { ...patches.get(unit.id), abilityCharges: newCharges });
-      }
+      chargeRegenUnitIds.push(unit.id);
     }
 
     // ── 4. Totem heal pass ─────────────────────────────────────────────────
@@ -687,6 +674,10 @@ export function CombatSystem() {
     // ── 5. Apply patches ───────────────────────────────────────────────────
     if (patches.size > 0 || scoreDelta1 > 0 || scoreDelta2 > 0) {
       batchCombatTick(patches, scoreDelta1, scoreDelta2);
+    }
+
+    for (const unitId of chargeRegenUnitIds) {
+      regenAbilityCharges(unitId);
     }
 
     if (obstacleDamage.size > 0) {

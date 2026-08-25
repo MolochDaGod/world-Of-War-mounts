@@ -1,4 +1,4 @@
-import type { WarZoneObstacle } from './warZoneData';
+import type { WarZoneObstacle } from './warZoneData.ts';
 
 /**
  * Applies an already-aggregated damage set without mutating the obstacle seed.

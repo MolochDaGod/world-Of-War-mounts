@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { createWarZoneObstacles, type WarZoneObstacle } from '../world/warZoneData';
-import { applyWarZoneObstacleDamage } from '../world/warZoneState';
+import { createWarZoneObstacles, type WarZoneObstacle } from '../world/warZoneData.ts';
+import { applyWarZoneObstacleDamage } from '../world/warZoneState.ts';
 
 interface WarZoneState {
   obstacles: WarZoneObstacle[];

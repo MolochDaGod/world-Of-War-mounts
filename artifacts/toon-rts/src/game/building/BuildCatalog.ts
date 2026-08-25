@@ -8,7 +8,7 @@
  * (survival-kit and nature-kit pieces look best with their own colors).
  */
 import type { Resources } from '@/game/store/worldStore';
-import { BuildingKit, SurvivalKit, NatureKit, RetroTex } from './KenneyManifest';
+import { BuildingKit, SurvivalKit, NatureKit, RetroTex } from './KenneyManifest.ts';
 
 export type BuildTab = 'fortifications' | 'buildings' | 'camp' | 'nature';
 

@@ -5,8 +5,8 @@
  * spawn as a single-soldier hero unit, and emit a leadership aura that buffs
  * nearby allies each combat tick.
  */
-import { Race, UnitType } from '@/game/store/gameStore';
-import { AbilityId } from './AbilityDefs';
+import type { Race, UnitType } from '../store/gameStore.ts';
+import type { AbilityId } from './AbilityDefs.ts';
 
 export type CommanderArchetype = 'champion' | 'warlord' | 'archmage';
 

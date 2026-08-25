@@ -4,7 +4,7 @@
  * preparation gate authoritative without forcing the browser to download
  * every duplicate variant in either pack.
  */
-import { BUILD_CATALOG_MAP } from '@/game/building/BuildCatalog';
+import { BUILD_CATALOG_MAP } from '../building/BuildCatalog.ts';
 
 const ROOT = '/assets/nature-warzone';
 
