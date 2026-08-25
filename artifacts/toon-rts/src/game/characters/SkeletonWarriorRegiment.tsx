@@ -34,9 +34,10 @@ interface Props {
   unit: UnitData;
   isSelected: boolean;
   preserveOnDeath?: boolean;
+  showLabel?: boolean;
 }
 
-export function SkeletonWarriorRegiment({ unit, isSelected, preserveOnDeath = false }: Props) {
+export function SkeletonWarriorRegiment({ unit, isSelected, preserveOnDeath = false, showLabel = true }: Props) {
   const aliveCount = unit.state === 'dead' && !preserveOnDeath
     ? 0
     : Math.max(1, Math.ceil((unit.health / unit.maxHealth) * unit.maxSoldiers));
@@ -113,7 +114,7 @@ export function SkeletonWarriorRegiment({ unit, isSelected, preserveOnDeath = fa
       ))}
 
       <SelectionRing visible={isSelected} radius={ringRadius} />
-      <RegimentLabel unit={unit} aliveSoldiers={aliveCount} labelHeight={3.5} />
+      {showLabel && <RegimentLabel unit={unit} aliveSoldiers={aliveCount} labelHeight={3.5} />}
     </group>
   );
 }

@@ -8,7 +8,7 @@ import { useMemo } from 'react';
 import { Suspense } from 'react';
 import type { UnitData } from '@/game/store/gameStore';
 import { useGameStore }   from '@/game/store/gameStore';
-import { MeshySoldier }   from './MeshySoldier';
+import { MeshySoldier, type MeshyPreviewClip } from './MeshySoldier';
 import { SelectionRing }  from './CharacterBase';
 import { RegimentLabel }  from './RegimentLabel';
 import { getCommandMode, setCommandMode } from '@/game/input/CommandMode';
@@ -17,9 +17,19 @@ interface Props {
   unit: UnitData;
   isSelected: boolean;
   preserveOnDeath?: boolean;
+  previewClip?: MeshyPreviewClip;
+  previewOneShot?: boolean;
+  showLabel?: boolean;
 }
 
-export function MeshyWarriorRegiment({ unit, isSelected, preserveOnDeath = false }: Props) {
+export function MeshyWarriorRegiment({
+  unit,
+  isSelected,
+  preserveOnDeath = false,
+  previewClip,
+  previewOneShot = false,
+  showLabel = true,
+}: Props) {
   const isCommander = !!(unit as any).isCommander;
 
   const aliveCount = unit.state === 'dead' && !preserveOnDeath
@@ -90,13 +100,15 @@ export function MeshyWarriorRegiment({ unit, isSelected, preserveOnDeath = false
             unitState={unit.state}
             teamId={unit.teamId}
             isCommander={isCommander && i === 0}
+            previewClip={previewClip}
+            previewOneShot={previewOneShot}
           />
         ))}
       </Suspense>
 
       {isCommander && <SelectionRing visible radius={ringRadius + 0.5} />}
       <SelectionRing visible={isSelected} radius={ringRadius} />
-      <RegimentLabel unit={unit} aliveSoldiers={aliveCount} labelHeight={isCommander ? 5 : 3.8} />
+      {showLabel && <RegimentLabel unit={unit} aliveSoldiers={aliveCount} labelHeight={isCommander ? 5 : 3.8} />}
     </group>
   );
 }

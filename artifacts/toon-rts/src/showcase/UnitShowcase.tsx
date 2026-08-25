@@ -1,13 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ShowcaseControlPanel, type EditorValues, type Shot, type SubjectGroup } from './ShowcaseControlPanel';
+import {
+  ShowcaseControlPanel,
+  type EditorValues,
+  type ShowcaseDossier,
+  type Shot,
+  type SubjectGroup,
+} from './ShowcaseControlPanel';
 import { ShowcaseScene, type DirectorSettings } from './ShowcaseScene';
-import { groupShowcaseSubjects, SHOWCASE_SUBJECTS, type ShowcaseShotId } from './showcaseCatalog';
+import {
+  groupShowcaseSubjects,
+  SHOWCASE_RACE_COLORS,
+  SHOWCASE_SUBJECTS,
+  type ShowcaseProfile,
+  type ShowcaseShotId,
+} from './showcaseCatalog';
 
-const DEFAULT_SETTINGS: DirectorSettings = {
-  cameraDistance: 11,
-  cameraHeight: 4.8,
-  keyLight: 2.8,
-};
+function settingsForProfile(profile?: ShowcaseProfile): DirectorSettings {
+  return {
+    cameraDistance: profile?.cameraDistance ?? 11,
+    cameraHeight: profile?.cameraHeight ?? 4.8,
+    keyLight: 2.8,
+  };
+}
 
 function downloadBlob(blob: Blob, fileName: string) {
   const anchor = document.createElement('a');
@@ -27,7 +41,7 @@ function safeFileSegment(value: string) {
 export function UnitShowcase({ onReturn }: { onReturn: () => void }) {
   const [selectedSubjectId, setSelectedSubjectId] = useState(SHOWCASE_SUBJECTS[0]?.id ?? '');
   const [selectedShotId, setSelectedShotId] = useState<ShowcaseShotId>('idle');
-  const [settings, setSettings] = useState<DirectorSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<DirectorSettings>(() => settingsForProfile(SHOWCASE_SUBJECTS[0]?.profile));
   const [shotKey, setShotKey] = useState(0);
   const [takeToken, setTakeToken] = useState(0);
   const [status, setStatus] = useState('DIRECTOR_READY');
@@ -43,7 +57,14 @@ export function UnitShowcase({ onReturn }: { onReturn: () => void }) {
   const subjectGroups = useMemo<SubjectGroup[]>(() => Object.entries(groupShowcaseSubjects()).map(([name, subjects]) => ({
     id: safeFileSegment(name),
     name,
-    subjects: subjects.map(candidate => ({ id: candidate.id, name: candidate.name })),
+    alliance: subjects[0]?.alliance ?? 'Alliance archive',
+    subjects: subjects.map(candidate => ({
+      id: candidate.id,
+      name: candidate.name,
+      race: candidate.race,
+      category: candidate.unit?.category ?? 'commander',
+      kind: candidate.kind,
+    })),
   })), []);
 
   const shotList = useMemo<Shot[]>(() => (subject?.shots ?? []).map(candidate => ({
@@ -56,6 +77,28 @@ export function UnitShowcase({ onReturn }: { onReturn: () => void }) {
     cameraHeight: settings.cameraHeight,
     lightIntensity: settings.keyLight,
   }), [settings]);
+
+  const dossier = useMemo<ShowcaseDossier>(() => ({
+    name: subject?.name ?? 'Unknown unit',
+    faction: subject?.faction ?? 'Archive',
+    alliance: subject?.alliance ?? 'Alliance archive',
+    race: subject?.race ?? 'Unknown',
+    kind: subject?.kind ?? 'unit',
+    icon: subject?.icon,
+    category: subject?.unit?.category,
+    lore: subject?.unit?.lore,
+    cost: subject?.unit?.cost,
+    maxSoldiers: subject?.unit?.maxSoldiers,
+    isRanged: subject?.unit?.isRanged,
+    stats: subject?.unit
+      ? {
+          attack: subject.unit.statAttack,
+          defense: subject.unit.statDefense,
+          speed: subject.unit.statSpeed,
+          range: subject.unit.statRange,
+        }
+      : undefined,
+  }), [subject]);
 
   const clearRecording = useCallback(() => {
     if (stopTimerRef.current !== null) {
@@ -86,6 +129,7 @@ export function UnitShowcase({ onReturn }: { onReturn: () => void }) {
     if (!next) return;
     setSelectedSubjectId(id);
     setSelectedShotId(next.shots[0]?.id ?? 'idle');
+    setSettings(settingsForProfile(next.profile));
     setShotKey(value => value + 1);
     setTakeToken(value => value + 1);
     setStatus(`LOADED_${safeFileSegment(next.name).toUpperCase()}`);
@@ -183,6 +227,8 @@ export function UnitShowcase({ onReturn }: { onReturn: () => void }) {
 
   if (!subject || !shot) return null;
 
+  const accent = SHOWCASE_RACE_COLORS[subject.race];
+
   return (
     <main style={{ position: 'absolute', inset: 0, background: '#080d16', overflow: 'hidden' }}>
       <ShowcaseScene
@@ -194,6 +240,8 @@ export function UnitShowcase({ onReturn }: { onReturn: () => void }) {
       />
       <ShowcaseControlPanel
         subjectGroups={subjectGroups}
+        dossier={dossier}
+        accent={accent}
         selectedSubjectId={selectedSubjectId}
         selectedShotId={selectedShotId}
         shotList={shotList}

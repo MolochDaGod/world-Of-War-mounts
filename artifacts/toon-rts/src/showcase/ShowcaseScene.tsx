@@ -1,14 +1,19 @@
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls, Sparkles } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
-import { Suspense, useEffect, useMemo, useRef } from 'react';
+import { Suspense, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { UnitData, UnitState } from '@/game/store/gameStore';
 import { ToonRTSRegiment } from '@/game/characters/ToonRTSRegiment';
 import { MeshyWarriorRegiment } from '@/game/characters/MeshyWarriorRegiment';
 import { SkeletonWarriorRegiment } from '@/game/characters/SkeletonWarriorRegiment';
 import { GrieeGleeRegiment } from '@/game/characters/GrieeGleeRegiment';
-import type { ShowcaseShot, ShowcaseSubject } from './showcaseCatalog';
+import {
+  SHOWCASE_RACE_COLORS,
+  type ShowcaseProfile,
+  type ShowcaseShot,
+  type ShowcaseSubject,
+} from './showcaseCatalog';
 
 export interface DirectorSettings {
   cameraDistance: number;
@@ -24,83 +29,98 @@ interface ShowcaseSceneProps {
   onCanvasReady: (canvas: HTMLCanvasElement | null) => void;
 }
 
-const RACE_COLORS: Record<ShowcaseSubject['race'], string> = {
-  WesternKingdoms: '#5ca8ff',
-  Barbarians: '#f16b45',
-  Elves: '#77d68e',
-  Dwarves: '#e0a557',
-  Orcs: '#83c95a',
-  Undead: '#ca68d8',
-};
-
-const COVER_BLOCKS: ReadonlyArray<readonly [number, number, number, number, number, number]> = [
-  [-7.6, 0.8, -5.2, 2.6, 1.6, 1.2],
-  [7.8, 1.1, -3.8, 2.1, 2.2, 1.5],
-  [-8.3, 0.55, 5.6, 2.2, 1.1, 1],
-  [7.1, 0.65, 5.7, 2.5, 1.3, 1.1],
-];
-
-function DirectorCamera({ settings }: { settings: DirectorSettings }) {
+function DirectorCamera({ settings, profile }: { settings: DirectorSettings; profile: ShowcaseProfile }) {
   const { camera } = useThree();
-  const target = useMemo(() => new THREE.Vector3(0, 1.45, 0), []);
+  const target = useMemo(() => new THREE.Vector3(), []);
+  const desired = useMemo(() => new THREE.Vector3(), []);
 
   useFrame(() => {
-    const distance = Math.max(4, settings.cameraDistance);
-    const desired = new THREE.Vector3(distance * 0.62, settings.cameraHeight, distance);
+    const distance = Math.max(4.5, settings.cameraDistance);
+    target.set(0, profile.targetHeight, 0);
+    desired.set(distance * 0.56, settings.cameraHeight, distance);
     camera.position.lerp(desired, 0.07);
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.fov = profile.plinthRadius >= 4.5 ? 42 : 38;
+      camera.updateProjectionMatrix();
+    }
     camera.lookAt(target);
   });
 
   return null;
 }
 
-function BattleStage({ keyLight }: { keyLight: number }) {
+function WarRoomStage({
+  keyLight,
+  accent,
+  profile,
+}: {
+  keyLight: number;
+  accent: string;
+  profile: ShowcaseProfile;
+}) {
+  const aura = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    if (!aura.current) return;
+    const breathe = 1 + Math.sin(clock.elapsedTime * 0.65) * 0.025;
+    aura.current.scale.setScalar(breathe);
+    aura.current.rotation.z = clock.elapsedTime * 0.035;
+  });
+
   return (
     <>
-      <color attach="background" args={['#080d16']} />
-      <fog attach="fog" args={['#080d16', 13, 42]} />
-      <hemisphereLight args={['#768bc6', '#100b08', 1.1]} />
+      <color attach="background" args={['#05070d']} />
+      <fog attach="fog" args={['#05070d', 12, 38]} />
+      <hemisphereLight args={['#627089', '#08070c', 1.15]} />
       <directionalLight
         castShadow
-        position={[7, 11, 5]}
+        position={[6, 12, 6]}
         intensity={keyLight}
-        color="#ffd49a"
+        color="#f5e5cd"
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
       />
-      <pointLight position={[-5, 3.5, 2]} color="#ff8142" intensity={4.5} distance={14} />
-      <pointLight position={[6, 2.5, -4]} color="#6f8dff" intensity={3.2} distance={12} />
+      <spotLight
+        position={[-5.5, 6.5, 3.5]}
+        color={accent}
+        intensity={4.2}
+        angle={0.48}
+        penumbra={0.8}
+        distance={18}
+      />
+      <pointLight position={[5.5, 3.8, -4.5]} color="#b8caff" intensity={2.7} distance={15} />
 
       <mesh rotation-x={-Math.PI / 2} receiveShadow>
-        <circleGeometry args={[22, 96]} />
-        <meshStandardMaterial color="#2e3a29" roughness={0.97} metalness={0} />
-      </mesh>
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0.012, 0]} receiveShadow>
-        <ringGeometry args={[9.8, 10.1, 96]} />
-        <meshStandardMaterial color="#b88957" roughness={0.96} />
+        <circleGeometry args={[26, 128]} />
+        <meshStandardMaterial color="#0a0e15" roughness={0.88} metalness={0.22} />
       </mesh>
 
-      {COVER_BLOCKS.map(([x, y, z, width, height, depth], index) => (
-        <group key={index} position={[x, y, z]} rotation={[0, index % 2 ? 0.38 : -0.25, 0]}>
+      <mesh position={[0, 0.14, 0]} receiveShadow castShadow>
+        <cylinderGeometry args={[profile.plinthRadius, profile.plinthRadius * 1.08, 0.28, 96]} />
+        <meshPhysicalMaterial color="#111827" metalness={0.78} roughness={0.24} clearcoat={0.85} />
+      </mesh>
+      <mesh ref={aura} position={[0, 0.292, 0]} rotation-x={-Math.PI / 2}>
+        <ringGeometry args={[profile.plinthRadius * 0.73, profile.plinthRadius * 0.76, 96]} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={2.5} transparent opacity={0.92} />
+      </mesh>
+      <mesh position={[0, 0.298, 0]} rotation-x={-Math.PI / 2}>
+        <ringGeometry args={[profile.plinthRadius * 0.3, profile.plinthRadius * 0.31, 64]} />
+        <meshStandardMaterial color="#e6d3ab" emissive="#e6d3ab" emissiveIntensity={1.2} transparent opacity={0.46} />
+      </mesh>
+
+      {([-1, 1] as const).map(side => (
+        <group key={side} position={[side * 8.5, 0, -5.5]} rotation={[0, side * -0.32, 0]}>
           <mesh castShadow receiveShadow>
-            <boxGeometry args={[width, height, depth]} />
-            <meshStandardMaterial color={index % 2 ? '#494747' : '#5a4f42'} roughness={0.94} />
+            <boxGeometry args={[1.4, 5.5, 1.4]} />
+            <meshStandardMaterial color="#151b29" roughness={0.5} metalness={0.64} />
           </mesh>
-          <mesh position={[0, height / 2 + 0.15, 0]} castShadow>
-            <cylinderGeometry args={[0.32, 0.44, 0.3, 6]} />
-            <meshStandardMaterial color="#746753" roughness={1} />
+          <mesh position={[0, 1.65, 0.72]}>
+            <boxGeometry args={[0.12, 2.2, 0.04]} />
+            <meshBasicMaterial color={accent} transparent opacity={0.58} />
           </mesh>
         </group>
       ))}
-
-      <group position={[-4.8, 0, -3.4]}>
-        <mesh castShadow><cylinderGeometry args={[0.18, 0.24, 3.3, 8]} /><meshStandardMaterial color="#382a1d" roughness={1} /></mesh>
-        <mesh position={[0, 1.85, 0]}><sphereGeometry args={[0.3, 16, 12]} /><meshStandardMaterial color="#ffb14a" emissive="#ff4e1d" emissiveIntensity={3.2} /></mesh>
-      </group>
-      <group position={[5.8, 0, 3.2]}>
-        <mesh castShadow><cylinderGeometry args={[0.16, 0.23, 2.8, 8]} /><meshStandardMaterial color="#382a1d" roughness={1} /></mesh>
-        <mesh position={[0, 1.55, 0]}><sphereGeometry args={[0.27, 16, 12]} /><meshStandardMaterial color="#ffb14a" emissive="#ff4e1d" emissiveIntensity={3.2} /></mesh>
-      </group>
+      <Sparkles count={76} scale={[18, 5.2, 13]} size={1.7} speed={0.12} opacity={0.3} color={accent} />
     </>
   );
 }
@@ -144,13 +164,27 @@ function SubjectActor({ subject, shot }: { subject: ShowcaseSubject; shot: Showc
       : shot.id;
 
   if (subject.kind === 'unit' && subject.unitType === 'meshyWarrior') {
-    return <MeshyWarriorRegiment key={key} unit={unit} isSelected={false} preserveOnDeath />;
+    const meshyClip = shot.id === 'walk' || shot.id === 'run' || shot.id === 'slash'
+      || shot.id === 'counter' || shot.id === 'block' || shot.id === 'hook' || shot.id === 'idle'
+      ? shot.id
+      : 'idle';
+    return (
+      <MeshyWarriorRegiment
+        key={key}
+        unit={unit}
+        isSelected={false}
+        preserveOnDeath
+        previewClip={meshyClip}
+        previewOneShot={meshyClip !== 'idle' && meshyClip !== 'walk' && meshyClip !== 'run'}
+        showLabel={false}
+      />
+    );
   }
   if (subject.kind === 'unit' && subject.unitType === 'skeletonWarrior') {
-    return <SkeletonWarriorRegiment key={key} unit={unit} isSelected={false} preserveOnDeath />;
+    return <SkeletonWarriorRegiment key={key} unit={unit} isSelected={false} preserveOnDeath showLabel={false} />;
   }
   if (subject.kind === 'unit' && subject.unitType === 'grieeGlee') {
-    return <GrieeGleeRegiment key={key} unit={unit} isSelected={false} preserveOnDeath />;
+    return <GrieeGleeRegiment key={key} unit={unit} isSelected={false} preserveOnDeath showLabel={false} />;
   }
 
   return (
@@ -166,21 +200,9 @@ function SubjectActor({ subject, shot }: { subject: ShowcaseSubject; shot: Showc
   );
 }
 
-function AccentRing({ color }: { color: string }) {
-  const ring = useRef<THREE.Mesh>(null);
-  useFrame((_, delta) => {
-    if (ring.current) ring.current.rotation.z += delta * 0.18;
-  });
-
-  return (
-    <mesh ref={ring} position={[0, 0.045, 0]} rotation-x={-Math.PI / 2}>
-      <torusGeometry args={[1.45, 0.035, 8, 64]} />
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.4} transparent opacity={0.86} />
-    </mesh>
-  );
-}
-
 export function ShowcaseScene({ subject, shot, shotKey, settings, onCanvasReady }: ShowcaseSceneProps) {
+  const accent = SHOWCASE_RACE_COLORS[subject.race];
+
   return (
     <Canvas
       shadows={{ type: THREE.PCFShadowMap }}
@@ -190,18 +212,22 @@ export function ShowcaseScene({ subject, shot, shotKey, settings, onCanvasReady 
       onCreated={({ gl }) => onCanvasReady(gl.domElement)}
       onPointerMissed={() => undefined}
     >
-      <BattleStage keyLight={settings.keyLight} />
-      <DirectorCamera settings={settings} />
-      <OrbitControls target={[0, 1.45, 0]} enablePan={false} minDistance={4} maxDistance={24} />
+      <WarRoomStage keyLight={settings.keyLight} accent={accent} profile={subject.profile} />
+      <DirectorCamera settings={settings} profile={subject.profile} />
+      <OrbitControls
+        target={[0, subject.profile.targetHeight, 0]}
+        enablePan={false}
+        minDistance={Math.max(4.5, subject.profile.cameraDistance * 0.56)}
+        maxDistance={subject.profile.cameraDistance + 16}
+      />
       <Suspense fallback={null}>
         <group key={`${subject.id}:${shot.id}:${shotKey}`}>
           <SubjectActor subject={subject} shot={shot} />
         </group>
       </Suspense>
-      <AccentRing color={RACE_COLORS[subject.race]} />
       <EffectComposer multisampling={0}>
-        <Bloom luminanceThreshold={1.2} mipmapBlur intensity={0.75} />
-        <Vignette eskil={false} offset={0.25} darkness={0.78} />
+        <Bloom luminanceThreshold={1.08} mipmapBlur intensity={0.66} />
+        <Vignette eskil={false} offset={0.28} darkness={0.58} />
       </EffectComposer>
     </Canvas>
   );

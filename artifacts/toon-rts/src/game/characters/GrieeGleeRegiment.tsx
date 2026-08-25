@@ -49,9 +49,10 @@ interface Props {
   unit: UnitData;
   isSelected: boolean;
   preserveOnDeath?: boolean;
+  showLabel?: boolean;
 }
 
-export function GrieeGleeRegiment({ unit, isSelected, preserveOnDeath = false }: Props) {
+export function GrieeGleeRegiment({ unit, isSelected, preserveOnDeath = false, showLabel = true }: Props) {
   const alivePairs = unit.state === 'dead' && !preserveOnDeath
     ? 0
     : Math.max(1, Math.ceil((unit.health / unit.maxHealth) * unit.maxSoldiers));
@@ -137,7 +138,7 @@ export function GrieeGleeRegiment({ unit, isSelected, preserveOnDeath = false }:
       ))}
 
       <SelectionRing visible={isSelected} radius={ringRadius} />
-      <RegimentLabel unit={unit} aliveSoldiers={alivePairs} labelHeight={5} />
+      {showLabel && <RegimentLabel unit={unit} aliveSoldiers={alivePairs} labelHeight={5} />}
     </group>
   );
 }

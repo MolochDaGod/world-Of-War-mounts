@@ -49,6 +49,18 @@ function namedClip(clip: THREE.AnimationClip, name: string) {
 // Cinematic time scale — all Meshy animations play slower
 const ANIM_TS = 0.72;
 
+export type MeshyPreviewClip =
+  | 'idle'
+  | 'walk'
+  | 'run'
+  | 'punch'
+  | 'slash'
+  | 'kick'
+  | 'counter'
+  | 'block'
+  | 'turn'
+  | 'hook';
+
 export interface MeshySoldierProps {
   position: [number, number, number];
   facing: number;
@@ -56,11 +68,15 @@ export interface MeshySoldierProps {
   scale?: number;
   teamId: 1 | 2;
   isCommander?: boolean;
+  /** Director-only named clip override. Battle movement remains state driven. */
+  previewClip?: MeshyPreviewClip;
+  /** Play director takes once, retaining the final pose until the next selection. */
+  previewOneShot?: boolean;
 }
 
 export function MeshySoldier({
   position, facing, unitState,
-  scale = 0.013, teamId, isCommander = false,
+  scale = 0.013, teamId, isCommander = false, previewClip, previewOneShot = false,
 }: MeshySoldierProps) {
   // ── Load all GLBs (cached after first load) ──────────────────────────────
   const { scene }    = useGLTF(MESHY_PATHS.char);
@@ -122,9 +138,9 @@ export function MeshySoldier({
   const { actions } = useAnimations(allClips, cloned);
   const currentAnim = useRef<string | null>(null);
 
-  // ── Drive animation from unitState ───────────────────────────────────────
+  // ── Drive animation from gameplay state or the showcase director ─────────
   useEffect(() => {
-    const target = STATE_TO_CLIP[unitState] ?? 'idle';
+    const target = previewClip ?? STATE_TO_CLIP[unitState] ?? 'idle';
     if (currentAnim.current === target) return;
 
     const next = actions[target];
@@ -134,14 +150,14 @@ export function MeshySoldier({
     old?.fadeOut(0.3);
 
     next.reset()
-      .setLoop(unitState === 'dead' ? THREE.LoopOnce : THREE.LoopRepeat, Infinity)
+      .setLoop(previewOneShot || unitState === 'dead' ? THREE.LoopOnce : THREE.LoopRepeat, Infinity)
       .setEffectiveTimeScale(ANIM_TS)
       .setEffectiveWeight(1)
       .fadeIn(0.3)
       .play();
-    next.clampWhenFinished = unitState === 'dead';
+    next.clampWhenFinished = previewOneShot || unitState === 'dead';
     currentAnim.current = target;
-  }, [unitState, actions]);
+  }, [unitState, previewClip, previewOneShot, actions]);
 
   // ── Sync position & rotation every frame ─────────────────────────────────
   const groupRef = useRef<THREE.Group>(null);

@@ -13,6 +13,7 @@
     "test:regiment-motion": "node --experimental-strip-types scripts/test-regiment-combat-motion.ts",
     "test:pursuit": "node --experimental-strip-types scripts/test-pursuit-ai.ts",
     "test:commanders": "node --experimental-strip-types scripts/test-canonical-commanders.ts",
+    "test:showcase": "node --experimental-strip-types scripts/test-showcase-catalog.ts",
     "test:deployment": "node --experimental-strip-types scripts/test-deployment-layout.ts",
     "build:prod": "node scripts/build-prod.mjs",
     "build:prod:verbose": "node scripts/build-prod.mjs --verbose",
