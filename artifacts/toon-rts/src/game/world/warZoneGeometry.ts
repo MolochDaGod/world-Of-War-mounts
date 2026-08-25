@@ -1,8 +1,9 @@
 import type { WarZoneObstacle } from './warZoneData';
+import { profileWarZoneCollision } from '../diagnostics/warZonePerformanceDiagnostics.ts';
 
 type Point = [number, number, number];
 
-export function activeWarZoneObstacles(obstacles: WarZoneObstacle[]) {
+export function activeWarZoneObstacles(obstacles: readonly WarZoneObstacle[]) {
   return obstacles.filter((obstacle) => !obstacle.destroyed && obstacle.health > 0);
 }
 
@@ -51,23 +52,43 @@ function segmentIntersectsFootprint(
   return clip(start.x, dx, halfX) && clip(start.z, dz, halfZ);
 }
 
+function hasWarZoneLineOfSightUnprofiled(
+  from: Point,
+  to: Point,
+  active: readonly WarZoneObstacle[],
+) {
+  return !active.some(
+    (obstacle) => obstacle.blocksSight && segmentIntersectsFootprint(from, to, obstacle, 0.35),
+  );
+}
+
 export function hasWarZoneLineOfSight(
   from: Point,
   to: Point,
-  obstacles: WarZoneObstacle[],
+  obstacles: readonly WarZoneObstacle[],
+  active = activeWarZoneObstacles(obstacles),
 ) {
-  return !activeWarZoneObstacles(obstacles).some(
-    (obstacle) => obstacle.blocksSight && segmentIntersectsFootprint(from, to, obstacle, 0.35),
+  return profileWarZoneCollision(() => hasWarZoneLineOfSightUnprofiled(from, to, active));
+}
+
+function findBlockingWarZoneObstacleUnprofiled(
+  from: Point,
+  to: Point,
+  active: readonly WarZoneObstacle[],
+) {
+  return active.find(
+    (obstacle) => obstacle.blocksMovement && segmentIntersectsFootprint(from, to, obstacle, 1.25),
   );
 }
 
 export function findBlockingWarZoneObstacle(
   from: Point,
   to: Point,
-  obstacles: WarZoneObstacle[],
+  obstacles: readonly WarZoneObstacle[],
+  active = activeWarZoneObstacles(obstacles),
 ) {
-  return activeWarZoneObstacles(obstacles).find(
-    (obstacle) => obstacle.blocksMovement && segmentIntersectsFootprint(from, to, obstacle, 1.25),
+  return profileWarZoneCollision(() =>
+    findBlockingWarZoneObstacleUnprofiled(from, to, active),
   );
 }
 
@@ -80,7 +101,7 @@ function pointInsideObstacle(point: Point, obstacle: WarZoneObstacle, padding = 
 /** Finds an intact piece of War Zone cover at a terrain-clicked position. */
 export function findWarZoneObstacleAtPoint(
   point: Point,
-  obstacles: WarZoneObstacle[],
+  obstacles: readonly WarZoneObstacle[],
   padding = 0.5,
 ) {
   return obstacles.find(
@@ -95,11 +116,12 @@ export function findWarZoneObstacleAtPoint(
  * the direct route when clear, then tries both sides of the first blocker so
  * units can flow around cover without a full navmesh.
  */
-export function resolveWarZoneMovement(
+function resolveWarZoneMovementUnprofiled(
   from: Point,
   target: Point,
   step: number,
-  obstacles: WarZoneObstacle[],
+  obstacles: readonly WarZoneObstacle[],
+  active = activeWarZoneObstacles(obstacles),
 ) {
   const dx = target[0] - from[0];
   const dz = target[2] - from[2];
@@ -107,8 +129,8 @@ export function resolveWarZoneMovement(
   if (distance < 0.0001) return from;
   const ratio = Math.min(1, step / distance);
   const direct: Point = [from[0] + dx * ratio, from[1], from[2] + dz * ratio];
-  const blocker = findBlockingWarZoneObstacle(from, direct, obstacles);
-  if (!blocker && !activeWarZoneObstacles(obstacles).some((o) => pointInsideObstacle(direct, o))) {
+  const blocker = findBlockingWarZoneObstacleUnprofiled(from, direct, active);
+  if (!blocker && !active.some((o) => pointInsideObstacle(direct, o))) {
     return direct;
   }
 
@@ -126,9 +148,20 @@ export function resolveWarZoneMovement(
     direction(nx, nz),
     direction(-nx, -nz),
   ];
-  const live = activeWarZoneObstacles(obstacles);
   return candidates.find((candidate) =>
-    !live.some((obstacle) => pointInsideObstacle(candidate, obstacle)) &&
-    !findBlockingWarZoneObstacle(from, candidate, obstacles),
+    !active.some((obstacle) => pointInsideObstacle(candidate, obstacle)) &&
+    !findBlockingWarZoneObstacleUnprofiled(from, candidate, active),
   ) ?? from;
+}
+
+export function resolveWarZoneMovement(
+  from: Point,
+  target: Point,
+  step: number,
+  obstacles: readonly WarZoneObstacle[],
+  active = activeWarZoneObstacles(obstacles),
+) {
+  return profileWarZoneCollision(() =>
+    resolveWarZoneMovementUnprofiled(from, target, step, obstacles, active),
+  );
 }

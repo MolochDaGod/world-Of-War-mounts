@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
-import { Suspense, useRef } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import {
   AdaptiveDpr,
   AdaptiveEvents,
@@ -42,6 +42,16 @@ import { WarZoneMap }        from './world/WarZoneMap';
 import { useWorldStore }     from './store/worldStore';
 import { useGameStore }      from './store/gameStore';
 import { useFrame }        from '@react-three/fiber';
+import {
+  consumeWarZoneCollisionMetrics,
+  getWarZonePerformanceDiagnostics,
+  recordWarZonePerformanceFrame,
+  resetWarZonePerformanceDiagnostics,
+  setWarZonePerformanceProfiling,
+  updateWarZonePerformanceCollisionMetrics,
+} from './diagnostics/warZonePerformanceDiagnostics';
+import { activeWarZoneObstacles } from './world/warZoneGeometry';
+import { useWarZoneStore } from './store/warZoneStore';
 import {
   EffectComposer,
   Bloom,
@@ -108,6 +118,49 @@ function PreparationClock() {
       tickPreparation(elapsedSinceTick.current);
       elapsedSinceTick.current = 0;
     }
+  });
+
+  return null;
+}
+
+/**
+ * Opt-in real-device probe. Open the dev preview with ?perf=warzone and read
+ * window.__RACE_WARS_WARZONE_PERF__ after a battle to capture the rolling
+ * frame, renderer-memory, and cover-query measurements.
+ */
+function BattlePerformanceProbe() {
+  const enabled = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('perf') === 'warzone';
+
+  useEffect(() => {
+    if (!enabled) return;
+    resetWarZonePerformanceDiagnostics();
+    setWarZonePerformanceProfiling(true);
+    (window as Window & {
+      __RACE_WARS_WARZONE_PERF__?: () => ReturnType<typeof getWarZonePerformanceDiagnostics>;
+    }).__RACE_WARS_WARZONE_PERF__ = getWarZonePerformanceDiagnostics;
+    return () => {
+      setWarZonePerformanceProfiling(false);
+      delete (window as Window & {
+        __RACE_WARS_WARZONE_PERF__?: () => ReturnType<typeof getWarZonePerformanceDiagnostics>;
+      }).__RACE_WARS_WARZONE_PERF__;
+    };
+  }, [enabled]);
+
+  useFrame(({ gl }, delta) => {
+    if (!enabled) return;
+    const obstacles = useWarZoneStore.getState().obstacles;
+    const collision = consumeWarZoneCollisionMetrics();
+    recordWarZonePerformanceFrame({
+      frameTimeMs: delta * 1000,
+      drawCalls: gl.info.render.calls,
+      triangles: gl.info.render.triangles,
+      geometries: gl.info.memory.geometries,
+      textures: gl.info.memory.textures,
+      activeObstacles: activeWarZoneObstacles(obstacles).length,
+      activeColliders: obstacles.filter(obstacle => !obstacle.destroyed && obstacle.blocksMovement).length,
+    });
+    updateWarZonePerformanceCollisionMetrics(collision);
   });
 
   return null;
@@ -215,6 +268,7 @@ export function GameScene() {
         <WorldTick />
         <ArenaLighting />
         <PreparationClock />
+        <BattlePerformanceProbe />
         <RTSCamera />
 
         <Suspense fallback={null}>

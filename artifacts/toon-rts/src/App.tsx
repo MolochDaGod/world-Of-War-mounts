@@ -6,6 +6,11 @@ const BattleMemoryStress = lazy(async () => {
   return { default: module.BattleMemoryStress };
 });
 
+const WarZonePerformancePanel = lazy(async () => {
+  const module = await import('./game/diagnostics/WarZonePerformancePanel');
+  return { default: module.WarZonePerformancePanel };
+});
+
 const RaceSelector = lazy(async () => {
   const module = await import('./hud/RaceSelector');
   return { default: module.RaceSelector };
@@ -31,6 +36,8 @@ export default function App() {
   const isBattleActive = phase === 'preparation' || phase === 'battle' || phase === 'victory';
   const isMemoryStress = import.meta.env.DEV
     && new URLSearchParams(window.location.search).get('stress') === 'memory';
+  const isWarZonePerformance = import.meta.env.DEV
+    && new URLSearchParams(window.location.search).get('perf') === 'warzone';
 
   return (
     <div className="w-full h-screen overflow-hidden text-foreground font-sans selection:bg-amber-500/30 relative">
@@ -51,6 +58,11 @@ export default function App() {
       {isMemoryStress && (
         <Suspense fallback={null}>
           <BattleMemoryStress />
+        </Suspense>
+      )}
+      {isWarZonePerformance && (
+        <Suspense fallback={null}>
+          <WarZonePerformancePanel />
         </Suspense>
       )}
     </div>

@@ -25,6 +25,7 @@ import {
   findBlockingWarZoneObstacle,
   hasWarZoneLineOfSight,
   resolveWarZoneMovement,
+  activeWarZoneObstacles,
 } from '../world/warZoneGeometry';
 
 const TICK = 0.05; // seconds per combat frame (≈ 20 Hz) — cinematic pace
@@ -147,6 +148,9 @@ export function CombatSystem() {
     const warZoneObstacles = mapType === 'arena'
       ? useWarZoneStore.getState().obstacles
       : [];
+    const activeWarZoneCover = mapType === 'arena'
+      ? activeWarZoneObstacles(warZoneObstacles)
+      : [];
     let scoreDelta1 = 0;
     let scoreDelta2 = 0;
 
@@ -177,7 +181,7 @@ export function CombatSystem() {
         unit.position[1],
         unit.position[2] + (dz / distance) * step,
       ];
-      const blocker = findBlockingWarZoneObstacle(unit.position, direct, warZoneObstacles);
+       const blocker = findBlockingWarZoneObstacle(unit.position, direct, warZoneObstacles, activeWarZoneCover);
       if (blocker) {
         const damageMultiplier = SIEGE_TYPES.has(unit.type)
           ? 0.95
@@ -188,7 +192,7 @@ export function CombatSystem() {
           * damageMultiplier * TICK;
         obstacleDamage.set(blocker.id, (obstacleDamage.get(blocker.id) ?? 0) + damage);
       }
-      return resolveWarZoneMovement(unit.position, target, step, warZoneObstacles);
+       return resolveWarZoneMovement(unit.position, target, step, warZoneObstacles, activeWarZoneCover);
     }
 
     // ── 2. Per-unit status effects + combat ─────────────────────────────────
@@ -323,7 +327,7 @@ export function CombatSystem() {
       }
 
       const targetVisible = mapType !== 'arena'
-        || hasWarZoneLineOfSight(unit.position, nearest.position, warZoneObstacles);
+        || hasWarZoneLineOfSight(unit.position, nearest.position, warZoneObstacles, activeWarZoneCover);
 
       // ── LOB MODE: siege fires at forced position ─────────────────────────
       if (unit.lobTarget && SIEGE_TYPES.has(unit.type)) {
@@ -364,7 +368,7 @@ export function CombatSystem() {
                 && !isDead(e)
                 && !(patches.get(e.id)?.phaseShift || e.phaseShift)
                 && (mapType !== 'arena'
-                  || hasWarZoneLineOfSight(unit.position, e.position, warZoneObstacles)),
+                  || hasWarZoneLineOfSight(unit.position, e.position, warZoneObstacles, activeWarZoneCover)),
               )
               .map(e => {
                 const dx = e.position[0] - unit.position[0];

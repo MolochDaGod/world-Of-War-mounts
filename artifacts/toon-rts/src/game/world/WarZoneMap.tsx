@@ -5,10 +5,10 @@
  * and adds shared, stateful cover around it so visuals, movement, and combat
  * all use the same obstacle identities.
  */
-import { Suspense, useEffect, useMemo } from 'react';
+import { memo, Suspense, useMemo } from 'react';
 import { useLoader } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
-import { RigidBody } from '@react-three/rapier';
+import { CuboidCollider, RigidBody } from '@react-three/rapier';
 import * as THREE from 'three';
 import { BUILD_CATALOG_MAP, type BuildPiece } from '@/game/building/BuildCatalog';
 import { useWarZoneStore } from '@/game/store/warZoneStore';
@@ -16,13 +16,29 @@ import { WarZoneNature } from './WarZoneManifest';
 import type { WarZoneObstacle } from './warZoneData';
 
 const WAR_ZONE_SIZE = 360;
+const DEBRIS_GEOMETRY = new THREE.DodecahedronGeometry(1, 0);
+const DEBRIS_RING_GEOMETRY = new THREE.RingGeometry(2.2, 3.2, 20);
+const DEBRIS_MATERIALS = {
+  forest: new THREE.MeshStandardMaterial({ color: '#5b3821', flatShading: true }),
+  stone: new THREE.MeshStandardMaterial({ color: '#726c66', flatShading: true }),
+};
+const DEBRIS_RING_MATERIAL = new THREE.MeshBasicMaterial({
+  color: '#d18a42',
+  transparent: true,
+  opacity: 0.45,
+});
+const STRUCTURE_MATERIALS = new Map<string, THREE.MeshStandardMaterial>();
 
 function NatureModel({
   path,
   scale,
+  castShadow = true,
+  receiveShadow = true,
 }: {
   path: string;
   scale: number;
+  castShadow?: boolean;
+  receiveShadow?: boolean;
 }) {
   const { scene } = useGLTF(path);
   const clone = useMemo(() => {
@@ -30,12 +46,12 @@ function NatureModel({
     next.traverse((child) => {
       const mesh = child as THREE.Mesh;
       if (mesh.isMesh) {
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
+        mesh.castShadow = castShadow;
+        mesh.receiveShadow = receiveShadow;
       }
     });
     return next;
-  }, [scene]);
+  }, [castShadow, receiveShadow, scene]);
 
   return <primitive object={clone} scale={scale} />;
 }
@@ -43,7 +59,10 @@ function NatureModel({
 function TexturedStructure({ piece }: { piece: BuildPiece }) {
   const { scene } = useGLTF(piece.glbPath);
   const texture = useLoader(THREE.TextureLoader, piece.texture!);
-  const clone = useMemo(() => {
+  const material = useMemo(() => {
+    const key = `${piece.glbPath}:${piece.texture}`;
+    const cached = STRUCTURE_MATERIALS.get(key);
+    if (cached) return cached;
     const tex = texture.clone();
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = THREE.RepeatWrapping;
@@ -55,6 +74,11 @@ function TexturedStructure({ piece }: { piece: BuildPiece }) {
       roughness: 0.88,
       metalness: 0.04,
     });
+    STRUCTURE_MATERIALS.set(key, material);
+    return material;
+  }, [piece.glbPath, piece.texture, texture]);
+
+  const clone = useMemo(() => {
     const next = scene.clone(true);
     next.traverse((child) => {
       const mesh = child as THREE.Mesh;
@@ -64,15 +88,10 @@ function TexturedStructure({ piece }: { piece: BuildPiece }) {
         mesh.receiveShadow = true;
       }
     });
-    return { next, material };
-  }, [scene, texture]);
+    return next;
+  }, [material, scene]);
 
-  useEffect(() => () => {
-    clone.material.map?.dispose();
-    clone.material.dispose();
-  }, [clone]);
-
-  return <primitive object={clone.next} scale={piece.scale} />;
+  return <primitive object={clone} scale={piece.scale} />;
 }
 
 function NativeStructure({ piece }: { piece: BuildPiece }) {
@@ -116,16 +135,17 @@ function Debris({ obstacle }: { obstacle: WarZoneObstacle }) {
           position={[piece.x, piece.y, piece.z]}
           rotation={[piece.z, seed + index, piece.x]}
           scale={piece.s}
+          geometry={DEBRIS_GEOMETRY}
+          material={obstacle.kind === 'forest' ? DEBRIS_MATERIALS.forest : DEBRIS_MATERIALS.stone}
           castShadow
-        >
-          <dodecahedronGeometry args={[1, 0]} />
-          <meshStandardMaterial color={obstacle.kind === 'forest' ? '#5b3821' : '#726c66'} flatShading />
-        </mesh>
+        />
       ))}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
-        <ringGeometry args={[2.2, 3.2, 20]} />
-        <meshBasicMaterial color="#d18a42" transparent opacity={0.45} />
-      </mesh>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.04, 0]}
+        geometry={DEBRIS_RING_GEOMETRY}
+        material={DEBRIS_RING_MATERIAL}
+      />
     </group>
   );
 }
@@ -147,7 +167,7 @@ function ObstacleHealth({ obstacle }: { obstacle: WarZoneObstacle }) {
   );
 }
 
-function Obstacle({ obstacle }: { obstacle: WarZoneObstacle }) {
+const Obstacle = memo(function Obstacle({ obstacle }: { obstacle: WarZoneObstacle }) {
   const [rx, rz] = obstacle.footprint;
   return (
     <group
@@ -166,16 +186,13 @@ function Obstacle({ obstacle }: { obstacle: WarZoneObstacle }) {
       </group>
       <ObstacleHealth obstacle={obstacle} />
       {!obstacle.destroyed && obstacle.blocksMovement && (
-        <RigidBody type="fixed" colliders="cuboid">
-          <mesh visible={false}>
-            <boxGeometry args={[rx * 2, 5, rz * 2]} />
-            <meshBasicMaterial />
-          </mesh>
+        <RigidBody type="fixed" colliders={false}>
+          <CuboidCollider args={[rx, 2.5, rz]} />
         </RigidBody>
       )}
     </group>
   );
-}
+});
 
 const detailPatches = [
   [-142, -18, 9, 38, '#4d6d32'],
@@ -237,7 +254,7 @@ function DecorativeNature() {
       {decorativeNature.map(([x, z, path, scale, rotation], index) => (
         <group key={`warzone-detail-${index}`} position={[x, 0, z]} rotation={[0, rotation, 0]}>
           <Suspense fallback={null}>
-            <NatureModel path={path} scale={scale} />
+            <NatureModel path={path} scale={scale} castShadow={false} />
           </Suspense>
         </group>
       ))}

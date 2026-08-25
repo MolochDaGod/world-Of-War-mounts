@@ -9,10 +9,13 @@ export function applyWarZoneObstacleDamage(
   obstacles: WarZoneObstacle[],
   damageById: ReadonlyMap<string, number>,
 ) {
-  return obstacles.map((obstacle) => {
+  let changed = false;
+  const next = obstacles.map((obstacle) => {
     const amount = damageById.get(obstacle.id);
     if (!amount || amount <= 0 || obstacle.destroyed) return obstacle;
     const health = Math.max(0, obstacle.health - amount);
+    changed = true;
     return { ...obstacle, health, destroyed: health <= 0 };
   });
+  return changed ? next : obstacles;
 }

@@ -31,9 +31,10 @@ export const useWarZoneStore = create<WarZoneState>((set) => ({
       }
     }
     if (damageById.size === 0) return;
-    set((state) => ({
-      obstacles: applyWarZoneObstacleDamage(state.obstacles, damageById),
-    }));
+    set((state) => {
+      const obstacles = applyWarZoneObstacleDamage(state.obstacles, damageById);
+      return obstacles === state.obstacles ? {} : { obstacles };
+    });
   },
 
   resetObstacles: () => set({ obstacles: createWarZoneObstacles() }),
