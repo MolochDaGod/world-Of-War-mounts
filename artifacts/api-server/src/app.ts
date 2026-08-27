@@ -30,6 +30,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // ── API routes ────────────────────────────────────────────────────────────────
 app.use('/api', router);
+app.get('/health', (_req, res) => {
+  res.status(200).json({ ok: true, service: 'api-server' });
+});
 
 // ── Static file serving (production) ─────────────────────────────────────────
 // In development, the Vite dev server handles the game directly.
