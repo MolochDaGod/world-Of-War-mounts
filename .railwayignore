@@ -1,0 +1,12 @@
+# Large non-runtime assets
+attached_assets/
+screenshots/
+
+# Frontend artifact and heavy static assets (API service does not need these)
+artifacts/toon-rts/
+artifacts/mockup-sandbox/
+
+# Git and editor metadata
+.git/
+.agents/
+.config/

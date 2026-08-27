@@ -62,7 +62,8 @@ if (process.env.NODE_ENV === 'production') {
   }));
 
   // 3. SPA fallback — any unmatched route serves index.html (React Router / Wouter)
-  app.get('*', (_req, res) => {
+  // Express 5 uses path-to-regexp v8, which requires named wildcard params.
+  app.get('/{*splat}', (_req, res) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.sendFile(path.join(toonRtsDist, 'index.html'));
