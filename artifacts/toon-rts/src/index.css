@@ -114,7 +114,60 @@
 }
 
 .hud-panel {
-  @apply bg-[#0f141e]/85 backdrop-blur-md border border-[#ffffff1a] shadow-lg text-[#f0e8d5];
+  position: relative;
+  color: #f0e8d5;
+  background-color: rgba(10, 14, 22, 0.88);
+  background-image: url('/ui/hud/panel-fill.png');
+  background-size: cover;
+  background-position: center;
+  border: 14px solid transparent;
+  border-image: url('/ui/hud/slot-border.png') 28 fill stretch;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45), inset 0 0 24px rgba(0, 0, 0, 0.35);
+  image-rendering: auto;
+}
+
+.hud-panel::before {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(201, 149, 10, 0.22);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.35);
+}
+
+.hud-slot {
+  position: relative;
+  background-image: url('/ui/hud/slot-bg.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  border: none;
+  box-shadow: none;
+}
+
+.hud-slot::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background-image: url('/ui/hud/slot-border.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
+.hud-slot.is-active::after {
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.55));
+}
+
+.hud-slot.is-pressed {
+  background-image: url('/ui/hud/slot-press.png'), url('/ui/hud/slot-bg.png');
+}
+
+.hud-minimap-frame {
+  background-image: url('/ui/hud/ornate-panel.jpg');
+  background-size: cover;
+  padding: 10px;
+  border-radius: 50%;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes commanderDock {

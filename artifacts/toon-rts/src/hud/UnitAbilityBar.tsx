@@ -274,7 +274,7 @@ export function UnitAbilityBar() {
       )}
 
       {/* Ability buttons */}
-      <div style={{ display: 'flex', gap: '6px' }}>
+      <div className="hud-panel" style={{ display: 'flex', gap: '6px', padding: '8px 10px' }}>
         {Array.from(abilityMap.entries()).map(([aid, info]) => (
           <AbilityBtn
             key={aid}

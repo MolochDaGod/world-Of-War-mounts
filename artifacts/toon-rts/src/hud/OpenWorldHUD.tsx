@@ -44,12 +44,8 @@ function TimeOfDay() {
 
   return (
     <div
-      className="pointer-events-auto"
+      className="pointer-events-auto hud-panel"
       style={{
-        background: 'rgba(0,0,0,0.55)',
-        backdropFilter: 'blur(6px)',
-        border: '1px solid rgba(255,215,0,0.2)',
-        borderRadius: '10px',
         padding: '6px 14px',
         display: 'flex',
         alignItems: 'center',

@@ -240,10 +240,18 @@ function ToonRTSSoldierInner({
         mesh.visible = showSet.has(mesh.name);
       }
 
-      // Apply toon material only to visible meshes
+      // Keep authored TGA/atlas maps; only tint when the mesh has no bake.
       if (mesh.visible) {
+        const prev = mesh.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
+        const src = Array.isArray(prev) ? prev[0] : prev;
+        const map = src && 'map' in src ? src.map : null;
+        if (map) {
+          map.colorSpace = THREE.SRGBColorSpace;
+          map.needsUpdate = true;
+        }
         mesh.material = new THREE.MeshToonMaterial({
-          color,
+          map: map ?? undefined,
+          color: map ? '#ffffff' : color,
           emissive,
           emissiveIntensity: isCommander ? 0.18 : 0.05,
         });
@@ -256,8 +264,16 @@ function ToonRTSSoldierInner({
     for (const name of equipNames) {
       const source = equipIndex.get(name.toLowerCase());
       if (!source) continue;
+      const srcMat = source.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
+      const srcOne = Array.isArray(srcMat) ? srcMat[0] : srcMat;
+      const equipMap = srcOne && 'map' in srcOne ? srcOne.map : null;
+      if (equipMap) {
+        equipMap.colorSpace = THREE.SRGBColorSpace;
+        equipMap.needsUpdate = true;
+      }
       attachEquipment(cloned, source, new THREE.MeshToonMaterial({
-        color,
+        map: equipMap ?? undefined,
+        color: equipMap ? '#ffffff' : color,
         emissive,
         emissiveIntensity: isCommander ? 0.18 : 0.05,
       }));

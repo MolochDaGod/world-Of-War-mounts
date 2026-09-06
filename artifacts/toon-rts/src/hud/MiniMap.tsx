@@ -106,12 +106,12 @@ export function MiniMap() {
 
   return (
     <div
-      className="pointer-events-auto"
+      className="pointer-events-auto hud-minimap-frame"
       style={{
-        width: `${MAP_SIZE + 16}px`,
-        height: `${MAP_SIZE + 16}px`,
-        backgroundImage: `url('${GameUI.fightCircle}')`,
-        backgroundSize: '100% 100%',
+        width: `${MAP_SIZE + 28}px`,
+        height: `${MAP_SIZE + 28}px`,
+        backgroundImage: `url('${GameUI.fightCircle}'), url('/ui/hud/ornate-panel.jpg')`,
+        backgroundSize: '100% 100%, cover',
         backgroundRepeat: 'no-repeat',
         display: 'flex',
         alignItems: 'center',

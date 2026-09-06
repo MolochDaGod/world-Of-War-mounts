@@ -101,17 +101,12 @@ export function CommandBar() {
         </div>
       )}
 
-      <div style={{
+      <div className="hud-panel" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
         gap: 6,
-        padding: 7,
+        padding: 10,
         pointerEvents: 'all',
-        background: 'linear-gradient(135deg, rgba(7,12,22,0.92), rgba(20,29,46,0.86))',
-        border: '1px solid rgba(255,215,0,0.22)',
-        borderRadius: 11,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.34)',
-        backdropFilter: 'blur(9px)',
       }}>
         <ModeBtn label="MOVE" icon="move" shortcut="M" mode="move" active={mode === 'move'} color="#44aaff" disabled={selectedUnitIds.length === 0} />
         <ModeBtn label="ATTACK" icon="target" shortcut="F" mode="fight" active={mode === 'fight'} color="#ff6464" disabled={selectedUnitIds.length === 0} />

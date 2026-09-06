@@ -1,12 +1,12 @@
+import { useEffect } from 'react';
 import { useGameStore, AbilityType } from '@/game/store/gameStore';
-import { GameUI } from '@/game/assets/CraftpixManifest';
 import { ABILITY_ICON, GameIcon } from './GameIcon';
 
 const ABILITIES: { id: AbilityType; key: string; name: string; color: string }[] = [
   { id: 'ice',       key: 'Q', name: 'Frost Nova',      color: '#88ccff' },
   { id: 'lightning', key: 'E', name: 'Chain Lightning', color: '#aaffee' },
   { id: 'meteor',    key: 'R', name: 'Meteor Strike',   color: '#ff8833' },
-  { id: 'fire',      key: 'F', name: 'Inferno',         color: '#ff4400' },
+  { id: 'fire',      key: 'C', name: 'Inferno',         color: '#ff4400' },
   { id: 'wind',      key: 'T', name: 'Tornado',         color: '#aaddcc' },
   { id: 'poison',    key: 'G', name: 'Poison Cloud',    color: '#66dd22' },
   { id: 'thunder',   key: 'H', name: 'Thunder Strike',  color: '#99ccff' },
@@ -17,17 +17,25 @@ export function AbilityHotbar() {
   const activeAbility    = useGameStore(s => s.activeAbility);
   const setActiveAbility = useGameStore(s => s.setActiveAbility);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.repeat) return;
+      const hit = ABILITIES.find(ab => ab.key === e.key.toUpperCase());
+      if (!hit) return;
+      e.preventDefault();
+      setActiveAbility(useGameStore.getState().activeAbility === hit.id ? null : hit.id);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [setActiveAbility]);
+
   return (
     <div
-      className="pointer-events-auto"
+      className="pointer-events-auto hud-panel"
       style={{
         display: 'flex',
         gap: '6px',
-        padding: '6px 12px',
-        background: 'rgba(0,0,0,0.5)',
-        backdropFilter: 'blur(6px)',
-        border: '1px solid rgba(255,215,0,0.2)',
-        borderRadius: '12px',
+        padding: '10px 14px',
       }}
     >
       {ABILITIES.map(ab => {
@@ -35,26 +43,21 @@ export function AbilityHotbar() {
         return (
           <button
             key={ab.id}
+            className={`hud-slot${active ? ' is-active' : ''}`}
             onClick={() => setActiveAbility(active ? null : ab.id)}
             title={`${ab.name} (${ab.key})`}
             style={{
               position: 'relative',
               width: '56px',
               height: '56px',
-              borderRadius: '8px',
-              border: active ? `2px solid #ffd700` : '2px solid rgba(255,255,255,0.1)',
-              background: active
-                ? 'rgba(255,215,0,0.15)'
-                : 'rgba(0,0,0,0.4)',
               cursor: 'pointer',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '2px',
-              transform: active ? 'scale(1.1)' : 'scale(1)',
-              boxShadow: active ? `0 0 16px rgba(255,215,0,0.4)` : 'none',
-              transition: 'all 0.15s ease',
+              transform: active ? 'scale(1.08)' : 'scale(1)',
+              transition: 'transform 0.12s ease',
             }}
             onMouseEnter={e => {
               if (!active) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
