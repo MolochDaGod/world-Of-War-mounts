@@ -68,7 +68,6 @@ export function RTSCamera() {
       const dh = nextH - oldH;
       height.current = nextH;
       // Zoom toward the pointer on the ground plane (RTS wheel feel).
-      const rect = canvas.getBoundingClientRect();
       const ndc = new THREE.Vector2(
         ((e.clientX - rect.left) / rect.width) * 2 - 1,
         -((e.clientY - rect.top) / rect.height) * 2 + 1,
