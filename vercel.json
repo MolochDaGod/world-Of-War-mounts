@@ -1,7 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "corepack enable && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_ENABLE_STRICT=0 pnpm install --frozen-lockfile",
+  "installCommand": "corepack enable && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_ENABLE_STRICT=0 pnpm install --no-frozen-lockfile",
   "buildCommand": "COREPACK_ENABLE_STRICT=0 pnpm --filter @workspace/toon-rts build",
   "outputDirectory": "artifacts/toon-rts/dist/public",
-  "framework": null
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
