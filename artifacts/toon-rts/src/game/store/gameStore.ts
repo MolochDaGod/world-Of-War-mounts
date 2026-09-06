@@ -11,6 +11,7 @@ import {
   resolveAreaSkill,
 } from '../physics/combatSkillResolver.ts';
 import { layoutArmyPositions } from './formationLayout.ts';
+import { endGameSession, logGameCommand, startGameSession } from '../../lib/gameApi.ts';
 
 export type Race = 'Barbarians' | 'Dwarves' | 'Elves' | 'Orcs' | 'Undead' | 'WesternKingdoms';
 
@@ -126,6 +127,8 @@ interface GameState {
   activeCasts: { id: string; type: AbilityType; target: AbilityTarget; startTime: number }[];
   selectedUnitIds: string[];
   phase: GamePhase;
+  /** REST /api/game session id when the API is reachable; play still works if null. */
+  sessionId: string | null;
   difficulty: Difficulty;
   teamScores: { team1: number; team2: number };
   castingPath: [number, number, number][];
@@ -264,7 +267,7 @@ function buildUnits(army: RegimentSlot[], race: Race, teamId: 1 | 2, diffMult: n
       id: uuid,
       uuid,
       race: slot.race ?? race,
-      type: slot.unitType,
+      type: slot.unitType === 'meshyWarrior' ? 'swordsmen' : slot.unitType,
       position: positions[i] ?? [0, 0, teamId === 1 ? 20 : -20],
       health: hp,
       maxHealth: hp,
@@ -307,6 +310,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   activeCasts: [],
   selectedUnitIds: [],
   phase: 'menu',
+  sessionId: null,
   difficulty: 'normal',
   teamScores: { team1: 0, team2: 0 },
   castingPath: [],
@@ -328,7 +332,16 @@ export const useGameStore = create<GameState>((set, get) => ({
   preparationAssetError: null,
   preparationAssetLoadKey: 0,
 
-  setPhase: (phase) => set({ phase }),
+  setPhase: (phase) => {
+    set({ phase });
+    if (phase === 'victory') {
+      const { sessionId, units } = get();
+      const alive1 = units.some(u => u.teamId === 1 && u.state !== 'dead');
+      const alive2 = units.some(u => u.teamId === 2 && u.state !== 'dead');
+      const winner: 1 | 2 | 'draw' = !alive1 && !alive2 ? 'draw' : alive1 && !alive2 ? 1 : !alive1 && alive2 ? 2 : 1;
+      void endGameSession(sessionId, winner);
+    }
+  },
   setSelectedRace: (selectedRace) => set({ selectedRace }),
   setEnemyRace: (enemyRace) => set({ enemyRace }),
   setMapType: (mapType) => set({ mapType }),
@@ -405,6 +418,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           : u,
       ),
     }));
+    void logGameCommand(get().sessionId, { unitIds, command: 'move', targetPos: targetPosition });
   },
 
   issueAttackMove: (unitIds, targetPosition) => {
@@ -928,6 +942,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   addToPlayerArmy: (slot) => set((state) => {
+    if (slot.unitType === 'meshyWarrior') return {};
     if (state.playerArmy.length >= 8) return {};
     const cost = REGIMENT_DEFS[slot.unitType]?.cost ?? 100;
     if (state.gold < cost) return {};
@@ -1032,7 +1047,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       bountyBursts: [],
       skillBursts: [],
       pendingAbility: null,
+      sessionId: null,
     });
+    void startGameSession({
+      playerFaction: selectedRace,
+      enemyFaction: enemyRace,
+      difficulty,
+    }).then(id => { if (id) set({ sessionId: id }); });
   },
 
   /** Legacy default army spawn */
@@ -1089,6 +1110,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     preparationAssetProgress: 0,
     preparationAssetMessage: 'Waiting to load battlefield…',
     preparationAssetError: null,
+    sessionId: null,
     });
   },
 }));

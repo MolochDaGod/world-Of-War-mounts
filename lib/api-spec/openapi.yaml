@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: game
+    description: Race Wars battle session
 paths:
   /healthz:
     get:
@@ -24,6 +26,67 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /game/session:
+    post:
+      operationId: createGameSession
+      tags: [game]
+      summary: Start a battle session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGameSession"
+      responses:
+        "201":
+          description: Session created
+    get:
+      operationId: listGameSessions
+      tags: [game]
+      summary: List sessions
+      responses:
+        "200":
+          description: Session list
+  /game/session/{id}/cmd:
+    post:
+      operationId: logGameCommand
+      tags: [game]
+      summary: Log a unit command
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UnitCommandBody"
+      responses:
+        "201":
+          description: Command logged
+  /game/session/{id}/end:
+    patch:
+      operationId: endGameSession
+      tags: [game]
+      summary: Mark session finished
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EndGameSession"
+      responses:
+        "200":
+          description: Session ended
 components:
   schemas:
     HealthStatus:
@@ -33,4 +96,39 @@ components:
           type: string
       required:
         - status
+    CreateGameSession:
+      type: object
+      required: [playerFaction, enemyFaction]
+      properties:
+        playerFaction:
+          type: string
+        enemyFaction:
+          type: string
+        difficulty:
+          type: string
+    UnitCommandBody:
+      type: object
+      required: [unitIds, command]
+      properties:
+        unitIds:
+          type: array
+          items:
+            type: string
+        command:
+          type: string
+          enum: [move, fight, patrol, lob, stop]
+        targetPos:
+          type: array
+          items:
+            type: number
+    EndGameSession:
+      type: object
+      required: [winner]
+      properties:
+        winner:
+          oneOf:
+            - type: integer
+              enum: [1, 2]
+            - type: string
+              enum: [draw]
 

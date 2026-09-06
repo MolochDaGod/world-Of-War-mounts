@@ -162,9 +162,9 @@ function ProjectileMesh({ proj }: { proj: ActiveProjectile }) {
       </mesh>
     );
   }
-  // arrow / bolt — thin cylinder oriented along travel direction
+  // arrow / bolt — cylinder is Y-up; rotate so +Z matches setFromUnitVectors(0,0,1)
   return (
-    <mesh ref={ref} position={initialPos}>
+    <mesh ref={ref} position={initialPos} rotation={[Math.PI / 2, 0, 0]}>
       <cylinderGeometry args={[0.04, 0.04, 0.8, 5]} />
       <meshStandardMaterial
         color={proj.kind === 'bolt' ? '#88ccff' : '#cc8844'}

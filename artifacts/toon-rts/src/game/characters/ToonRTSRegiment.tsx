@@ -25,7 +25,6 @@ import { RegimentLabel } from './RegimentLabel';
 import { COMMANDER_BY_ID } from '@/game/data/CommanderDefs';
 import { GrieeGleeRegiment }      from './GrieeGleeRegiment';
 import { SkeletonWarriorRegiment } from './SkeletonWarriorRegiment';
-import { MeshyWarriorRegiment }    from './MeshyWarriorRegiment';
 import { HeroCommanderMesh }       from './HeroCommanderMesh';
 import { CaptainJohnWayneMesh }    from './CaptainJohnWayneMesh';
 import { PirateKingMesh }          from './PirateKingMesh';
@@ -646,7 +645,7 @@ export function ToonRTSRegiment({
 // ── BattleArmy — renders all regiments for all teams ─────────────────────────
 
 // GLB-rendered unit types — bypass the FBX pipeline entirely
-const GLB_UNIT_TYPES = new Set<string>(['grieeGlee', 'skeletonWarrior', 'meshyWarrior']);
+const GLB_UNIT_TYPES = new Set<string>(['grieeGlee', 'skeletonWarrior']);
 
 export function BattleArmy() {
   const units = useGameStore(
@@ -664,13 +663,10 @@ export function BattleArmy() {
         if (unit.type === 'skeletonWarrior') {
           return <SkeletonWarriorRegiment key={unit.id} unit={unit} isSelected={sel} />;
         }
-        if (unit.type === 'meshyWarrior') {
-          return <MeshyWarriorRegiment key={unit.id} unit={unit} isSelected={sel} />;
-        }
         return (
           <ToonRTSRegiment
             key={unit.id}
-            unit={unit}
+            unit={unit.type === 'meshyWarrior' ? { ...unit, type: 'swordsmen' } : unit}
             isSelected={sel}
           />
         );
