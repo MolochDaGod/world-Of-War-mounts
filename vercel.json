@@ -10,7 +10,7 @@
       "destination": "/favicon.svg"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!assets/|ui/|js/).*)",
       "destination": "/index.html"
     }
   ]

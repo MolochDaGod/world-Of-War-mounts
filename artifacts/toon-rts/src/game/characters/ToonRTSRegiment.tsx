@@ -213,6 +213,24 @@ function attachEquipment(
   return true;
 }
 
+/** Plant the kit so bone-box min.y is 0 — not pelvis, not unskinned AABB. */
+function groundClonedToFeet(root: THREE.Object3D) {
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3();
+  const wp = new THREE.Vector3();
+  let bones = 0;
+  root.traverse(obj => {
+    if ((obj as THREE.Bone).isBone) {
+      obj.getWorldPosition(wp);
+      box.expandByPoint(wp);
+      bones++;
+    }
+  });
+  if (bones < 2) box.setFromObject(root);
+  if (!Number.isFinite(box.min.y)) return;
+  root.position.y -= box.min.y;
+}
+
 // ── Single animated soldier (suspends while loading) ─────────────────────────
 
 // ── Commander gold colours ─────────────────────────────────────────────────────
@@ -329,6 +347,7 @@ function ToonRTSSoldierInner({
       }));
     }
 
+    groundClonedToFeet(cloned);
     return cloned;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modelFBX, equipGLTF, assets.modelPath, assets.scale, teamId, race, unitType, isCommander, commanderArchetype]);

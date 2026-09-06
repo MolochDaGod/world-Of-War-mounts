@@ -16,6 +16,7 @@
     "test:showcase": "node --experimental-strip-types scripts/test-showcase-catalog.ts",
     "test:deployment": "node --experimental-strip-types scripts/test-deployment-layout.ts",
     "test:game-steps": "node --experimental-strip-types scripts/test-game-steps.ts",
+    "verify:loaders": "node --experimental-strip-types scripts/verify-loaders.ts",
     "build:prod": "node scripts/build-prod.mjs",
     "build:prod:verbose": "node scripts/build-prod.mjs --verbose",
     "compress": "node scripts/compress-dist.mjs",
