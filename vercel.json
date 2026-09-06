@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "COREPACK_ENABLE_STRICT=0 pnpm install --frozen-lockfile && COREPACK_ENABLE_STRICT=0 pnpm --filter @workspace/toon-rts build",
+  "installCommand": "corepack enable && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_ENABLE_STRICT=0 pnpm install --frozen-lockfile",
+  "buildCommand": "COREPACK_ENABLE_STRICT=0 pnpm --filter @workspace/toon-rts build",
   "outputDirectory": "artifacts/toon-rts/dist/public",
-  "framework": "vite"
+  "framework": null
 }
