@@ -103,6 +103,56 @@ const EQUIPMENT_CONTAINERS = new Set([
   'Quiver_container', 'Bone_wood', 'Bone_bag',
 ]);
 
+const EQUIP_BONE_ALIASES: Record<string, string[]> = {
+  R_hand_container: ['R_hand_container', 'Bone_R_weapon', 'Bip001 R Hand', 'Bip001_R_Hand'],
+  L_hand_container: ['L_hand_container', 'Bone_L_weapon', 'Bip001 L Hand', 'Bip001_L_Hand'],
+  L_shield_container: ['L_shield_container', 'Bone_L_shield', 'Bip001 L Hand', 'Bip001_L_Hand'],
+  Quiver_container: ['Quiver_container', 'Bip001 Spine2', 'Bip001_Spine2'],
+  Bone_wood: ['Bone_wood', 'Bip001 Spine1'],
+  Bone_bag: ['Bone_bag', 'Bip001 Spine'],
+};
+
+function findEquipBone(root: THREE.Object3D, containerName: string): THREE.Object3D | null {
+  const aliases = EQUIP_BONE_ALIASES[containerName] ?? [containerName];
+  for (const name of aliases) {
+    const hit = root.getObjectByName(name);
+    if (hit) return hit;
+  }
+  const want = containerName.toLowerCase();
+  let found: THREE.Object3D | null = null;
+  root.traverse(obj => {
+    if (found) return;
+    if (obj.name.toLowerCase() === want) found = obj;
+  });
+  return found;
+}
+
+function bindAnimAction(
+  mixer: THREE.AnimationMixer,
+  target: THREE.Object3D,
+  animFbx: THREE.Group,
+): THREE.AnimationAction | undefined {
+  const src = animFbx.animations[0];
+  if (!src) return undefined;
+  const bones = new Set<string>();
+  target.traverse(obj => {
+    if ((obj as THREE.Bone).isBone) bones.add(obj.name);
+  });
+  let clip = src.clone();
+  try {
+    clip = SkeletonUtils.retargetClip(target, animFbx, src);
+  } catch {
+    clip = src.clone();
+  }
+  clip.tracks = clip.tracks.filter(track => {
+    if (/\.position$/.test(track.name)) return false;
+    const bone = track.name.split('.')[0];
+    return bones.size === 0 || bones.has(bone);
+  });
+  if (clip.tracks.length === 0) return mixer.clipAction(src);
+  return mixer.clipAction(clip);
+}
+
 /**
  * Case-insensitive index of named equipment meshes inside an equipment GLB
  * scene. Cached per GLB scene (useGLTF caches by URL, so one map per race).
@@ -149,7 +199,7 @@ function attachEquipment(
 ): boolean {
   const containerName = source.parent?.name;
   if (!containerName) return false;
-  const bone = soldierRoot.getObjectByName(containerName);
+  const bone = findEquipBone(soldierRoot, containerName);
   if (!bone) return false;
 
   const clone = source.clone();
@@ -297,8 +347,8 @@ function ToonRTSSoldierInner({
 
     const actions: Record<string, THREE.AnimationAction | undefined> = {};
     const addClip = (name: string, fbx: THREE.Group) => {
-      const clip = fbx.animations[0];
-      if (clip) actions[name] = mixer.clipAction(clip);
+      const action = bindAnimAction(mixer, scene, fbx);
+      if (action) actions[name] = action;
     };
     addClip('idle',    idleFBX);
     addClip('run',     runFBX);
@@ -397,6 +447,10 @@ function ToonRTSSoldierInner({
 
   useFrame((_state, delta) => {
     mixerRef.current?.update(delta);
+    scene.traverse(obj => {
+      const skinned = obj as THREE.SkinnedMesh;
+      if (skinned.isSkinnedMesh && skinned.skeleton) skinned.skeleton.update();
+    });
     if (!groupRef.current) return;
 
     // Fade-out on death
@@ -504,7 +558,7 @@ export function ToonRTSRegiment({
 
     // Enemy units are deliberate focus targets only while Fight mode is armed.
     if (unit.teamId === 2) {
-      if (store.phase === 'battle' && getCommandMode() === 'fight' && store.selectedUnitIds.length > 0) {
+      if (store.phase === 'battle' && store.selectedUnitIds.length > 0) {
         store.issueFocusAttack(store.selectedUnitIds, unit.id);
         setCommandMode('default');
       }

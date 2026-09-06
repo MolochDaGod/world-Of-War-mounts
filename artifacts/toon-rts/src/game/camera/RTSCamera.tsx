@@ -53,11 +53,34 @@ export function RTSCamera() {
     };
 
     const onWheel    = (e: WheelEvent) => {
+      if (isTypingTarget(e.target)) return;
+      const rect = canvas.getBoundingClientRect();
+      const over =
+        e.clientX >= rect.left && e.clientX <= rect.right &&
+        e.clientY >= rect.top && e.clientY <= rect.bottom;
+      if (!over) return;
       e.preventDefault();
-      height.current = THREE.MathUtils.clamp(
-        height.current + e.deltaY * 0.04,
+      const oldH = height.current;
+      const nextH = THREE.MathUtils.clamp(
+        oldH + e.deltaY * 0.055,
         ZOOM_MIN, ZOOM_MAX,
       );
+      const dh = nextH - oldH;
+      height.current = nextH;
+      // Zoom toward the pointer on the ground plane (RTS wheel feel).
+      const rect = canvas.getBoundingClientRect();
+      const ndc = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1,
+      );
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(ndc, camera);
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const hit = new THREE.Vector3();
+      if (ray.ray.intersectPlane(plane, hit) && Math.abs(dh) > 0.01) {
+        const t = THREE.MathUtils.clamp(dh / Math.max(oldH, 1), -0.35, 0.35);
+        desiredTarget.current.lerp(hit, t * (dh > 0 ? 0.22 : 0.38));
+      }
     };
 
     const onMouseMove = (e: MouseEvent) => {
@@ -104,7 +127,7 @@ export function RTSCamera() {
     window.addEventListener('mousemove', onMouseMove, { passive: true });
     window.addEventListener('mouseup', endDrag, { passive: true });
     window.addEventListener('blur', endDrag);
-    canvas.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('wheel', onWheel, { passive: false, capture: true });
     canvas.addEventListener('mousedown', onMouseDown);
     canvas.addEventListener('auxclick', noAuxClick);
 
@@ -114,11 +137,11 @@ export function RTSCamera() {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', endDrag);
       window.removeEventListener('blur', endDrag);
-      canvas.removeEventListener('wheel', onWheel);
+      window.removeEventListener('wheel', onWheel, true);
       canvas.removeEventListener('mousedown', onMouseDown);
       canvas.removeEventListener('auxclick', noAuxClick);
     };
-  }, [gl]);
+  }, [gl, camera]);
 
   useFrame((_, delta) => {
     const k = keys.current;

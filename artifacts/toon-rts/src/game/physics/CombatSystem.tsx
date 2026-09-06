@@ -1,7 +1,7 @@
 /**
- * CombatSystem — 30 Hz regiment-scale combat with abilities, passives, and status effects.
+ * CombatSystem ΓÇö 30 Hz regiment-scale combat with abilities, passives, and status effects.
  *
- * Combat is intentionally slower than the original (×0.55 damage, ×1.3 cooldowns)
+ * Combat is intentionally slower than the original (├ù0.55 damage, ├ù1.3 cooldowns)
  * to allow more meaningful decisions and ability usage.
  *
  * Per-tick pipeline:
@@ -11,7 +11,7 @@
  *   4. Multi-shot pass (Fabled archers)
  *   5. Totem heal pass
  *   6. Life-drain ally heal pass
- *   7. batchCombatTick → single Zustand write
+ *   7. batchCombatTick ΓåÆ single Zustand write
  *   8. Victory detection
  */
 import { useRef } from 'react';
@@ -37,8 +37,9 @@ import {
   combatDefenseMultiplier,
   sweptChargeTargets,
 } from './regimentCombatMotion';
+import { AGGRO_RINGS, mixSteer, seekDir, separateXZ } from './aiSteering';
 
-const TICK = 0.05; // seconds per combat frame (≈ 20 Hz) — cinematic pace
+const TICK = 0.05; // seconds per combat frame (Γëê 20 Hz) ΓÇö cinematic pace
 const BATTLE_LIMIT = 480; // 8-minute timer
 
 const RANGED_TYPES = new Set<UnitData['type']>(['archers', 'mage', 'boltThrower', 'catapult', 'grieeGlee']);
@@ -103,7 +104,7 @@ export function CombatSystem() {
       pursuitHistory.clear();
     }
 
-    // ── Commander leadership aura — pre-compute per team ─────────────────
+    // ΓöÇΓöÇ Commander leadership aura ΓÇö pre-compute per team ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     type AuraData = { x: number; z: number; radius: number; mult: number; type: string };
     const cmdAura = new Map<1|2, AuraData>();
     for (const u of units) {
@@ -128,7 +129,7 @@ export function CombatSystem() {
       return dx*dx + dz*dz <= aura.radius * aura.radius ? aura.mult : 1;
     }
 
-    // ── 1. Tick combat elapsed ──────────────────────────────────────────────
+    // ΓöÇΓöÇ 1. Tick combat elapsed ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     localElapsed += TICK;
     if (localElapsed - lastStoreSync >= 1) {
       tickCombatElapsed(localElapsed - lastStoreSync);
@@ -239,19 +240,19 @@ export function CombatSystem() {
        return resolveWarZoneMovement(unit.position, target, step, warZoneObstacles, activeWarZoneCover);
     }
 
-    // ── 2. Per-unit status effects + combat ─────────────────────────────────
+    // ΓöÇΓöÇ 2. Per-unit status effects + combat ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     for (const unit of living) {
       if (isDead(unit)) continue;
 
       const p = patches.get(unit.id) ?? {};
       const cfg = getCombatStats(unit.type);
 
-      // ── Expire phase shift ──────────────────────────────────────────────
+      // ΓöÇΓöÇ Expire phase shift ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
       if (unit.phaseShift && unit.phaseShiftUntil !== undefined && elapsed >= unit.phaseShiftUntil) {
         patches.set(unit.id, { ...p, phaseShift: false });
       }
 
-      // ── Expire speed boost ──────────────────────────────────────────────
+      // ΓöÇΓöÇ Expire speed boost ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
       if (unit.speedBoostUntil !== undefined && elapsed >= unit.speedBoostUntil) {
         patches.set(unit.id, { ...patches.get(unit.id), speedBoostUntil: undefined });
       }
@@ -266,9 +267,9 @@ export function CombatSystem() {
         continue;
       }
 
-      // ── Bleed damage ────────────────────────────────────────────────────
+      // ΓöÇΓöÇ Bleed damage ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
       if (unit.bleed && unit.bleed.ticks > 0) {
-        // Bleed ticks at ~1 Hz (every 30 frames ≈ 1 s)
+        // Bleed ticks at ~1 Hz (every 30 frames Γëê 1 s)
         const bleedTimer = chargeRegenTimers[`bleed_${unit.id}`] ?? 0;
         if (elapsed - bleedTimer >= 1.0) {
           chargeRegenTimers[`bleed_${unit.id}`] = elapsed;
@@ -289,13 +290,13 @@ export function CombatSystem() {
 
       if (isDead(unit)) continue;
 
-      // ── Shield Bash — one-tick AOE ───────────────────────────────────────
+      // ΓöÇΓöÇ Shield Bash ΓÇö one-tick AOE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
       if (unit.shieldBashing) {
         patches.set(unit.id, { ...patches.get(unit.id), shieldBashing: false });
         applyAreaSkill(unit, 'shield_bash', unit.position);
       }
 
-      // ── Find nearest living enemy (skip phased units) ───────────────────
+      // ΓöÇΓöÇ Find nearest living enemy (skip phased units) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
       if (unit.coverTargetId && SIEGE_TYPES.has(unit.type) && mapType === 'arena') {
         const cover = warZoneObstacles.find(
           (obstacle) => obstacle.id === unit.coverTargetId && !obstacle.destroyed,
@@ -381,10 +382,24 @@ export function CombatSystem() {
         continue;
       }
 
+      // Yuka-style aggro: team 2 holds until detection; player idles unless
+      // ordered (attack-move / focus) or an enemy is inside the aggro ring.
+      const ordered = unit.attackMove || !!unit.targetUnitId || !!unit.targetPosition;
+      if (!ordered) {
+        if (unit.teamId === 2 && minDist > AGGRO_RINGS.detection) {
+          if (cur(unit, 'state') !== 'idle') patches.set(unit.id, { ...patches.get(unit.id), state: 'idle' });
+          continue;
+        }
+        if (unit.teamId === 1 && minDist > AGGRO_RINGS.aggro) {
+          if (cur(unit, 'state') !== 'idle') patches.set(unit.id, { ...patches.get(unit.id), state: 'idle' });
+          continue;
+        }
+      }
+
       const targetVisible = mapType !== 'arena'
         || hasWarZoneLineOfSight(unit.position, nearest.position, warZoneObstacles, activeWarZoneCover);
 
-      // ── LOB MODE: siege fires at forced position ─────────────────────────
+      // ΓöÇΓöÇ LOB MODE: siege fires at forced position ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
       if (unit.lobTarget && SIEGE_TYPES.has(unit.type)) {
         if (cur(unit, 'state') !== 'attack') patches.set(unit.id, { ...patches.get(unit.id), state: 'attack' });
         const timer = attackTimers[unit.id] ?? 0;
@@ -555,7 +570,7 @@ export function CombatSystem() {
       }
 
       if (inRange) {
-        // ── ATTACK ────────────────────────────────────────────────────────
+        // ΓöÇΓöÇ ATTACK ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         if (cur(unit, 'state') !== 'attack') patches.set(unit.id, { ...patches.get(unit.id), state: 'attack' });
 
         const timer = attackTimers[unit.id] ?? 0;
@@ -565,10 +580,10 @@ export function CombatSystem() {
           // Damage multiplier from passives and status effects
           let dmgMult = 1.0;
           if (unit.chargeBoost) dmgMult *= 3.0;
-          // Elven archers: passive −0.3 s cooldown (already baked into config, bonus here)
+          // Elven archers: passive ΓêÆ0.3 s cooldown (already baked into config, bonus here)
           if (unit.race === 'Elves' && unit.type === 'archers') dmgMult *= 1.1;
 
-          // ── Multi-shot: attack top-3 enemies ─────────────────────────
+          // ΓöÇΓöÇ Multi-shot: attack top-3 enemies ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
           if (unit.multiShotReady) {
             patches.set(unit.id, { ...patches.get(unit.id), multiShotReady: false });
             const enemies = living
@@ -605,7 +620,7 @@ export function CombatSystem() {
             continue;
           }
 
-          // ── Ranged projectile ─────────────────────────────────────────
+          // ΓöÇΓöÇ Ranged projectile ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
           if (RANGED_TYPES.has(unit.type)) {
             emitProjectile(unit.position, [
               nearest.position[0] + (Math.random() - 0.5) * 2,
@@ -614,7 +629,7 @@ export function CombatSystem() {
             ], projectileKind(unit.type));
           }
 
-          // ── Damage reduction on target ───────────────────────────────
+          // ΓöÇΓöÇ Damage reduction on target ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
           // Shieldwall passive: 80 % damage taken; stand ground: 75 % damage taken
           const targetType = nearest.type;
           const guarded = targetType === 'shieldwall'
@@ -645,12 +660,12 @@ export function CombatSystem() {
             emitCombatImpact(unit.position, nearest.position, guarded ? 'guard' : 'melee');
           }
 
-          // ── Charge boost: consume flag ───────────────────────────────
+          // ΓöÇΓöÇ Charge boost: consume flag ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
           if (unit.chargeBoost) {
             patches.set(unit.id, { ...patches.get(unit.id), chargeBoost: false });
           }
 
-          // ── Death Strike bleed ───────────────────────────────────────
+          // ΓöÇΓöÇ Death Strike bleed ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
           if (unit.pendingBleed && hp > 0) {
             patches.set(nearest.id, { ...patches.get(nearest.id), bleed: { damage: 50, ticks: 6 } });
             patches.set(unit.id, { ...patches.get(unit.id), pendingBleed: false });
@@ -658,7 +673,7 @@ export function CombatSystem() {
             patches.set(unit.id, { ...patches.get(unit.id), pendingBleed: false });
           }
 
-          // ── Apply damage ─────────────────────────────────────────────
+          // ΓöÇΓöÇ Apply damage ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
           if (hp <= 0) {
             patches.set(nearest.id, { ...patches.get(nearest.id), health: 0, state: 'dead' });
             kills.push(nearest.id);
@@ -667,7 +682,7 @@ export function CombatSystem() {
           } else {
             patches.set(nearest.id, { ...patches.get(nearest.id), health: hp });
 
-            // ── Life Drain: heal nearby allies ───────────────────────
+            // ΓöÇΓöÇ Life Drain: heal nearby allies ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
             if (unit.lifedrainAura && unit.type === 'mage') {
               const healAmt = effectiveDmg * 0.45;
               const drainRange = 12;
@@ -693,7 +708,7 @@ export function CombatSystem() {
         }
 
       } else {
-        // ── MOVEMENT ─────────────────────────────────────────────────────
+        // ΓöÇΓöÇ MOVEMENT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         // Stand ground: never move
         const formationLockedUntil = patches.get(unit.id)?.formationLockUntil ?? unit.formationLockUntil ?? 0;
         if (formationLockedUntil > elapsed || patches.get(unit.id)?.standGround || unit.standGround) {
@@ -744,7 +759,7 @@ export function CombatSystem() {
             });
           }
         } else {
-          // ── AI BEHAVIOUR — unit-type tactics ──────────────────────────
+          // ΓöÇΓöÇ AI BEHAVIOUR ΓÇö unit-type tactics ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
           // Melee regiments pursue a short, bounded lead point for moving
           // targets. The regiment remains one steering body; its soldiers
           // continue to render from the same formation anchor.
@@ -762,32 +777,37 @@ export function CombatSystem() {
               })
             : null;
           const chasePoint = pursuit?.point ?? nearest.position;
-          const dx = chasePoint[0] - unit.position[0];
-          const dz = chasePoint[2] - unit.position[2];
-          const dist = Math.sqrt(dx*dx + dz*dz);
+          const seek = seekDir(unit.position, chasePoint);
+          const dist = Math.hypot(
+            chasePoint[0] - unit.position[0],
+            chasePoint[2] - unit.position[2],
+          );
 
           if (dist < 0.0001) {
             patches.set(unit.id, { ...patches.get(unit.id), state: 'idle' });
             continue;
           }
 
-          let moveX = dx / dist;
-          let moveZ = dz / dist;
+          const mates = living
+            .filter(other => other.teamId === unit.teamId && other.id !== unit.id && !isDead(other))
+            .map(other => other.position);
+          const sep = separateXZ(unit.position, mates, Math.max(4, unit.spacing * 2.2));
+          let [moveX, moveZ] = mixSteer(seek, sep, 0.32);
 
           if (RANGED_TYPES.has(unit.type) && !SIEGE_TYPES.has(unit.type)) {
-            // ── RANGED KITE: maintain a comfortable stand-off distance ──
-            // Ideal range = 70 % of max attack range — close enough to shoot
+            // ΓöÇΓöÇ RANGED KITE: maintain a comfortable stand-off distance ΓöÇΓöÇ
+            // Ideal range = 70 % of max attack range ΓÇö close enough to shoot
             // but far enough to avoid melee.
             const idealRange = cfg.attackRange * 0.70;
             if (dist < idealRange) {
-              // Too close — back away from the enemy
+              // Too close ΓÇö back away from the enemy
               moveX = -dx / dist;
               moveZ = -dz / dist;
             }
             // If already beyond attackRange we march forward (default behaviour)
           } else if (unit.type === 'cavalry' || unit.type === 'heavyCavalry') {
-            // ── CAVALRY FLANK: offset attack angle by ≈ 60° ───────────
-            // Cavalry charges from the side — harder to stop with a wall.
+            // ΓöÇΓöÇ CAVALRY FLANK: offset attack angle by Γëê 60┬░ ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // Cavalry charges from the side ΓÇö harder to stop with a wall.
             const flankAngle = (unit.teamId === 1 ? 1 : -1) * Math.PI * 0.35;
             const cos = Math.cos(flankAngle);
             const sin = Math.sin(flankAngle);
@@ -811,7 +831,7 @@ export function CombatSystem() {
         }
       }
 
-      // ── MAGE AUTO-CAST ─────────────────────────────────────────────────────
+      // ΓöÇΓöÇ MAGE AUTO-CAST ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
       // Regiment skills are player-directed by default. Only definitions that
       // explicitly opt into autonomous AI can spend a charge here; in particular,
       // ground skills such as Arcane Burst must retain their charge until aimed.
@@ -820,7 +840,7 @@ export function CombatSystem() {
           if (!cs || cs.charges < 1) continue;
           const def = ABILITY_DEFS[abilityId as AbilityId];
           if (!def || !canAutoCastRegimentSkill(def)) continue;
-          // Auto-cast on a cadence: every 2× normal cooldown so it doesn't spam
+          // Auto-cast on a cadence: every 2├ù normal cooldown so it doesn't spam
           const autoCastKey = `autocast_${unit.id}_${abilityId}`;
           const lastCast = chargeRegenTimers[autoCastKey] ?? 0;
           if (elapsed - lastCast < def.cooldownPerCharge * 1.8) continue;
@@ -879,7 +899,7 @@ export function CombatSystem() {
       if (!livingIds.has(targetId)) pursuitHistory.delete(targetId);
     }
 
-    // ── 3. Ability charge regen (1 Hz) ─────────────────────────────────────
+    // ΓöÇΓöÇ 3. Ability charge regen (1 Hz) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     const REGEN_CHECK_INTERVAL = 1.0;
     for (const unit of living) {
       if (!unit.abilityCharges) continue;
@@ -889,7 +909,7 @@ export function CombatSystem() {
       chargeRegenUnitIds.push(unit.id);
     }
 
-    // ── 4. Totem heal pass ─────────────────────────────────────────────────
+    // ΓöÇΓöÇ 4. Totem heal pass ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     for (const totem of totems) {
       if (totem.expiresAt <= elapsed) continue;
       for (const unit of living) {
@@ -906,7 +926,7 @@ export function CombatSystem() {
       expireTotems(elapsed);
     }
 
-    // ── 5. Apply patches ───────────────────────────────────────────────────
+    // ΓöÇΓöÇ 5. Apply patches ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     if (patches.size > 0 || scoreDelta1 > 0 || scoreDelta2 > 0) {
       batchCombatTick(patches, scoreDelta1, scoreDelta2);
     }
@@ -930,7 +950,7 @@ export function CombatSystem() {
       setTimeout(() => batchRemoveUnits(ids), 1400);
     }
 
-    // ── 6. Victory detection ───────────────────────────────────────────────
+    // ΓöÇΓöÇ 6. Victory detection ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     if (phase === 'battle') {
       const aliveT1 = living.filter(u => u.teamId === 1 && !isDead(u) && !kills.includes(u.id)).length;
       const aliveT2 = living.filter(u => u.teamId === 2 && !isDead(u) && !kills.includes(u.id)).length;

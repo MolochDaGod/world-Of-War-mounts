@@ -42,8 +42,16 @@ function isTypingTarget(target: EventTarget | null) {
 // ── Module-level selection-box state (shared with SelectionBoxOverlay) ────────
 interface BoxRect { x1: number; y1: number; x2: number; y2: number }
 let _box: BoxRect | null = null;
+let _boxSelectConsumed = false;
 const _listeners: Set<() => void> = new Set();
 function _notifyBox() { _listeners.forEach(fn => fn()); }
+
+/** Canvas onPointerMissed must not clear a just-finished box select. */
+export function consumeBoxSelectFlag(): boolean {
+  const was = _boxSelectConsumed;
+  _boxSelectConsumed = false;
+  return was;
+}
 
 export function useSelectionBox(): BoxRect | null {
   const [box, setBox] = useState<BoxRect | null>(_box);
@@ -133,6 +141,23 @@ export function RTSInputController() {
         x: ((v.x + 1) / 2) * rect.width  + rect.left,
         y: ((1 - v.y) / 2) * rect.height + rect.top,
       };
+    };
+
+    const pickUnitAtScreen = (cx: number, cy: number, teamId?: 1 | 2) => {
+      const { units } = useGameStore.getState();
+      let best: typeof units[number] | null = null;
+      let bestD = 36;
+      for (const unit of units) {
+        if (unit.state === 'dead') continue;
+        if (teamId && unit.teamId !== teamId) continue;
+        const scr = worldToScreen([unit.position[0], unit.position[1] + 1.2, unit.position[2]]);
+        const d = Math.hypot(scr.x - cx, scr.y - cy);
+        if (d < bestD) {
+          bestD = d;
+          best = unit;
+        }
+      }
+      return best;
     };
 
     // Apply cursor style to canvas based on active command mode
@@ -308,6 +333,7 @@ export function RTSInputController() {
               selected.push(unit.id);
             }
           }
+          _boxSelectConsumed = true;
           if (e.shiftKey) {
             const existing = useGameStore.getState().selectedUnitIds;
             selectUnits([...new Set([...existing, ...selected])]);
@@ -329,8 +355,19 @@ export function RTSInputController() {
             } else if (hit) {
               executeCommand(hit);
             }
+          } else if (store.phase === 'preparation' || store.phase === 'battle') {
+            const friendly = pickUnitAtScreen(e.clientX, e.clientY, 1);
+            if (friendly) {
+              if (e.shiftKey) {
+                const next = store.selectedUnitIds.includes(friendly.id)
+                  ? store.selectedUnitIds.filter(id => id !== friendly.id)
+                  : [...store.selectedUnitIds, friendly.id];
+                store.selectUnits(next);
+              } else {
+                store.selectUnits([friendly.id]);
+              }
+            }
           }
-          // otherwise deselect handled by Canvas onPointerMissed
         }
         _box = null;
         _notifyBox();
@@ -338,39 +375,46 @@ export function RTSInputController() {
         isDragging = false;
       }
 
-      // ── RMB — execute command (default = move) ────────────────────────────
+      // ── RMB — place ability, attack-move to ground, or focus enemy ────────
       if (e.button === 2) {
         if (useGameStore.getState().phase !== 'battle') return;
-        const mode = getCommandMode();
-        const { selectedUnitIds } = useGameStore.getState();
-        if (selectedUnitIds.length === 0) return;
+        const store = useGameStore.getState();
+        const { selectedUnitIds } = store;
         const hit = groundHit(e.clientX, e.clientY);
+        if (store.pendingAbility || store.activeAbility) {
+          if (hit) executeCommand(hit);
+          return;
+        }
+        if (selectedUnitIds.length === 0) return;
+
+        const enemy = pickUnitAtScreen(e.clientX, e.clientY, 2);
+        if (enemy) {
+          store.issueFocusAttack(selectedUnitIds, enemy.id);
+          emitMoveMarker(enemy.position);
+          return;
+        }
         if (!hit) return;
 
-        if (mode === 'default' || mode === 'move') {
-          const store = useGameStore.getState();
-          const cover = store.mapType === 'arena'
-            ? findWarZoneObstacleAtPoint(
-                [hit.x, 0, hit.z],
-                useWarZoneStore.getState().obstacles,
-              )
-            : undefined;
-          if (cover) {
-            store.issueCoverAttack(selectedUnitIds, cover.id);
-            emitMoveMarker([hit.x, 0, hit.z]);
-            if (mode === 'move') setCommandMode('default');
-            return;
-          }
-          // RMB always issues a move order in default / move mode
-          const { issueMove } = store;
-          const dest: [number, number, number] = [hit.x, 0, hit.z];
-          issueMove(selectedUnitIds, dest);
+        const dest: [number, number, number] = [hit.x, 0, hit.z];
+        const cover = store.mapType === 'arena'
+          ? findWarZoneObstacleAtPoint(dest, useWarZoneStore.getState().obstacles)
+          : undefined;
+        if (cover) {
+          store.issueCoverAttack(selectedUnitIds, cover.id);
           emitMoveMarker(dest);
-          if (mode === 'move') setCommandMode('default');
-        } else {
-          // In other modes, RMB executes that mode's action
-          executeCommand(hit);
+          return;
         }
+        const mode = getCommandMode();
+        if (e.shiftKey || mode === 'move') {
+          store.issueMove(selectedUnitIds, dest);
+        } else if (mode === 'default' || mode === 'fight') {
+          store.issueAttackMove(selectedUnitIds, dest);
+        } else {
+          executeCommand(hit);
+          return;
+        }
+        emitMoveMarker(dest);
+        if (mode === 'move' || mode === 'fight') setCommandMode('default');
       }
     };
 

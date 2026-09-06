@@ -2,7 +2,7 @@
  * CommandMode — module-level singleton for the active RTS command mode.
  *
  * Modes:
- *   default — RMB issues move order (normal behaviour)
+ *   default — RMB attack-moves to ground (Shift+RMB = move only)
  *   move    — [M] Click ground → move selected units
  *   fight   — [F] Click ground → attack-move; click enemy → focus attack
  *   guard   — Click a friendly unit or map location → defend that location

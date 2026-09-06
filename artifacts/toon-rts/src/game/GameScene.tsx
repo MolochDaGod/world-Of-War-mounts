@@ -32,7 +32,7 @@ import { CombatSystem }    from './physics/CombatSystem';
 import { ProjectileSystem } from './effects/ProjectileSystem';
 import { CombatEffects }    from './effects/CombatEffects';
 import { MoveMarker }      from './effects/MoveMarker';
-import { RTSInputController } from './input/RTSInputController';
+import { RTSInputController, consumeBoxSelectFlag } from './input/RTSInputController';
 import { BuildSystem }       from './building/BuildSystem';
 import { PlacedBuildings }   from './building/PlacedBuildings';
 import { RagdollSystem }     from './effects/RagdollSystem';
@@ -232,7 +232,7 @@ export function GameScene() {
         frameloop="always"
         performance={{ min: 0.5 }}
         onPointerMissed={() => {
-          // LMB click hit nothing → deselect all regiments
+          if (consumeBoxSelectFlag()) return;
           const { phase, selectUnits } = useGameStore.getState();
           if (phase === 'preparation' || phase === 'battle') selectUnits([]);
         }}
