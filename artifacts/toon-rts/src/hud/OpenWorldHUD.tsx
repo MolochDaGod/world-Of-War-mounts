@@ -3,20 +3,15 @@ import { useGameStore } from '@/game/store/gameStore';
 import { useWorldStore } from '@/game/store/worldStore';
 import { GameUI } from '@/game/assets/CraftpixManifest';
 
-import { ResourceBar }    from './ResourceBar';
 import { MiniMap }        from './MiniMap';
 import { UnitInfoPanel }  from './UnitInfoPanel';
-import { AbilityHotbar }  from './AbilityHotbar';
 import { WinLoseScreen }  from './WinLoseScreen';
-import { ShopPanel }      from './ShopPanel';
-import { BuildPanel }     from './BuildPanel';
 import { RegimentBar }            from './RegimentBar';
 import { SelectionBoxOverlay }   from '@/game/input/RTSInputController';
 import { CommandBar }            from './CommandBar';
 import { CombatTimer }           from './CombatTimer';
 import { UnitAbilityBar }        from './UnitAbilityBar';
 import { HeroAbilityBar }        from './HeroAbilityBar';
-import { useBuildStore }          from '@/game/store/buildStore';
 import { GameIcon }               from './GameIcon';
 
 // ── Time of day display ────────────────────────────────────────────────────────
@@ -185,11 +180,7 @@ export function OpenWorldHUD() {
     return !anyAlive1 || !anyAlive2;
   });
 
-  const [paused,     setPaused]     = useState(false);
-  const [shopOpen,   setShopOpen]   = useState(false);
-  const [buildOpen,  setBuildOpen]  = useState(false);
-
-  const { deactivate: cancelBuild } = useBuildStore.getState();
+  const [paused, setPaused] = useState(false);
 
   return (
     <>
@@ -212,38 +203,10 @@ export function OpenWorldHUD() {
             pointerEvents: 'none',
           }}
         >
-          {/* Left — resources */}
-          <div data-rts-hud="1" style={{ pointerEvents: 'auto', justifySelf: 'start' }}>
-            <ResourceBar />
-          </div>
-
-          {/* Center — reserved for the battle timer */}
           <div />
-
-          {/* Right — time + game controls */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              justifySelf: 'end',
-              pointerEvents: 'none',
-            }}
-          >
-            <div data-rts-hud="1" style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto' }}>
-              <TimeOfDay />
-              <PauseButton paused={paused} onToggle={() => setPaused(p => !p)} />
-            </div>
-            {!isPreparation && (
-              <>
-                <div data-rts-hud="1" style={{ pointerEvents: 'auto' }}>
-                  <ShopButton onClick={() => setShopOpen(o => !o)} />
-                </div>
-                <div data-rts-hud="1" style={{ pointerEvents: 'auto' }}>
-                  <BuildButton onClick={() => setBuildOpen(o => !o)} active={buildOpen} />
-                </div>
-              </>
-            )}
+          <div />
+          <div data-rts-hud="1" style={{ pointerEvents: 'auto', justifySelf: 'end' }}>
+            <PauseButton paused={paused} onToggle={() => setPaused(p => !p)} />
           </div>
         </div>
 
@@ -336,7 +299,6 @@ export function OpenWorldHUD() {
               <>
                 <UnitAbilityBar />
                 <HeroAbilityBar />
-                <AbilityHotbar />
               </>
             )}
           </div>
@@ -389,30 +351,7 @@ export function OpenWorldHUD() {
           </div>
         )}
 
-        {/* ── Build panel (left side) ── */}
-        {!isPreparation && buildOpen && (
-          <BuildPanel open={buildOpen} onClose={() => { setBuildOpen(false); cancelBuild(); }} />
-        )}
 
-        {/* ── Shop panel (centered) ── */}
-        {!isPreparation && shopOpen && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'rgba(0,0,0,0.5)',
-              backdropFilter: 'blur(3px)',
-              pointerEvents: 'auto',
-              zIndex: 50,
-            }}
-            onClick={e => { if (e.target === e.currentTarget) setShopOpen(false); }}
-          >
-            <ShopPanel onClose={() => setShopOpen(false)} />
-          </div>
-        )}
       </div>
 
       {/* ── Win/Lose screen (separate layer) ── */}

@@ -20,11 +20,7 @@ import { OpenWorld }       from './world/OpenWorld';
 import { GrassField }      from './world/GrassField';
 import { WorldTrees }      from './world/WorldTrees';
 import { WorldMountains }  from './world/WorldMountains';
-import { ResourceNodes }   from './world/ResourceNodes';
-import { WorldItems }      from './world/WorldItems';
-import { WildAnimals }     from './wildlife/WildAnimals';
 import { BattleArmy }      from './characters/ToonRTSRegiment';
-import { MedievalNPCs }    from './characters/MedievalNPCs';
 import { AbilityManager }  from './abilities/AbilityManager';
 import { UnitAbilityVFX }  from './abilities/UnitAbilityVFX';
 import { CombatSystem }    from './physics/CombatSystem';
@@ -32,8 +28,6 @@ import { ProjectileSystem } from './effects/ProjectileSystem';
 import { CombatEffects }    from './effects/CombatEffects';
 import { MoveMarker }      from './effects/MoveMarker';
 import { RTSInputController } from './input/RTSInputController';
-import { BuildSystem }       from './building/BuildSystem';
-import { PlacedBuildings }   from './building/PlacedBuildings';
 import { RagdollSystem }     from './effects/RagdollSystem';
 import { BattleVFXOverlay }  from './effects/BattleVFXOverlay';
 import { ArenaWarzone }      from './world/ArenaWarzone';
@@ -169,17 +163,6 @@ function BattlePerformanceProbe() {
  * Conditionally renders the open-world terrain OR the arena GLB.
  * Also suppresses ambient NPCs / wildlife in arena mode.
  */
-function MapAmbients() {
-  const mapType = useGameStore(s => s.mapType);
-  if (mapType === 'arena') return null;
-  return (
-    <>
-      <MedievalNPCs />
-      <WildAnimals />
-    </>
-  );
-}
-
 function MapEnvironment() {
   const mapType = useGameStore(s => s.mapType);
   if (mapType === 'arena') {
@@ -196,17 +179,6 @@ function MapEnvironment() {
       <GrassField />
       <WorldTrees />
       <WorldMountains />
-    </>
-  );
-}
-
-function MapInteractives() {
-  const mapType = useGameStore(s => s.mapType);
-  if (mapType === 'arena') return null;
-  return (
-    <>
-      <ResourceNodes />
-      <WorldItems />
     </>
   );
 }
@@ -266,24 +238,11 @@ export function GameScene() {
 
         <Suspense fallback={null}>
           <Physics gravity={[0, -25, 0]}>
-            {/* ── Ground & terrain (map-conditional) ── */}
+            {/* Terrain only. Harvest nodes, wildlife, NPCs, and build mode
+                stay in-repo for Warlords island MMO — not this Total War battle. */}
             <MapEnvironment />
-
-            {/* ── Interactive world objects (battlefield only) ── */}
-            <MapInteractives />
-
-            {/* ── Armies (Toon_RTS FBX regiments in formation) ── */}
             <BattleArmy />
-
-            {/* ── Ambient NPCs & wildlife (battlefield only) ── */}
-            <MapAmbients />
-
-            {/* ── Combat ── */}
             <CombatSystem />
-
-            {/* ── Buildings ── */}
-            <PlacedBuildings />
-            <BuildSystem />
 
             {/* ── Ragdoll physics (spawned on catapult impact) ── */}
             <RagdollSystem />

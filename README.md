@@ -1,8 +1,10 @@
 # world-Of-War-mounts
 
-Toon RTS (Race Wars) — Grudge Warlords-era regiment game.
+**Staged Total War battle** (Warhammer 40k 3 / Total War–like): army builder → deployment → real-time RTS control of Toon RTS regiments.
 
 **Live:** https://world-of-war-mounts.vercel.app/
+
+This host is **not** the Warlords island MMO. Harvest, auto-harvest, camp bag, and NPC island defense stay on Open / Warlords (`open.grudge-studio.com`, `grudgewarlords.com`). Those modules still exist in this repo but are **not mounted** on the battlefield so they do not fight the RTS mouse.
 
 pnpm catalog workspace. Do **not** run `npm install` (that fails with `EUNSUPPORTEDPROTOCOL catalog:`).
 
