@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useGameStore, AbilityType } from '@/game/store/gameStore';
 import { ABILITY_ICON, GameIcon } from './GameIcon';
 
@@ -16,18 +15,6 @@ const ABILITIES: { id: AbilityType; key: string; name: string; color: string }[]
 export function AbilityHotbar() {
   const activeAbility    = useGameStore(s => s.activeAbility);
   const setActiveAbility = useGameStore(s => s.setActiveAbility);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.repeat) return;
-      const hit = ABILITIES.find(ab => ab.key === e.key.toUpperCase());
-      if (!hit) return;
-      e.preventDefault();
-      setActiveAbility(useGameStore.getState().activeAbility === hit.id ? null : hit.id);
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [setActiveAbility]);
 
   return (
     <div

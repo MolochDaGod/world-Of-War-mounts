@@ -39,6 +39,11 @@ function isTypingTarget(target: EventTarget | null) {
   );
 }
 
+/** HUD chrome (panels, buttons) — RTS mouse must not steal those clicks. */
+function isHudChrome(target: EventTarget | null) {
+  return target instanceof Element && !!target.closest('[data-rts-hud]');
+}
+
 // ── Module-level selection-box state (shared with SelectionBoxOverlay) ────────
 interface BoxRect { x1: number; y1: number; x2: number; y2: number }
 let _box: BoxRect | null = null;
@@ -71,8 +76,10 @@ export function RTSInputController() {
 
   useEffect(() => {
     const canvas = gl.domElement;
-    const noCtx = (e: MouseEvent) => e.preventDefault();
-    canvas.addEventListener('contextmenu', noCtx);
+    const noCtx = (e: MouseEvent) => {
+      if (isHudChrome(e.target)) return;
+      e.preventDefault();
+    };
 
     // ── Keyboard shortcuts ────────────────────────────────────────────────────
     const onKeyDown = (e: KeyboardEvent) => {
@@ -269,6 +276,7 @@ export function RTSInputController() {
 
     // ── Mouse event handlers ──────────────────────────────────────────────────
     const onMouseDown = (e: MouseEvent) => {
+      if (isHudChrome(e.target) || isTypingTarget(e.target)) return;
       const { phase } = useGameStore.getState();
       if (e.button === 0 && (phase === 'preparation' || phase === 'battle')) {
         dragStart  = { x: e.clientX, y: e.clientY };
@@ -314,6 +322,13 @@ export function RTSInputController() {
     const onMouseUp = (e: MouseEvent) => {
       // ── LMB ──
       if (e.button === 0) {
+        if (isHudChrome(e.target) || isTypingTarget(e.target)) {
+          dragStart = null;
+          isDragging = false;
+          _box = null;
+          _notifyBox();
+          return;
+        }
         if (isDragging && _box) {
           // Box-select player regiments whose screen centre falls inside the box
           const { phase, units, selectUnits } = useGameStore.getState();
@@ -356,15 +371,24 @@ export function RTSInputController() {
               executeCommand(hit);
             }
           } else if (store.phase === 'preparation' || store.phase === 'battle') {
-            const friendly = pickUnitAtScreen(e.clientX, e.clientY, 1);
-            if (friendly) {
-              if (e.shiftKey) {
-                const next = store.selectedUnitIds.includes(friendly.id)
-                  ? store.selectedUnitIds.filter(id => id !== friendly.id)
-                  : [...store.selectedUnitIds, friendly.id];
-                store.selectUnits(next);
-              } else {
-                store.selectUnits([friendly.id]);
+            if (isHudChrome(e.target)) {
+              /* HUD button */
+            } else {
+              const friendly = pickUnitAtScreen(e.clientX, e.clientY, 1);
+              const enemy = pickUnitAtScreen(e.clientX, e.clientY, 2);
+              if (enemy && store.phase === 'battle' && store.selectedUnitIds.length > 0) {
+                store.issueFocusAttack(store.selectedUnitIds, enemy.id);
+              } else if (friendly) {
+                if (e.shiftKey) {
+                  const next = store.selectedUnitIds.includes(friendly.id)
+                    ? store.selectedUnitIds.filter(id => id !== friendly.id)
+                    : [...store.selectedUnitIds, friendly.id];
+                  store.selectUnits(next);
+                } else {
+                  store.selectUnits([friendly.id]);
+                }
+              } else if (!e.shiftKey) {
+                store.selectUnits([]);
               }
             }
           }
@@ -377,6 +401,7 @@ export function RTSInputController() {
 
       // ── RMB — place ability, attack-move to ground, or focus enemy ────────
       if (e.button === 2) {
+        if (isHudChrome(e.target) || isTypingTarget(e.target)) return;
         if (useGameStore.getState().phase !== 'battle') return;
         const store = useGameStore.getState();
         const { selectedUnitIds } = store;
@@ -418,16 +443,17 @@ export function RTSInputController() {
       }
     };
 
-    canvas.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('contextmenu', noCtx, true);
+    window.addEventListener('mousedown', onMouseDown, true);
     window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup',   onMouseUp);
+    window.addEventListener('mouseup',   onMouseUp, true);
 
     return () => {
-      canvas.removeEventListener('contextmenu', noCtx);
-      canvas.removeEventListener('mousedown',   onMouseDown);
+      window.removeEventListener('contextmenu', noCtx, true);
+      window.removeEventListener('mousedown',   onMouseDown, true);
       window.removeEventListener('keydown',     onKeyDown);
       window.removeEventListener('mousemove',   onMouseMove);
-      window.removeEventListener('mouseup',     onMouseUp);
+      window.removeEventListener('mouseup',     onMouseUp, true);
       canvas.style.cursor = 'default';
       _box = null;
       _notifyBox();

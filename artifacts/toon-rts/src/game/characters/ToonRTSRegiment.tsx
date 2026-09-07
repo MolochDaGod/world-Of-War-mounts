@@ -29,7 +29,6 @@ import { HeroCommanderMesh }       from './HeroCommanderMesh';
 import { CaptainJohnWayneMesh }    from './CaptainJohnWayneMesh';
 import { PirateKingMesh }          from './PirateKingMesh';
 import { ScourgeFaithBearerMesh }  from './ScourgeFaithBearerMesh';
-import { getCommandMode, setCommandMode } from '@/game/input/CommandMode';
 import { reportModelDiagnostic } from '@/game/diagnostics/modelDiagnostics';
 
 // ── Formation helpers ─────────────────────────────────────────────────────────
@@ -570,36 +569,11 @@ export function ToonRTSRegiment({
   const hitW = (unit.formationCols - 1) * unit.spacing + 2;
   const hitD = (unit.formationRows - 1) * unit.spacing + 2;
 
-  const handleClick = (e: { stopPropagation: () => void; nativeEvent?: MouseEvent }) => {
-    e.stopPropagation(); // prevent ground plane from also deselecting
-    if (unit.state === 'dead') return;
-    const store = useGameStore.getState();
-
-    // Enemy units are deliberate focus targets only while Fight mode is armed.
-    if (unit.teamId === 2) {
-      if (store.phase === 'battle' && store.selectedUnitIds.length > 0) {
-        store.issueFocusAttack(store.selectedUnitIds, unit.id);
-        setCommandMode('default');
-      }
-      return;
-    }
-
-    if (e.nativeEvent?.shiftKey) {
-      const next = store.selectedUnitIds.includes(unit.id)
-        ? store.selectedUnitIds.filter(id => id !== unit.id)
-        : [...store.selectedUnitIds, unit.id];
-      store.selectUnits(next);
-    } else {
-      store.selectUnits([unit.id]);
-    }
-  };
-
   return (
     <group name={`regiment-${unit.id}`}>
-      {/* Invisible hitbox for click detection */}
+      {/* Hit volume is visual-only. LMB/RMB selection is RTSInputController. */}
       <mesh
         position={[unit.position[0], 1.5, unit.position[2]]}
-        onClick={handleClick}
         visible={false}
       >
         <boxGeometry args={[hitW, 3, hitD]} />

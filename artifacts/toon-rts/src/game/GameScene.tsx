@@ -13,7 +13,6 @@ import { Physics } from '@react-three/rapier';
 import { Suspense, useEffect, useRef } from 'react';
 import {
   AdaptiveDpr,
-  AdaptiveEvents,
   PerformanceMonitor,
 } from '@react-three/drei';
 import { RTSCamera }       from './camera/RTSCamera';
@@ -32,7 +31,7 @@ import { CombatSystem }    from './physics/CombatSystem';
 import { ProjectileSystem } from './effects/ProjectileSystem';
 import { CombatEffects }    from './effects/CombatEffects';
 import { MoveMarker }      from './effects/MoveMarker';
-import { RTSInputController, consumeBoxSelectFlag } from './input/RTSInputController';
+import { RTSInputController } from './input/RTSInputController';
 import { BuildSystem }       from './building/BuildSystem';
 import { PlacedBuildings }   from './building/PlacedBuildings';
 import { RagdollSystem }     from './effects/RagdollSystem';
@@ -214,7 +213,7 @@ function MapInteractives() {
 
 export function GameScene() {
   return (
-    <div className="w-full h-screen absolute inset-0 -z-10">
+    <div className="w-full h-screen absolute inset-0 z-0">
       <Canvas
         shadows={{ type: THREE.PCFShadowMap }}
         camera={{ position: [0, 45, 60], fov: 50, near: 0.5, far: 1400 }}
@@ -231,14 +230,8 @@ export function GameScene() {
         dpr={[1, 2]}
         frameloop="always"
         performance={{ min: 0.5 }}
-        onPointerMissed={() => {
-          if (consumeBoxSelectFlag()) return;
-          const { phase, selectUnits } = useGameStore.getState();
-          if (phase === 'preparation' || phase === 'battle') selectUnits([]);
-        }}
       >
         <AdaptiveDpr pixelated />
-        <AdaptiveEvents />
         <PerformanceMonitor
           onDecline={() => console.debug('[RaceWars] perf ↓')}
           onIncline={() => console.debug('[RaceWars] perf ↑')}

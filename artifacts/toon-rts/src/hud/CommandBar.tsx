@@ -70,7 +70,7 @@ export function CommandBar() {
   const activeLabel = MODE_LABEL[mode];
 
   return (
-    <div style={{
+    <div data-rts-hud="1" style={{
       position: 'fixed',
       right: 18,
       bottom: 238,

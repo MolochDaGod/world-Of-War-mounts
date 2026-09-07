@@ -127,8 +127,8 @@ export function RTSCamera() {
     window.addEventListener('mouseup', endDrag, { passive: true });
     window.addEventListener('blur', endDrag);
     window.addEventListener('wheel', onWheel, { passive: false, capture: true });
-    canvas.addEventListener('mousedown', onMouseDown);
-    canvas.addEventListener('auxclick', noAuxClick);
+    window.addEventListener('mousedown', onMouseDown, true);
+    window.addEventListener('auxclick', noAuxClick, true);
 
     return () => {
       window.removeEventListener('keydown', onKeyDown);
@@ -137,8 +137,8 @@ export function RTSCamera() {
       window.removeEventListener('mouseup', endDrag);
       window.removeEventListener('blur', endDrag);
       window.removeEventListener('wheel', onWheel, true);
-      canvas.removeEventListener('mousedown', onMouseDown);
-      canvas.removeEventListener('auxclick', noAuxClick);
+      window.removeEventListener('mousedown', onMouseDown, true);
+      window.removeEventListener('auxclick', noAuxClick, true);
     };
   }, [gl, camera]);
 

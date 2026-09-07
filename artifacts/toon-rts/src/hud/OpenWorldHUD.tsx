@@ -213,7 +213,7 @@ export function OpenWorldHUD() {
           }}
         >
           {/* Left — resources */}
-          <div style={{ pointerEvents: 'auto', justifySelf: 'start' }}>
+          <div data-rts-hud="1" style={{ pointerEvents: 'auto', justifySelf: 'start' }}>
             <ResourceBar />
           </div>
 
@@ -230,16 +230,16 @@ export function OpenWorldHUD() {
               pointerEvents: 'none',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto' }}>
+            <div data-rts-hud="1" style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto' }}>
               <TimeOfDay />
               <PauseButton paused={paused} onToggle={() => setPaused(p => !p)} />
             </div>
             {!isPreparation && (
               <>
-                <div style={{ pointerEvents: 'auto' }}>
+                <div data-rts-hud="1" style={{ pointerEvents: 'auto' }}>
                   <ShopButton onClick={() => setShopOpen(o => !o)} />
                 </div>
-                <div style={{ pointerEvents: 'auto' }}>
+                <div data-rts-hud="1" style={{ pointerEvents: 'auto' }}>
                   <BuildButton onClick={() => setBuildOpen(o => !o)} active={buildOpen} />
                 </div>
               </>
@@ -263,12 +263,13 @@ export function OpenWorldHUD() {
           }}
         >
           {/* Bottom-left — selected army summary */}
-          <div style={{ pointerEvents: 'auto' }}>
+          <div data-rts-hud="1" style={{ pointerEvents: 'auto' }}>
             <UnitInfoPanel />
           </div>
 
           {/* Bottom-center — regiment command deck */}
           <div
+            data-rts-hud="1"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -281,7 +282,7 @@ export function OpenWorldHUD() {
           </div>
 
           {/* Bottom-right — minimap */}
-          <div style={{ pointerEvents: 'auto' }}>
+          <div data-rts-hud="1" style={{ pointerEvents: 'auto' }}>
             <MiniMap />
           </div>
         </div>
@@ -315,7 +316,7 @@ export function OpenWorldHUD() {
           }}>
             {isPreparation ? 'PREPARATION — COMMANDS LOCKED' : 'ABILITIES'}
           </div>
-          <div style={{
+          <div data-rts-hud="1" style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

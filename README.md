@@ -44,6 +44,8 @@ There is **no** production `.glb` race kit on this Vercel host yet (HEAD of `*.g
 
 HUD: CraftPix 9-slice panels + command/ability bars (`OpenWorldHUD`).
 
+**One RTS mouse path:** `RTSInputController` (window capture). Do not add R3F `onClick` / `onPointerMissed` for select. `GameHUD` / `FBXUnit` are leftover files, not mounted.
+
 ## Local
 
 ```bash
