@@ -1,8 +1,8 @@
 /**
- * ToonRTSManifest — maps (Race, ModelCategory) → verified FBX asset paths.
+ * ToonRTSManifest ΓÇö maps (Race, ModelCategory) ΓåÆ verified FBX asset paths.
  *
  * Animation strategy:
- *  - Infantry/archers/skirmishers/shieldwall/spearmen/mage → Dwarves Worker
+ *  - Infantry/archers/skirmishers/shieldwall/spearmen/mage ΓåÆ Dwarves Worker
  *    animations (idle, run, attack, death) because they have the most complete set.
  *    Cross-race retargeting works when bone names match (same Unity export pipeline).
  *  - Barbarians Spearman attack used as a second attack clip for variety.
@@ -15,6 +15,8 @@ import { Race } from '@/game/store/gameStore';
 import { ModelCategory } from '@/game/data/UnitRoster';
 
 const B = '/assets/Toon_RTS';
+/** Production infantry kits — CDN Toon RTS GLB (SI, embeds kept). */
+const TOON_GLB = 'https://assets.grudge-studio.com/asset-packs/toon-rts-characters/glb/characters';
 const DWF_W = `${B}/Dwarves/animation/Worker`;
 
 /** Animation FBX paths + render scale for a soldier */
@@ -28,14 +30,14 @@ export interface SoldierAssets {
   scale:       number;
 }
 
-// ── Character model FBX per race ─────────────────────────────────────────────
+// ΓöÇΓöÇ Character model FBX per race ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const INFANTRY_MODEL: Record<Race, string> = {
-  Orcs:            `${B}/Orcs/models/ORC_Characters_Customizable.FBX`,
-  Elves:           `${B}/Elves/models/ELF_Characters_customizable.FBX`,
-  WesternKingdoms: `${B}/WesternKingdoms/models/WK_Characters_customizable.FBX`,
-  Dwarves:         `${B}/Dwarves/models/DWF_Characters_customizable.FBX`,
-  Barbarians:      `${B}/Barbarians/models/BRB_Characters_customizable.FBX`,
-  Undead:          `${B}/Undead/models/UD_Characters_customizable.FBX`,
+  Orcs:            `${TOON_GLB}/orc.glb`,
+  Elves:           `${TOON_GLB}/elf.glb`,
+  WesternKingdoms: `${TOON_GLB}/human.glb`,
+  Dwarves:         `${TOON_GLB}/dwarf.glb`,
+  Barbarians:      `${TOON_GLB}/barbarian.glb`,
+  Undead:          `${TOON_GLB}/undead.glb`,
 };
 
 const CAVALRY_MODEL: Record<Race, string> = {
@@ -67,8 +69,8 @@ const BOLT_MODEL: Record<Race, string> = {
   Undead:          `${B}/Elves/models/ELF_BoltThrower.FBX`,
 };
 
-// ── Infantry/misc animation paths (universal Dwarves Worker) ──────────────────
-// Uploaded animation FBX files — now in /assets/characters/animations/
+// ΓöÇΓöÇ Infantry/misc animation paths (universal Dwarves Worker) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// Uploaded animation FBX files ΓÇö now in /assets/characters/animations/
 const CA = '/assets/characters/animations';
 const INF_ANIM: Pick<SoldierAssets, 'idlePath'|'runPath'|'attack1Path'|'attack2Path'|'deathPath'> = {
   idlePath:    `${CA}/idle.fbx`,
@@ -78,7 +80,7 @@ const INF_ANIM: Pick<SoldierAssets, 'idlePath'|'runPath'|'attack1Path'|'attack2P
   deathPath:   `${CA}/death.fbx`,
 };
 
-// ── Cavalry animation paths per race (fallback = Orcs cavalry) ────────────────
+// ΓöÇΓöÇ Cavalry animation paths per race (fallback = Orcs cavalry) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const ORC_CAV = {
   idlePath:    `${B}/Orcs/animation/Cavalry/ORC_cavalry_01_idle.FBX`,
   runPath:     `${B}/Orcs/animation/Cavalry/ORC_cavalry_03_run.FBX`,
@@ -114,7 +116,7 @@ const CAVALRY_ANIM: Record<Race, typeof ORC_CAV> = {
   Undead:     ORC_CAV,
 };
 
-// ── Catapult animations ────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Catapult animations ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const ORC_CAT = {
   idlePath:    `${B}/Orcs/animation/Catapult/ORC_catapult_01_idle.FBX`,
   runPath:     `${B}/Orcs/animation/Catapult/ORC_catapult_01_idle.FBX`, // no move clip
@@ -134,7 +136,7 @@ const CATAPULT_ANIM: Record<Race, typeof ORC_CAT> = {
   Elves: WK_CAT, Dwarves: ORC_CAT, Barbarians: ORC_CAT, Undead: WK_CAT,
 };
 
-// ── BoltThrower animations ─────────────────────────────────────────────────────
+// ΓöÇΓöÇ BoltThrower animations ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const BOLT_ANIM = {
   idlePath:    `${B}/Elves/animation/BoltThrower/ELF_boltthrower_01_idle.FBX`,
   runPath:     `${B}/Elves/animation/BoltThrower/ELF_boltthrower_01_idle.FBX`,
@@ -143,14 +145,14 @@ const BOLT_ANIM = {
   deathPath:   `${B}/Elves/animation/BoltThrower/ELF_boltthrower_04_death.FBX`,
 };
 
-// ── Mage animations (cast B + worker fallback) ────────────────────────────────
+// ΓöÇΓöÇ Mage animations (cast B + worker fallback) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const MAGE_ANIM = {
   ...INF_ANIM,
   attack1Path: `${B}/Barbarians/animation/Mage/BRB_mage_11_cast_B.FBX`,
   attack2Path: `${B}/Barbarians/animation/Mage/BRB_mage_11_cast_B.FBX`,
 };
 
-// ── Public API ─────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Public API ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 /**
  * Returns all FBX paths and the render scale for a given race + model category.
  * All paths are verified to exist in public/assets/Toon_RTS.
@@ -180,7 +182,7 @@ export function getSoldierAssets(race: Race, cat: ModelCategory): SoldierAssets 
       return {
         modelPath: INFANTRY_MODEL[race],
         ...INF_ANIM,
-        scale: 0.01,
+        scale: 1,
       };
   }
 }
@@ -190,6 +192,6 @@ export function getMageAssets(race: Race): SoldierAssets {
   return {
     modelPath: INFANTRY_MODEL[race],
     ...MAGE_ANIM,
-    scale: 0.01,
+    scale: 1,
   };
 }

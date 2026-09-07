@@ -19,7 +19,11 @@ import { useGameStore, UnitData } from '@/game/store/gameStore';
 import { useShallow } from 'zustand/react/shallow';
 import { ROSTER_MAP, ModelCategory } from '@/game/data/UnitRoster';
 import { getSoldierAssets, getMageAssets, SoldierAssets } from '@/game/assets/ToonRTSManifest';
-import { getVariantSet, getShowSet, getEquipmentList, EQUIPMENT_GLB } from '@/game/data/UnitMeshConfig';
+import { isGltfUrl } from '@/game/assets/playAsset';
+import {
+  getShowSet, getEquipmentList, EQUIPMENT_GLB,
+  isEquippableMeshName, isKitWeaponOrUtility, nameInShowSet,
+} from '@/game/data/UnitMeshConfig';
 import { SelectionRing, BaseFallback } from './CharacterBase';
 import { RegimentLabel } from './RegimentLabel';
 import { COMMANDER_BY_ID } from '@/game/data/CommanderDefs';
@@ -254,12 +258,27 @@ interface SoldierProps {
   commanderArchetype?: string;
 }
 
-function ToonRTSSoldierInner({
-  assets, unitState, previewClip, previewOneShot, preserveOnDeath,
+function ToonRTSSoldierInner(props: SoldierProps) {
+  if (isGltfUrl(props.assets.modelPath)) {
+    return <ToonRTSSoldierGltfKit {...props} />;
+  }
+  return <ToonRTSSoldierFbxKit {...props} />;
+}
+
+function ToonRTSSoldierGltfKit(props: SoldierProps) {
+  const gltf = useGLTF(props.assets.modelPath);
+  return <ToonRTSSoldierAnimated sourceRoot={gltf.scene} {...props} />;
+}
+
+function ToonRTSSoldierFbxKit(props: SoldierProps) {
+  const fbx = useFBX(props.assets.modelPath);
+  return <ToonRTSSoldierAnimated sourceRoot={fbx} {...props} />;
+}
+
+function ToonRTSSoldierAnimated({
+  sourceRoot, assets, unitState, previewClip, previewOneShot, preserveOnDeath,
   position, facing, teamId, race, unitType, isCommander, commanderArchetype,
-}: SoldierProps) {
-  // All 6 useFBX calls — cached by URL, so N soldiers only load each path once.
-  const modelFBX = useFBX(assets.modelPath);
+}: SoldierProps & { sourceRoot: THREE.Object3D }) {
   const idleFBX  = useFBX(assets.idlePath);
   const runFBX   = useFBX(assets.runPath);
   const atk1FBX  = useFBX(assets.attack1Path);
@@ -271,12 +290,12 @@ function ToonRTSSoldierInner({
 
   // Clone per instance so each soldier has its own independent skeleton
   const scene = useMemo(() => {
-    const cloned = SkeletonUtils.clone(modelFBX) as THREE.Group;
+    const cloned = SkeletonUtils.clone(sourceRoot) as THREE.Group;
     // Commander is 1.5× the normal scale
-    cloned.scale.setScalar(isCommander ? assets.scale * 1.5 : assets.scale);
+    const cmdMul = isGltfUrl(assets.modelPath) ? 1.12 : 1.5;
+    cloned.scale.setScalar(isCommander ? assets.scale * cmdMul : assets.scale);
 
     // Mesh customisation: show only the variant meshes for this unit type
-    const variantSet = getVariantSet(race);
     // Commander uses its own curated mesh set; others use UnitMeshConfig
     const cmdDef = isCommander && commanderArchetype ? COMMANDER_BY_ID[commanderArchetype] : null;
 
@@ -299,32 +318,31 @@ function ToonRTSSoldierInner({
       : color;
 
     cloned.traverse(child => {
-      const mesh = child as THREE.SkinnedMesh;
-      if (!mesh.isSkinnedMesh) return;
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) return;
 
-      // Hide variant meshes that are not selected for this unit type
-      if (variantSet.has(mesh.name)) {
-        mesh.visible = showSet.has(mesh.name);
+      // Hide every equippable wardrobe piece, then show only this role's set.
+      // Kit weapons/shields/xtra stay off — they attach from EQUIPMENT_GLB.
+      if (isEquippableMeshName(mesh.name) || isKitWeaponOrUtility(mesh.name)) {
+        mesh.visible = !isKitWeaponOrUtility(mesh.name) && nameInShowSet(mesh.name, showSet);
       }
 
-      // Keep authored TGA/atlas maps; only tint when the mesh has no bake.
-      if (mesh.visible) {
-        const prev = mesh.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
-        const src = Array.isArray(prev) ? prev[0] : prev;
-        const map = src && 'map' in src ? src.map : null;
-        if (map) {
-          map.colorSpace = THREE.SRGBColorSpace;
-          map.needsUpdate = true;
-        }
-        mesh.material = new THREE.MeshToonMaterial({
-          map: map ?? undefined,
-          color: map ? '#ffffff' : color,
-          emissive,
-          emissiveIntensity: isCommander ? 0.18 : 0.05,
-        });
-        mesh.castShadow = true;
-        mesh.receiveShadow = false;
+      if (!mesh.visible) return;
+      const prev = mesh.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
+      const src = Array.isArray(prev) ? prev[0] : prev;
+      const map = src && 'map' in src ? src.map : null;
+      if (map) {
+        map.colorSpace = THREE.SRGBColorSpace;
+        map.needsUpdate = true;
       }
+      mesh.material = new THREE.MeshToonMaterial({
+        map: map ?? undefined,
+        color: map ? '#ffffff' : color,
+        emissive,
+        emissiveIntensity: isCommander ? 0.18 : 0.05,
+      });
+      mesh.castShadow = true;
+      mesh.receiveShadow = false;
     });
 
     // Attach GLB equipment (weapons/shields/quivers) to skeleton bones
@@ -349,7 +367,7 @@ function ToonRTSSoldierInner({
     groundClonedToFeet(cloned);
     return cloned;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelFBX, equipGLTF, assets.modelPath, assets.scale, teamId, race, unitType, isCommander, commanderArchetype]);
+  }, [sourceRoot, equipGLTF, assets.modelPath, assets.scale, teamId, race, unitType, isCommander, commanderArchetype]);
 
   // Mixer lives for the lifetime of this component
   const mixerRef      = useRef<THREE.AnimationMixer | null>(null);
@@ -709,6 +727,13 @@ export function ToonRTSRegiment({
 
 // GLB-rendered unit types — bypass the FBX pipeline entirely
 const GLB_UNIT_TYPES = new Set<string>(['grieeGlee', 'skeletonWarrior']);
+
+const TOON_CDN_KITS = [
+  'human', 'elf', 'orc', 'dwarf', 'barbarian', 'undead',
+] as const;
+for (const id of TOON_CDN_KITS) {
+  useGLTF.preload(`https://assets.grudge-studio.com/asset-packs/toon-rts-characters/glb/characters/${id}.glb`);
+}
 
 export function BattleArmy() {
   const units = useGameStore(

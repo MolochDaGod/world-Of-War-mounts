@@ -301,3 +301,35 @@ export function getShowSet(race: Race, unitType: UnitType): Set<string> {
   const show = UNIT_SHOW[race]?.[unitType] ?? [];
   return new Set(show);
 }
+
+/** Prefix-strip key — same contract as grudge6 EquipmentManager. */
+export function meshKey(name: string): string {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/^wk_|^brb_|^orc_|^elf_|^ud_|^dwf_/, '')
+    .replace(/units_/g, '')
+    .replace(/xtra_/g, '')
+    .replace(/weapon_/g, 'weapon')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+export function isEquippableMeshName(name: string): boolean {
+  const k = meshKey(name);
+  return /(body|arms|legs|head|shoulder|shield|weapon|bag|quiver|wood|xtra)/.test(k);
+}
+
+export function isKitWeaponOrUtility(name: string): boolean {
+  const k = meshKey(name);
+  if (/(body|arms|legs|head|shoulder)/.test(k)) return false;
+  return /(shield|weapon|bag|quiver|wood|xtra)/.test(k);
+}
+
+export function nameInShowSet(name: string, show: Set<string>): boolean {
+  const k = meshKey(name);
+  if (show.has(name)) return true;
+  for (const s of show) {
+    const sk = meshKey(s);
+    if (k === sk || k.endsWith(sk) || sk.endsWith(k)) return true;
+  }
+  return false;
+}
